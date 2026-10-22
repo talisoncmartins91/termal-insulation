@@ -1,0 +1,1263 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Thermal Insulation · Controle de isolamento U12</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --nav:#0F2638; --nav2:#163349; --nav-ink:#C9D6E0; --nav-mute:#7F97A8;
+  --bg:#EDF1F4; --surface:#FFFFFF; --surface2:#F6F8FA; --line:#D8E0E6; --line2:#E7ECF0;
+  --ink:#152330; --ink2:#34495A; --muted:#617384;
+  --brand:#1B5E8A; --brand2:#2474A8; --brand-soft:#E4EFF7;
+  --done:#6FAE55; --done-soft:#E5F2DF; --prog:#D2B241; --prog-soft:#FAF3D9; --rest:#E1E6EA; --zero:#9AA8B3;
+  --danger:#B23B3B; --danger-soft:#FBEAEA;
+  --r1:4px; --r2:8px;
+  --font:"IBM Plex Sans","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  --side:236px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--font);font-size:14px;line-height:1.45;color:var(--ink);background:var(--bg);font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--brand)}
+:focus-visible{outline:2px solid var(--brand2);outline-offset:2px}
+[hidden]{display:none!important}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ---------- estrutura ---------- */
+.app{display:grid;grid-template-columns:var(--side) 1fr;min-height:100vh}
+.side{background:var(--nav);color:var(--nav-ink);position:sticky;top:0;height:100vh;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.brand{display:flex;gap:12px;align-items:center;padding:22px 20px 20px;border-bottom:1px solid #22405A}
+.mark{width:40px;height:40px;flex:none;border-radius:6px;background:#fff;display:grid;place-items:center}
+.mark svg{width:28px;height:28px}
+.brand b{display:block;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;line-height:1.15}
+.brand small{display:block;color:var(--nav-mute);font-size:12px;margin-top:3px}
+.nav{padding:14px 10px;display:flex;flex-direction:column;gap:2px;flex:1}
+.nav button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--nav-ink);padding:10px 12px;border-radius:6px;cursor:pointer;text-align:left;font-size:14px;font-weight:500}
+.nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;opacity:.85}
+.nav button:hover{background:var(--nav2);color:#fff}
+.nav button[aria-current="page"]{background:#fff;color:var(--nav)}
+.nav button[aria-current="page"] svg{opacity:1}
+.nav .count{margin-left:auto;font-size:12px;color:var(--nav-mute)}
+.nav button[aria-current="page"] .count{color:var(--muted)}
+.side-foot{padding:16px 20px 20px;border-top:1px solid #22405A;font-size:12px;color:var(--nav-mute)}
+.side-foot b{color:var(--nav-ink);font-weight:500}
+
+.main{min-width:0;display:flex;flex-direction:column}
+.top{position:sticky;top:0;z-index:20;background:rgba(237,241,244,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:16px;padding:12px 28px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
+.top h1{margin:0;font-size:18px;font-weight:600}
+.top .crumb{color:var(--muted);font-size:13px}
+.top .spacer{flex:1}
+.sync{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);white-space:nowrap}
+.sync i{width:8px;height:8px;border-radius:50%;background:var(--zero)}
+.sync.on i{background:var(--done)}
+.sync.off i{background:var(--danger)}
+.who{display:flex;align-items:center;gap:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;background:var(--surface);border:1px solid var(--line);font-size:12.5px;color:var(--ink2);white-space:nowrap}
+.content{padding:24px 28px 120px;max-width:1500px;width:100%}
+.view{display:none}
+.view.on{display:block}
+
+/* ---------- elementos ---------- */
+.btn{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);padding:8px 14px;border-radius:var(--r1);cursor:pointer;font-size:13.5px;font-weight:500;white-space:nowrap}
+.btn:hover{border-color:#B9C6D0;background:var(--surface2)}
+.btn.primary{background:var(--brand);border-color:var(--brand);color:#fff}
+.btn.primary:hover{background:var(--brand2)}
+.btn.ghost{background:transparent;border-color:transparent}
+.btn.danger{color:var(--danger)}
+.btn.sm{padding:5px 10px;font-size:12.5px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.input,select.input,textarea.input{border:1px solid var(--line);background:var(--surface);border-radius:var(--r1);padding:8px 10px;font-size:13.5px;min-width:0}
+.input:focus{border-color:var(--brand2);outline:none;box-shadow:0 0 0 3px var(--brand-soft)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--r1);background:var(--surface);overflow:hidden}
+.seg button{border:0;background:none;padding:7px 14px;cursor:pointer;font-size:13px;font-weight:500;color:var(--ink2);border-right:1px solid var(--line)}
+.seg button:last-child{border-right:0}
+.seg button[aria-pressed="true"]{background:var(--nav);color:#fff}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2)}
+.panel-h{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:16px 20px;border-bottom:1px solid var(--line2)}
+.panel-h h2{margin:0;font-size:15.5px;font-weight:600}
+.panel-h p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.panel-h .tools{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel-b{padding:18px 20px}
+.muted{color:var(--muted)}
+.empty{padding:40px 20px;text-align:center;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-weight:600;margin-bottom:4px}
+
+/* ---------- painel ---------- */
+.overview{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(280px,1fr);gap:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden}
+.ov-main{padding:26px 28px 24px}
+.ov-main h2{margin:0;font-size:22px;font-weight:600;letter-spacing:-.01em}
+.ov-main .sub{margin:4px 0 0;color:var(--muted);font-size:13.5px}
+.big{display:flex;align-items:baseline;gap:14px;margin:22px 0 14px}
+.big strong{font-size:56px;font-weight:600;line-height:1;letter-spacing:-.03em}
+.big span{color:var(--muted);font-size:14px}
+.jacket{height:22px;border-radius:3px;background:var(--rest);display:flex;overflow:hidden;position:relative}
+.jacket i{display:block;height:100%}
+.jacket .d{background:var(--done)}
+.jacket .p{background:var(--prog)}
+.legend{display:flex;gap:18px;flex-wrap:wrap;margin-top:10px;font-size:12.5px;color:var(--ink2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:11px;height:11px;border-radius:2px;display:inline-block}
+.ov-side{background:var(--surface2);border-left:1px solid var(--line2);display:grid;grid-template-columns:1fr 1fr}
+.stat{padding:20px 22px;border-bottom:1px solid var(--line2)}
+.stat:nth-child(odd){border-right:1px solid var(--line2)}
+.stat:nth-last-child(-n+2){border-bottom:0}
+.stat span{display:block;font-size:12.5px;color:var(--muted)}
+.stat strong{display:block;font-size:22px;font-weight:600;margin-top:4px}
+.stat small{display:block;font-size:12px;color:var(--muted);margin-top:2px}
+.grid2{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px;margin-top:18px}
+.mt{margin-top:18px}
+
+/* gráfico de barras por SOP (mesma lógica da aba "Avanço por SOP") */
+.bars{padding:10px 20px 18px}
+.bar-row{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr) 210px;align-items:center;gap:14px;padding:5px 6px;border-radius:4px;cursor:pointer;border:0;background:none;width:100%;text-align:left}
+.bar-row:hover{background:var(--surface2)}
+.bar-row .k{font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-row .k small{color:var(--muted);font-weight:400;margin-left:6px}
+.bar-row .track{height:16px;background:var(--rest);border-radius:2px;display:flex;overflow:hidden}
+.bar-row .track i{display:block;height:100%}
+.bar-row .v{font-size:12.5px;white-space:nowrap;color:var(--ink2)}
+.bar-row .v b{display:inline-block;min-width:50px;font-weight:600;color:var(--ink)}
+.axis{display:grid;grid-template-columns:minmax(150px,220px) minmax(0,1fr) 210px;gap:14px;padding:0 6px 6px;font-size:11.5px;color:var(--muted)}
+.axis div{display:flex;justify-content:space-between}
+
+.feed{list-style:none;margin:0;padding:0}
+.feed li{display:grid;grid-template-columns:1fr auto;gap:2px 12px;padding:11px 20px;border-bottom:1px solid var(--line2);font-size:13px}
+.feed li:last-child{border-bottom:0}
+.feed .l{font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.feed .t{color:var(--muted);font-size:12px;grid-column:1/-1}
+.delta{font-weight:600;white-space:nowrap}
+.delta.up{color:#3F7F2A}
+.delta.down{color:var(--danger)}
+.curve svg{width:100%;height:220px;display:block}
+
+/* ---------- tabelas ---------- */
+.tbl-wrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{position:sticky;top:0;background:var(--surface2);text-align:left;font-weight:600;font-size:12.5px;color:var(--ink2);padding:9px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+th.num,td.num{text-align:right}
+th button{border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer}
+td{padding:7px 10px;border-bottom:1px solid var(--line2);white-space:nowrap;vertical-align:middle}
+tbody tr:hover td{background:#FAFBFC}
+tr.changed td{background:#FFFBEA}
+.lname{border:0;background:none;padding:0;color:var(--brand);font-weight:500;cursor:pointer;text-align:left}
+.lname:hover{text-decoration:underline}
+td.sth{font-size:12px}
+.pct-cell{display:flex;align-items:center;gap:8px}
+.pct-in{width:62px;text-align:right;padding:5px 8px}
+.mini{width:52px;height:6px;border-radius:3px;background:var(--rest);overflow:hidden;flex:none}
+.mini i{display:block;height:100%;background:var(--prog)}
+.mini i.full{background:var(--done)}
+.tag{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:500}
+.tag.s0{background:#EEF1F3;color:#56656F}
+.tag.s1{background:var(--prog-soft);color:#7A6211}
+.tag.s2{background:var(--done-soft);color:#356B22}
+.filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line2);background:var(--surface2)}
+.filters .input{height:36px}
+.pager{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;color:var(--muted);border-top:1px solid var(--line2)}
+.pager .spacer{flex:1}
+.bulk{display:none;align-items:center;gap:10px;padding:10px 20px;background:var(--brand-soft);border-bottom:1px solid #C9DDEB;font-size:13px}
+.bulk.on{display:flex}
+
+/* estrutura (Resumo SOP / SUBSOP / STH) */
+.groups .g{border-bottom:1px solid var(--line2)}
+.g-head{display:grid;grid-template-columns:22px minmax(220px,1.3fr) 90px 110px minmax(160px,1fr) 170px;align-items:center;gap:14px;padding:11px 20px;cursor:pointer;width:100%;border:0;background:none;text-align:left}
+.g-head:hover{background:var(--surface2)}
+.g-head .car{width:16px;height:16px;transition:transform .15s;stroke:var(--muted);fill:none;stroke-width:2}
+.g.open .car{transform:rotate(90deg)}
+.g-head .code{font-weight:600;font-size:13.5px}
+.g-head .code small{display:block;font-weight:400;color:var(--muted);font-size:12px;margin-top:1px}
+.g-head .n{font-size:12.5px;color:var(--muted)}
+.g-head .meters{font-size:13px;text-align:right}
+.g-head .track{height:12px;background:var(--rest);border-radius:2px;display:flex;overflow:hidden}
+.g-head .track i{display:block;height:100%}
+.g-head .ratio{font-size:12.5px;color:var(--ink2);text-align:right}
+.g-head .ratio b{color:var(--ink);font-weight:600;margin-right:6px}
+.g-body{display:none;background:#FBFCFD;border-top:1px solid var(--line2)}
+.g.open .g-body{display:block}
+.g-body td:first-child{padding-left:56px}
+.g-cols{display:grid;grid-template-columns:22px minmax(220px,1.3fr) 90px 110px minmax(160px,1fr) 170px;gap:14px;padding:9px 20px;background:var(--surface2);border-bottom:1px solid var(--line);font-size:12.5px;font-weight:600;color:var(--ink2)}
+.g-cols .r{text-align:right}
+
+/* barra de alterações pendentes */
+.pending{position:fixed;left:calc(var(--side) + 28px);right:28px;bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:40;background:var(--nav);color:#fff;border-radius:var(--r2);padding:12px 16px;display:none;align-items:center;gap:14px;flex-wrap:wrap;box-shadow:0 10px 30px rgba(15,38,56,.28)}
+.pending.on{display:flex}
+.pending b{font-weight:600}
+.pending .muted{color:#A9BCCB}
+.pending .input{background:#1B3A52;border-color:#2E5270;color:#fff;flex:1;min-width:180px}
+.pending .input::placeholder{color:#89A1B3}
+.pending .btn{border-color:#2E5270;background:#1B3A52;color:#fff}
+.pending .btn.primary{background:#fff;color:var(--nav);border-color:#fff}
+
+/* acompanhamento visual */
+.upload{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}
+.drop{border:1.5px dashed #B8C6D1;border-radius:var(--r2);background:var(--surface2);padding:28px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:170px}
+.drop.over{border-color:var(--brand2);background:var(--brand-soft)}
+.drop svg{width:30px;height:30px;stroke:var(--brand);fill:none;stroke-width:1.6}
+.drop b{font-weight:600}
+.files{list-style:none;margin:10px 0 0;padding:0;font-size:12.5px}
+.files li{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-bottom:1px solid var(--line2)}
+.form{display:flex;flex-direction:column;gap:12px}
+.form label{font-size:12.5px;font-weight:500;color:var(--ink2);display:flex;flex-direction:column;gap:5px}
+.day{margin:24px 0 10px;font-size:13.5px;font-weight:600;color:var(--ink2);display:flex;gap:10px;align-items:center}
+.day::after{content:"";flex:1;height:1px;background:var(--line)}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
+.ph{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column}
+.ph .img{aspect-ratio:4/3;background:#DDE4EA center/cover no-repeat;border:0;padding:0;cursor:zoom-in;display:block;width:100%}
+.ph .img img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .pdf{aspect-ratio:4/3;display:grid;place-items:center;background:var(--surface2);color:var(--brand);font-weight:600;text-decoration:none}
+.ph .meta{padding:11px 13px 13px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
+.ph .when{font-weight:600;color:var(--ink);font-size:13px}
+.ph .cap{color:var(--ink2)}
+.ph .by{color:var(--muted)}
+.ph .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.just{outline:2px solid var(--done);outline-offset:2px}
+
+/* gaveta e modais */
+.scrim{position:fixed;inset:0;background:rgba(15,38,56,.42);z-index:60;display:none}
+.scrim.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100vw);background:var(--surface);z-index:61;transform:translateX(100%);transition:transform .2s ease;display:flex;flex-direction:column;padding-top:env(safe-area-inset-top,0px)}
+.drawer.on{transform:none}
+.drawer-h{padding:18px 22px;border-bottom:1px solid var(--line);display:flex;gap:12px;align-items:flex-start}
+.drawer-h h3{margin:0;font-size:17px;font-weight:600;word-break:break-all}
+.drawer-b{padding:18px 22px;overflow:auto;flex:1}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:7px 14px;font-size:13px;margin:0}
+.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-weight:500;word-break:break-word}
+.h4{font-size:13.5px;font-weight:600;margin:22px 0 8px}
+.modal{position:fixed;inset:0;z-index:80;display:none;place-items:center;background:rgba(15,38,56,.5);padding:16px}
+.modal.on{display:grid}
+.box{background:var(--surface);border-radius:var(--r2);width:min(420px,100%);padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.25)}
+.box h3{margin:0 0 4px;font-size:18px;font-weight:600}
+.box p{margin:0 0 16px;color:var(--muted);font-size:13px}
+.err{color:var(--danger);font-size:13px;min-height:18px}
+.lightbox{position:fixed;inset:0;z-index:90;background:rgba(8,18,27,.92);display:none;align-items:center;justify-content:center;flex-direction:column;gap:12px;padding:20px}
+.lightbox.on{display:flex}
+.lightbox img{max-width:100%;max-height:82vh;border-radius:4px}
+.lightbox p{color:#E6EDF2;margin:0;font-size:13.5px;text-align:center}
+.toast{position:fixed;left:50%;top:calc(16px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:100;background:var(--nav);color:#fff;padding:10px 16px;border-radius:6px;font-size:13.5px;display:none;box-shadow:0 8px 24px rgba(0,0,0,.2)}
+.toast.on{display:block}
+.toast.bad{background:var(--danger)}
+
+/* senhas */
+.pw{display:flex;gap:6px}
+.pw .input{flex:1}
+.reveal{display:none;align-items:center;gap:10px;flex-wrap:wrap;background:var(--done-soft);border:1px solid #C6E2BA;border-radius:6px;padding:10px 12px;font-size:13px}
+.reveal.on{display:flex}
+.reveal code{font-family:ui-monospace,Consolas,monospace;font-size:15px;font-weight:600;background:#fff;border:1px solid #C6E2BA;border-radius:4px;padding:3px 8px;letter-spacing:.03em}
+.reveal small{flex-basis:100%;color:#46602F}
+.acts{display:flex;gap:6px;justify-content:flex-end}
+/* tela de acesso */
+.gate{position:fixed;inset:0;z-index:200;background:var(--nav);display:none;align-items:center;justify-content:center;padding:20px;padding-top:calc(20px + env(safe-area-inset-top,0px))}
+body.locked .gate{display:flex}
+body.locked .app,body.locked .pending{display:none!important}
+.gate-box{background:var(--surface);border-radius:var(--r2);width:min(420px,100%);padding:30px 28px;box-shadow:0 30px 70px rgba(0,0,0,.35)}
+.gate-brand{display:flex;gap:12px;align-items:center;margin-bottom:22px}
+.gate-brand .mark{border:1px solid var(--line)}
+.gate-brand b{display:block;font-size:16px;font-weight:600}
+.gate-brand small{display:block;color:var(--muted);font-size:12.5px}
+.gate-box h3{margin:0 0 4px;font-size:19px;font-weight:600}
+.gate-box p{margin:0 0 18px;color:var(--muted);font-size:13px}
+.gate-box .btn.primary{width:100%;justify-content:center;padding:10px 14px}
+.gate-foot{margin-top:16px;font-size:12px;color:var(--muted);text-align:center}
+@media (max-width:1100px){
+  .overview{grid-template-columns:1fr}
+  .ov-side{border-left:0;border-top:1px solid var(--line2)}
+  .grid2{grid-template-columns:1fr}
+  .bar-row,.axis{grid-template-columns:minmax(120px,170px) minmax(0,1fr) 150px}
+  .bar-row .v span{display:none}
+  .g-head,.g-cols{grid-template-columns:22px minmax(170px,1fr) 70px 90px minmax(100px,1fr) 120px}
+}
+@media (max-width:820px){
+  :root{--side:0px}
+  .app{grid-template-columns:1fr}
+  .side{position:sticky;top:0;height:auto;z-index:30;flex-direction:row;align-items:center;overflow-x:auto}
+  .brand{border:0;padding:10px 14px}
+  .brand div{display:none}
+  .nav{flex-direction:row;padding:8px 6px;gap:2px}
+  .nav button{padding:8px 10px;font-size:13px;white-space:nowrap}
+  .nav button svg,.nav .count{display:none}
+  .side-foot{display:none}
+  .top{position:static;flex-wrap:wrap;padding:12px 16px}
+  .content{padding:16px 14px 140px}
+  .big strong{font-size:44px}
+  .ov-main{padding:20px}
+  .upload{grid-template-columns:1fr}
+  .bar-row,.axis{grid-template-columns:110px minmax(0,1fr) 54px}
+  .bar-row .v{font-size:12px}
+  .g-head,.g-cols{grid-template-columns:18px minmax(0,1fr) 92px}
+  .g-head .n,.g-head .meters,.g-head .track,.g-cols .hide-m{display:none}
+  .pending{left:12px;right:12px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body class="locked">
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#D2B241"/><circle cx="16" cy="16" r="9.5" fill="#fff"/><circle cx="16" cy="16" r="7" fill="#1B5E8A"/><circle cx="16" cy="16" r="3.6" fill="#fff"/></svg></span>
+      <div><b>Thermal Insulation</b><small>Controle de isolamento U12</small></div>
+    </div>
+    <nav class="nav" aria-label="Seções">
+      <button data-v="painel" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Painel</button>
+      <button data-v="estrutura"><svg viewBox="0 0 24 24"><path d="M4 5h6M4 12h6M4 19h6M14 5h6M14 12h6M14 19h6"/></svg>SOP, SUBSOP e STH</button>
+      <button data-v="linhas"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Linhas<span class="count" id="nLines"></span></button>
+      <button data-v="visual"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>Acompanhamento visual<span class="count" id="nVis"></span></button>
+      <button data-v="historico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico</button>
+      <button data-v="usuarios" id="navUsers" hidden><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.6 3.4-5.5 6.5-5.5s5.7 1.9 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c2 .7 3.2 2.4 3.6 5.2"/></svg>Usuários</button>
+    </nav>
+    <div class="side-foot">Base do escopo: <b id="baseDate"></b><br>UDA RNEST · CONSAG</div>
+  </aside>
+
+  <div class="main">
+    <header class="top">
+      <div><h1 id="title">Painel</h1><div class="crumb" id="crumb">Isolamento térmico de tubulações</div></div>
+      <div class="spacer"></div>
+      <div class="sync" id="sync" role="status"><i></i><span>Conectando…</span></div>
+      <div class="who" id="who"></div>
+    </header>
+
+    <main class="content">
+      <!-- PAINEL -->
+      <section class="view on" id="v-painel">
+        <div class="overview">
+          <div class="ov-main">
+            <h2>Avanço do isolamento térmico</h2>
+            <p class="sub" id="ovSub"></p>
+            <div class="big"><strong id="ovPct">0%</strong><span id="ovMeters"></span></div>
+            <div class="jacket" id="ovBar" role="img"></div>
+            <div class="legend">
+              <span><i style="background:var(--done)"></i>Linhas concluídas</span>
+              <span><i style="background:var(--prog)"></i>Executado em linhas em andamento</span>
+              <span><i style="background:var(--rest)"></i>Restante</span>
+            </div>
+          </div>
+          <div class="ov-side" id="ovStats"></div>
+        </div>
+
+        <div class="panel mt">
+          <div class="panel-h">
+            <div><h2 id="chartTitle">Avanço por SOP</h2><p>Metros executados sobre o total de cada grupo. Clique em uma barra para ver as linhas.</p></div>
+            <div class="tools">
+              <div class="seg" id="chartGroup"><button data-g="sop" aria-pressed="true">SOP</button><button data-g="sub" aria-pressed="false">SUBSOP</button></div>
+              <select class="input" id="chartSort" aria-label="Ordenar gráfico">
+                <option value="code">Ordenar por código</option>
+                <option value="pct">Maior avanço</option>
+                <option value="m">Maior extensão</option>
+              </select>
+            </div>
+          </div>
+          <div class="bars" id="bars"></div>
+        </div>
+
+        <div class="grid2">
+          <div class="panel curve">
+            <div class="panel-h"><div><h2>Evolução do executado</h2><p>Metros executados acumulados a cada registro de avanço.</p></div></div>
+            <div class="panel-b" id="curve"></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><div><h2>Últimas atualizações</h2><p id="lastUpd">—</p></div><div class="tools"><button class="btn sm" data-go="historico">Ver histórico</button></div></div>
+            <ul class="feed" id="feed"></ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- ESTRUTURA -->
+      <section class="view" id="v-estrutura">
+        <div class="panel">
+          <div class="panel-h">
+            <div><h2 id="estTitle">Resumo de metros por SOP</h2><p>Mesma estrutura das abas Resumo SOP, Resumo SUBSOP e Resumo STH. O avanço de cada grupo é calculado pelas linhas.</p></div>
+            <div class="tools"><div class="seg" id="estGroup"><button data-g="sop" aria-pressed="true">SOP</button><button data-g="sub" aria-pressed="false">SUBSOP</button><button data-g="sth" aria-pressed="false">STH</button></div></div>
+          </div>
+          <div class="filters">
+            <input class="input" id="estQ" type="search" placeholder="Buscar código ou linha" style="flex:1;min-width:220px">
+            <select class="input" id="estStatus"><option value="">Todos os status</option><option value="0">Não iniciado</option><option value="1">Em andamento</option><option value="2">Concluído</option></select>
+            <button class="btn" id="estExpand">Expandir todos</button>
+            <button class="btn" id="estCollapse">Recolher</button>
+          </div>
+          <div class="g-cols"><span></span><span>Grupo</span><span class="hide-m">Linhas</span><span class="r hide-m">Metros</span><span class="hide-m">Avanço</span><span class="r">Executado / total</span></div>
+          <div class="groups" id="groups"></div>
+        </div>
+      </section>
+
+      <!-- LINHAS -->
+      <section class="view" id="v-linhas">
+        <div class="panel">
+          <div class="panel-h">
+            <div><h2>Linhas do escopo</h2><p>Informe o avanço de cada linha (0 a 100%). SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
+            <div class="tools"><button class="btn" id="exportCsv">Exportar CSV</button></div>
+          </div>
+          <div class="filters">
+            <input class="input" id="lnQ" type="search" placeholder="Buscar linha, STH ou PPU" style="flex:1;min-width:220px">
+            <select class="input" id="lnSop"><option value="">Todas as SOPs</option></select>
+            <select class="input" id="lnStatus"><option value="">Todos os status</option><option value="0">Não iniciada</option><option value="1">Em andamento</option><option value="2">Concluída</option></select>
+            <select class="input" id="lnTipo"><option value="">Todos os tipos</option></select>
+            <select class="input" id="lnDiam"><option value="">Todos os diâmetros</option></select>
+          </div>
+          <div class="bulk" id="bulk">
+            <b id="bulkN"></b>
+            <span>Definir avanço para</span>
+            <input class="input pct-in" id="bulkPct" type="number" min="0" max="100" step="1" value="100" aria-label="Percentual para as selecionadas">
+            <span>%</span>
+            <button class="btn primary sm" id="bulkApply">Aplicar</button>
+            <button class="btn ghost sm" id="bulkClear">Limpar seleção</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr>
+                <th><input type="checkbox" id="selPage" aria-label="Selecionar página"></th>
+                <th><button data-sort="line">Linha</button></th>
+                <th><button data-sort="sop">SOP</button></th>
+                <th><button data-sort="sth">STH</button></th>
+                <th><button data-sort="diam">Ø</button></th>
+                <th class="num"><button data-sort="esp">Esp. (mm)</button></th>
+                <th>Tipo</th>
+                <th class="num"><button data-sort="m">Metros</button></th>
+                <th><button data-sort="pct">Avanço</button></th>
+                <th class="num">Executado (m)</th>
+                <th>Status</th>
+              </tr></thead>
+              <tbody id="lnBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="pager"></div>
+        </div>
+      </section>
+
+      <!-- ACOMPANHAMENTO VISUAL -->
+      <section class="view" id="v-visual">
+        <div class="panel" id="upPanel">
+          <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>As fotos vão para o repositório no GitHub e aparecem aqui com a data e a hora do envio.</p></div></div>
+          <div class="panel-b upload">
+            <div>
+              <label class="drop" id="drop" tabindex="0">
+                <svg viewBox="0 0 24 24"><path d="M12 16V4M7 9l5-5 5 5M4 16v4h16v-4"/></svg>
+                <b>Arraste as fotos aqui ou clique para escolher</b>
+                <span class="muted">JPG, PNG, WEBP ou PDF, até 15 MB. Fotos grandes são reduzidas antes do envio.</span>
+                <input type="file" id="upFiles" accept="image/jpeg,image/png,image/webp,application/pdf" multiple hidden>
+              </label>
+              <ul class="files" id="upList"></ul>
+            </div>
+            <div class="form">
+              <label>Legenda<textarea class="input" id="upCap" rows="3" placeholder="Ex.: Isolamento concluído no rack da SOP 0039, trecho norte"></textarea></label>
+              <label>SOP (opcional)<select class="input" id="upSop"><option value="">Sem SOP</option></select></label>
+              <label>Linha (opcional)<input class="input" id="upLine" list="lineList" placeholder="Digite para buscar a linha"></label>
+              <div><button class="btn primary" id="upSend" disabled>Enviar para o GitHub</button> <span class="muted" id="upMsg"></span></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel mt">
+          <div class="panel-h">
+            <div><h2>Registros enviados</h2><p id="visCount">—</p></div>
+            <div class="tools"><select class="input" id="visSop"><option value="">Todas as SOPs</option></select></div>
+          </div>
+          <div class="panel-b" id="gallery"></div>
+        </div>
+      </section>
+
+      <!-- HISTÓRICO -->
+      <section class="view" id="v-historico">
+        <div class="panel">
+          <div class="panel-h"><div><h2>Histórico de avanço</h2><p>Cada alteração registrada, com data, hora e responsável.</p></div>
+            <div class="tools"><input class="input" id="hQ" type="search" placeholder="Filtrar por linha ou usuário"></div></div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Data e hora</th><th>Linha</th><th class="num">De</th><th class="num">Para</th><th class="num">Impacto (m)</th><th>Responsável</th><th>Observação</th><th></th></tr></thead>
+            <tbody id="hBody"></tbody>
+          </table></div>
+        </div>
+      </section>
+
+      <!-- USUÁRIOS -->
+      <section class="view" id="v-usuarios">
+        <div class="grid2" style="margin-top:0;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr)">
+          <div class="panel">
+            <div class="panel-h"><div><h2>Usuários</h2><p>Leitor só consulta. Editor lança avanço e fotos. Administrador também gerencia usuários e exclui fotos.</p></div></div>
+            <div class="tbl-wrap"><table><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th></th></tr></thead><tbody id="uBody"></tbody></table></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><div><h2 id="uFormT">Adicionar usuário</h2><p id="uFormP">Preencha os dados e defina uma senha inicial para repassar à pessoa.</p></div><div class="tools"><button class="btn sm" id="uNew" hidden>Novo usuário</button></div></div>
+            <div class="panel-b form">
+              <label>Usuário<input class="input" id="uUser" autocomplete="off" placeholder="ex.: joao.silva"></label>
+              <label>Nome<input class="input" id="uName" placeholder="Nome completo"></label>
+              <label>Perfil<select class="input" id="uRole"><option value="viewer">Leitor</option><option value="editor" selected>Editor</option><option value="admin">Administrador</option></select></label>
+              <label><span id="uPassL">Senha</span>
+                <span class="pw"><input class="input" id="uPass" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"><button class="btn" type="button" data-eye="uPass">Mostrar</button><button class="btn" type="button" data-gen="uPass">Gerar</button></span></label>
+              <div class="err" id="uErr"></div>
+              <div><button class="btn primary" id="uSave">Salvar usuário</button></div>
+              <div class="reveal" id="uReveal"></div>
+            </div>
+          </div>
+        </div>
+        <div class="panel mt">
+          <div class="panel-h"><div><h2>Base do escopo</h2><p id="baseInfo">—</p></div></div>
+          <div class="panel-b form" style="max-width:560px">
+            <label>Arquivo da base (base_escopo.json)<input class="input" type="file" id="baseFile" accept=".json,application/json"></label>
+            <div class="err" id="baseErr"></div>
+            <div><button class="btn primary" id="baseGo">Atualizar base</button> <span class="muted">Os avanços já lançados são mantidos (ligados pelo nome da linha).</span></div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<div class="pending" id="pending" role="region" aria-label="Alterações não salvas">
+  <div><b id="pendN"></b> <span class="muted" id="pendImpact"></span></div>
+  <input class="input" id="pendNote" placeholder="Observação (opcional)">
+  <button class="btn" id="pendDiscard">Descartar</button>
+  <button class="btn primary" id="pendSave">Salvar avanço</button>
+</div>
+
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-label="Detalhes da linha">
+  <div class="drawer-h"><div style="flex:1"><div class="muted" style="font-size:12.5px">Linha</div><h3 id="dTitle"></h3></div><button class="btn ghost" id="dClose" aria-label="Fechar">✕</button></div>
+  <div class="drawer-b" id="dBody"></div>
+</aside>
+
+<div class="gate" id="gate" role="dialog" aria-modal="true" aria-labelledby="loginT">
+  <div class="gate-box">
+    <div class="gate-brand">
+      <span class="mark" aria-hidden="true"><svg viewBox="0 0 32 32"><circle cx="16" cy="16" r="13" fill="#D2B241"/><circle cx="16" cy="16" r="9.5" fill="#fff"/><circle cx="16" cy="16" r="7" fill="#1B5E8A"/><circle cx="16" cy="16" r="3.6" fill="#fff"/></svg></span>
+      <div><b>Thermal Insulation</b><small>Controle de isolamento U12</small></div>
+    </div>
+    <div id="gLogin">
+      <h3 id="loginT">Entrar</h3>
+      <p id="loginP">Acesso restrito. Informe seu usuário e senha.</p>
+      <div class="form">
+        <label id="lMasterW" hidden>Senha mestre (ADMIN_PASSWORD do Worker)<input class="input" id="lMaster" type="password" autocomplete="off"></label>
+        <label id="lNameW" hidden>Seu nome<input class="input" id="lName"></label>
+        <label>Usuário<input class="input" id="lUser" autocomplete="username" autocapitalize="off"></label>
+        <label>Senha<input class="input" id="lPass" type="password" autocomplete="current-password"></label>
+        <div class="err" id="lErr"></div>
+        <button class="btn primary" id="lGo">Entrar</button>
+      </div>
+    </div>
+    <div id="gBase" hidden>
+      <h3>Carregar a base do escopo</h3>
+      <p>A base ainda não está no servidor. Selecione o arquivo <b>base_escopo.json</b>. Isso é feito uma única vez e a cada atualização da planilha.</p>
+      <div class="form">
+        <input class="input" type="file" id="gBaseFile" accept=".json,application/json">
+        <div class="err" id="gBaseErr"></div>
+        <button class="btn primary" id="gBaseGo">Enviar base</button>
+      </div>
+    </div>
+    <div id="gMsg" hidden><h3 id="gMsgT">Carregando…</h3><p id="gMsgP"></p><button class="btn primary" id="gRetry" hidden>Tentar novamente</button></div>
+    <div class="gate-foot">UDA RNEST · CONSAG</div>
+  </div>
+</div>
+
+<div class="modal" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwT">
+  <div class="box">
+    <h3 id="pwT">Alterar minha senha</h3>
+    <p id="pwP"></p>
+    <div class="form">
+      <label id="pwCurW">Senha atual<input class="input" id="pwCur" type="password" autocomplete="current-password"></label>
+      <label>Nova senha<span class="pw"><input class="input" id="pwNew" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"><button class="btn" type="button" data-eye="pwNew">Mostrar</button><button class="btn" type="button" data-gen="pwNew" id="pwGen">Gerar</button></span></label>
+      <label id="pwConfW">Confirmar nova senha<input class="input" id="pwConf" type="password" autocomplete="new-password"></label>
+      <div class="err" id="pwErr"></div>
+      <div class="reveal" id="pwReveal"></div>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn" id="pwCancel">Cancelar</button><button class="btn primary" id="pwSave">Salvar senha</button></div>
+    </div>
+  </div>
+</div>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true"><img id="lbImg" alt=""><p id="lbCap"></p><button class="btn" id="lbClose">Fechar</button></div>
+<div class="toast" id="toast" role="status"></div>
+<datalist id="lineList"></datalist>
+
+<script>
+/* ============ configuração ============ */
+const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
+const TZ = 'America/Recife';
+const TOKEN_KEY = 'ti_isol_token';
+
+/* ============ base do escopo ============ */
+// A base não fica no HTML: é baixada do Worker somente após o login.
+let BASE = null, BASE_INFO = null, R = [], byLine = new Map(), TOTAL_M = 0;
+function initBase(b) {
+  BASE = b;
+  R = b.rows.map((r, i) => ({
+    i, line: r[0], m: r[1], esp: r[2], pyro: r[3], diam: r[4], ppu: r[5],
+    sop: b.sops[r[6]], sub: b.subs[r[7]], sth: b.sths[r[8]],
+    pint: r[9], traco: r[10], th: r[11], seed: r[12],
+    tipo: (r[0].match(/-([A-Z]{2})$/) || [])[1] || 'Outro'
+  }));
+  byLine = new Map(R.map(x => [x.line, x]));
+  TOTAL_M = R.reduce((s, x) => s + x.m, 0);
+}
+
+/* ============ estado ============ */
+let server = {};            // linha -> {pct, updated_at, updated_by}
+const pending = new Map();  // índice -> pct
+let logH = [], visuals = [], users = [];
+let token = null, me = null, online = false, publicRead = true, hasUsers = true, lastTs = null;
+try { token = localStorage.getItem(TOKEN_KEY); } catch (e) {}
+
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const nf2 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const nf1 = new Intl.NumberFormat('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf0 = new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 0 });
+const f2 = v => nf2.format(v || 0), f1 = v => nf1.format(v || 0), f0 = v => nf0.format(v || 0);
+const pctTxt = v => f1(v) + '%';
+const dFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, day: '2-digit', month: '2-digit', year: 'numeric' });
+const tFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', minute: '2-digit' });
+const dLong = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+const when = iso => iso ? `${dFmt.format(new Date(iso))} às ${tFmt.format(new Date(iso))}` : '—';
+const diamTxt = d => (d || '').replace(/^1\.?1\/2$/, '1.1/2') + '"';
+const canEdit = () => me && (me.role === 'editor' || me.role === 'admin');
+const isAdmin = () => me && me.role === 'admin';
+
+function savedPct(x) { const s = server[x.line]; return s ? Number(s.pct) : x.seed; }
+function pct(x) { return pending.has(x.i) ? pending.get(x.i) : savedPct(x); }
+function st(p) { return p >= 100 ? 2 : p > 0 ? 1 : 0; }
+const ST_LINE = ['Não iniciada', 'Em andamento', 'Concluída'];
+const ST_GRP = ['Não iniciado', 'Em andamento', 'Concluído'];
+
+function totals(rows = R) {
+  let m = 0, ex = 0, dM = 0, pM = 0, n = [0, 0, 0];
+  for (const x of rows) { const p = pct(x); m += x.m; ex += x.m * p / 100; n[st(p)]++; if (p >= 100) dM += x.m; else if (p > 0) pM += x.m * p / 100; }
+  return { m, ex, dM, pM, n, pct: m ? ex / m * 100 : 0 };
+}
+function groups(key) {
+  const map = new Map();
+  for (const x of R) { const k = x[key]; if (!map.has(k)) map.set(k, []); map.get(k).push(x); }
+  return [...map.entries()].map(([k, rows]) => ({ key: k, rows, ...totals(rows), parents: [...new Set(rows.map(r => key === 'sth' ? r.sub : r.sop))] }));
+}
+function segs(t) {
+  const d = t.m ? t.dM / t.m * 100 : 0, p = t.m ? t.pM / t.m * 100 : 0;
+  return `<i class="d" style="width:${d}%;background:var(--done)"></i><i class="p" style="width:${p}%;background:var(--prog)"></i>`;
+}
+
+/* ============ API ============ */
+async function api(path, opt = {}) {
+  const headers = { ...(opt.headers || {}) };
+  if (opt.body && typeof opt.body !== 'string') { headers['Content-Type'] = 'application/json'; opt.body = JSON.stringify(opt.body); }
+  if (token) headers.Authorization = 'Bearer ' + token;
+  let r;
+  try { r = await fetch(API_URL + path, { ...opt, headers, cache: 'no-store' }); }
+  catch (e) { const er = new Error('o navegador não conseguiu falar com o Worker (rede, URL ou CORS)'); er.status = 0; throw er; }
+  let j = {}; try { j = await r.json(); } catch (e) {}
+  if (r.status === 401 && token && !path.startsWith('/auth/')) { setToken(null); me = null; lockApp('Sua sessão expirou. Entre novamente.'); }
+  if (!r.ok || j.ok === false) { const e = new Error(j.error || `Erro ${r.status}`); e.status = r.status; throw e; }
+  return j;
+}
+function setToken(t) { token = t; try { t ? localStorage.setItem(TOKEN_KEY, t) : localStorage.removeItem(TOKEN_KEY); } catch (e) {} }
+
+let started = false;
+function gateShow(which) { ['gLogin', 'gBase', 'gMsg'].forEach(id => $('#' + id).hidden = id !== which); }
+function gateMsg(t, p = '', retry = false) { gateShow('gMsg'); $('#gMsgT').textContent = t; $('#gMsgP').textContent = p; $('#gRetry').hidden = !retry; }
+function lockApp(msg) {
+  document.body.classList.add('locked');
+  closeDrawer();
+  showLogin(msg);
+}
+async function boot() {
+  document.body.classList.add('locked');
+  gateMsg('Conectando…', 'Verificando o servidor.');
+  try {
+    const s = await api('/auth/status');
+    publicRead = s.publicRead; hasUsers = s.hasUsers; online = true;
+  } catch (e) {
+    online = false;
+    gateMsg('Sem conexão com o servidor', `Não foi possível acessar ${API_URL}. Detalhe: ${e.message}.`, true);
+    return;
+  }
+  if (token) { try { me = (await api('/auth/me')).user; } catch (e) { me = null; setToken(null); } }
+  if (!me) return showLogin();
+  await enter();
+}
+$('#gRetry').onclick = () => boot();
+async function enter() {
+  gateMsg('Carregando dados…', 'Baixando a base do escopo e os avanços.');
+  try {
+    const b = await api('/base');
+    BASE_INFO = { updated_at: b.updated_at, updated_by: b.updated_by };
+    initBase(b.base);
+  } catch (e) {
+    if (e.status === 404) {
+      if (isAdmin()) { gateShow('gBase'); return; }
+      return gateMsg('Base do escopo não carregada', 'Peça ao administrador para carregar a base do escopo.', false);
+    }
+    return gateMsg('Não foi possível carregar os dados', e.message, true);
+  }
+  try { await loadData(); } catch (e) { return gateMsg('Não foi possível carregar os dados', e.message, true); }
+  if (!started) { fillFilters(); started = true; }
+  document.body.classList.remove('locked');
+  go((location.hash || '#painel').slice(1));
+  renderAll(); setSync();
+}
+async function loadData() {
+  const [p, h, v] = await Promise.all([api('/progress'), api('/history?limit=3000'), api('/visual')]);
+  server = {}; for (const it of p.items) server[it.line] = it;
+  lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
+  if (isAdmin()) { try { users = (await api('/users')).users; } catch (e) {} }
+}
+function setSync() {
+  const el = $('#sync');
+  el.className = 'sync ' + (online ? 'on' : 'off');
+  el.querySelector('span').textContent = online
+    ? (lastTs ? `Atualizado em ${when(lastTs)}` : 'Conectado')
+    : 'Sem conexão com o servidor';
+}
+setInterval(async () => { if (!BASE || !me || document.body.classList.contains('locked') || pending.size || document.hidden) return; try { await loadData(); renderAll(); setSync(); } catch (e) {} }, 60000);
+
+/* ============ navegação ============ */
+const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', visual: 'Acompanhamento visual', historico: 'Histórico', usuarios: 'Usuários' };
+function go(v) {
+  if (!TITLES[v]) v = 'painel';
+  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  $$('.nav button').forEach(b => b.dataset.v === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
+  $('#title').textContent = TITLES[v];
+  if (location.hash !== '#' + v) history_replace(v);
+  window.scrollTo(0, 0);
+}
+function history_replace(v) { try { window.history.replaceState(null, '', '#' + v); } catch (e) {} }
+$$('.nav button').forEach(b => b.onclick = () => go(b.dataset.v));
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) go(g.dataset.go); });
+
+/* ============ painel ============ */
+let chartKey = 'sop', chartSort = 'code';
+function renderPainel() {
+  const t = totals();
+  $('#ovSub').textContent = `${f0(R.length)} linhas, ${BASE.sops.length} SOPs, ${BASE.subs.length} SUBSOPs e ${BASE.sths.length} STHs · base de ${BASE.emissao}`;
+  $('#ovPct').textContent = pctTxt(t.pct);
+  $('#ovMeters').textContent = `${f2(t.ex)} de ${f2(t.m)} m executados`;
+  $('#ovBar').innerHTML = segs(t);
+  $('#ovBar').setAttribute('aria-label', `Avanço geral ${pctTxt(t.pct)}`);
+  const gs = groups('sop'); const sopDone = gs.filter(g => g.pct >= 99.999).length, sopProg = gs.filter(g => g.pct > 0 && g.pct < 99.999).length;
+  $('#ovStats').innerHTML = [
+    ['Restante', f2(t.m - t.ex) + ' m', `${pctTxt(100 - t.pct)} do escopo`],
+    ['Linhas concluídas', f0(t.n[2]), `de ${f0(R.length)} linhas`],
+    ['Linhas em andamento', f0(t.n[1]), `${f2(t.pM)} m já executados`],
+    ['Linhas não iniciadas', f0(t.n[0]), 'sem avanço lançado'],
+    ['SOPs concluídas', `${sopDone} de ${gs.length}`, `${sopProg} em andamento`],
+    ['Registros de foto', f0(visuals.length), visuals[0] ? `último em ${when(visuals[0].uploaded_at)}` : 'nenhum envio ainda']
+  ].map(s => `<div class="stat"><span>${s[0]}</span><strong>${s[1]}</strong><small>${s[2]}</small></div>`).join('');
+  renderBars(); renderCurve(); renderFeed();
+}
+function renderBars() {
+  let gs = groups(chartKey);
+  gs.sort(chartSort === 'pct' ? (a, b) => b.pct - a.pct || a.key.localeCompare(b.key) : chartSort === 'm' ? (a, b) => b.m - a.m : (a, b) => a.key.localeCompare(b.key));
+  $('#chartTitle').textContent = chartKey === 'sop' ? 'Avanço por SOP' : 'Avanço por SUBSOP';
+  $('#bars').innerHTML = `<div class="axis"><span></span><div><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div><span></span></div>` +
+    gs.map(g => `<button class="bar-row" data-key="${esc(g.key)}" title="${esc(g.key)}: ${pctTxt(g.pct)}">
+      <span class="k">${esc(g.key)}<small>${g.rows.length} ${g.rows.length === 1 ? 'linha' : 'linhas'}</small></span>
+      <span class="track">${segs(g)}</span>
+      <span class="v"><b>${pctTxt(g.pct)}</b><span>${f2(g.ex)}/${f2(g.m)} m</span></span></button>`).join('');
+}
+$('#chartGroup').onclick = e => { const b = e.target.closest('button'); if (!b) return; chartKey = b.dataset.g; $$('#chartGroup button').forEach(x => x.setAttribute('aria-pressed', x === b)); renderBars(); };
+$('#chartSort').onchange = e => { chartSort = e.target.value; renderBars(); };
+$('#bars').onclick = e => { const b = e.target.closest('.bar-row'); if (!b) return; estKey = chartKey; estOpen = new Set([b.dataset.key]); setEstSeg(); renderEstrutura(); go('estrutura'); setTimeout(() => document.querySelector(`.g[data-key="${CSS.escape(b.dataset.key)}"]`)?.scrollIntoView({ block: 'start', behavior: 'smooth' }), 50); };
+
+function renderCurve() {
+  const el = $('#curve');
+  const asc = [...logH].sort((a, b) => a.id - b.id);
+  if (!asc.length) { el.innerHTML = `<div class="empty"><b>A curva aparece após os primeiros lançamentos</b>Cada avanço salvo vira um ponto, com a data e a hora do registro.</div>`; return; }
+  let cur = R.reduce((s, x) => s + x.m * savedPct(x) / 100, 0);
+  const pts = [];
+  for (let k = asc.length - 1; k >= 0; k--) { const h = asc[k]; pts.unshift({ ts: h.ts, v: cur }); cur -= (Number(h.m) || 0) * (h.new_pct - h.old_pct) / 100; }
+  pts.unshift({ ts: asc[0].ts, v: cur, start: true });
+  const byDay = new Map([[BASE.emissao, { v: pts[0].v }]]); for (const p of pts.slice(1)) byDay.set(dFmt.format(new Date(p.ts)), p);
+  const days = [...byDay.entries()];
+  if (days.length === 1) days.push([days[0][0], days[0][1]]);
+  const W = 640, H = 210, pl = 54, pr = 14, pt = 12, pb = 28;
+  const max = Math.max(TOTAL_M * 0.02, ...days.map(d => d[1].v)) * 1.08;
+  const x = i => pl + (W - pl - pr) * (days.length === 1 ? .5 : i / (days.length - 1));
+  const y = v => pt + (H - pt - pb) * (1 - v / max);
+  const line = days.map((d, i) => `${x(i)},${y(d[1].v)}`).join(' ');
+  const ticks = [0, .25, .5, .75, 1].map(f => max * f);
+  const lbl = days.length <= 8 ? days.map((d, i) => i) : [0, Math.floor(days.length / 2), days.length - 1];
+  el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Evolução dos metros executados">
+    ${ticks.map(v => `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="#E7ECF0"/><text x="${pl - 8}" y="${y(v) + 4}" font-size="11" text-anchor="end" fill="#617384">${f0(v)}</text>`).join('')}
+    <polygon points="${x(0)},${y(0)} ${line} ${x(days.length - 1)},${y(0)}" fill="#E4EFF7"/>
+    <polyline points="${line}" fill="none" stroke="#1B5E8A" stroke-width="2.2"/>
+    ${days.map((d, i) => `<circle cx="${x(i)}" cy="${y(d[1].v)}" r="3.2" fill="#1B5E8A"><title>${d[0]}: ${f2(d[1].v)} m</title></circle>`).join('')}
+    ${lbl.map(i => `<text x="${x(i)}" y="${H - 8}" font-size="11" text-anchor="middle" fill="#617384">${days[i][0].slice(0, 5)}</text>`).join('')}
+  </svg><div class="muted" style="font-size:12.5px">Hoje: <b style="color:var(--ink)">${f2(days[days.length - 1][1].v)} m</b> de ${f2(TOTAL_M)} m</div>`;
+}
+function renderFeed() {
+  $('#lastUpd').textContent = lastTs ? `Último registro em ${when(lastTs)}` : 'Nenhum avanço lançado pelo painel ainda';
+  const items = logH.slice(0, 8);
+  $('#feed').innerHTML = items.length ? items.map(h => {
+    const d = h.new_pct - h.old_pct;
+    return `<li><span class="l">${esc(h.line)}</span><span class="delta ${d >= 0 ? 'up' : 'down'}">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="t">${when(h.ts)} · ${esc(h.user || '')}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`;
+  }).join('') : `<li><span class="t">Os lançamentos aparecem aqui assim que forem salvos.</span></li>`;
+}
+
+/* ============ estrutura ============ */
+let estKey = 'sop', estOpen = new Set();
+const EST_T = { sop: 'Resumo de metros por SOP', sub: 'Resumo de metros por SUBSOP', sth: 'Resumo de metros por STH' };
+function setEstSeg() { $$('#estGroup button').forEach(x => x.setAttribute('aria-pressed', x.dataset.g === estKey)); $('#estTitle').textContent = EST_T[estKey]; }
+$('#estGroup').onclick = e => { const b = e.target.closest('button'); if (!b) return; estKey = b.dataset.g; estOpen.clear(); setEstSeg(); renderEstrutura(); };
+$('#estQ').oninput = () => renderEstrutura();
+$('#estStatus').onchange = () => renderEstrutura();
+$('#estExpand').onclick = () => { estOpen = new Set(currentGroups.map(g => g.key)); renderEstrutura(); };
+$('#estCollapse').onclick = () => { estOpen.clear(); renderEstrutura(); };
+let currentGroups = [];
+function renderEstrutura() {
+  const q = $('#estQ').value.trim().toLowerCase(), sf = $('#estStatus').value;
+  let gs = groups(estKey).sort((a, b) => a.key.localeCompare(b.key));
+  gs = gs.map(g => {
+    if (!q || g.key.toLowerCase().includes(q)) return { g, rows: g.rows };
+    const rows = g.rows.filter(r => r.line.toLowerCase().includes(q));
+    return rows.length ? { g, rows, hit: true } : null;
+  }).filter(Boolean).filter(o => sf === '' || st(o.g.pct) === Number(sf));
+  currentGroups = gs.map(o => o.g);
+  const parentLbl = estKey === 'sop' ? '' : estKey === 'sub' ? 'SOP ' : 'SUBSOP ';
+  $('#groups').innerHTML = gs.length ? gs.map(({ g, rows, hit }) => {
+    const open = estOpen.has(g.key) || (hit && q);
+    return `<div class="g${open ? ' open' : ''}" data-key="${esc(g.key)}">
+      <button class="g-head" aria-expanded="${!!open}">
+        <svg class="car" viewBox="0 0 16 16"><path d="M6 3l5 5-5 5"/></svg>
+        <span class="code">${esc(g.key)}${parentLbl ? `<small>${parentLbl}${esc(g.parents.join(', '))}</small>` : ''}</span>
+        <span class="n">${g.rows.length} ${g.rows.length === 1 ? 'linha' : 'linhas'}</span>
+        <span class="meters">${f2(g.m)} m</span>
+        <span class="track">${segs(g)}</span>
+        <span class="ratio"><b>${pctTxt(g.pct)}</b>${f2(g.ex)}/${f2(g.m)} m</span>
+      </button>
+      <div class="g-body">${open ? lineTable(rows, true) : ''}</div></div>`;
+  }).join('') : `<div class="empty"><b>Nenhum grupo encontrado</b>Revise a busca ou o filtro de status.</div>`;
+}
+$('#groups').onclick = e => {
+  const h = e.target.closest('.g-head'); if (!h) return;
+  const g = h.parentElement, k = g.dataset.key;
+  estOpen.has(k) ? estOpen.delete(k) : estOpen.add(k);
+  renderEstrutura();
+};
+
+/* ============ tabela de linhas (compartilhada) ============ */
+function pctCell(x) {
+  const p = pct(x);
+  const bar = `<span class="mini"><i class="${p >= 100 ? 'full' : ''}" style="width:${p}%"></i></span>`;
+  return canEdit()
+    ? `<span class="pct-cell"><input class="input pct-in" type="number" min="0" max="100" step="1" value="${+p.toFixed(2)}" data-i="${x.i}" aria-label="Avanço de ${esc(x.line)}">${bar}</span>`
+    : `<span class="pct-cell"><b style="min-width:52px;text-align:right">${pctTxt(p)}</b>${bar}</span>`;
+}
+function lineTable(rows, compact) {
+  return `<div class="tbl-wrap"><table><thead><tr><th>Linha</th>${compact && estKey !== 'sth' ? '<th>STH</th>' : ''}<th>Ø</th><th class="num">Esp. (mm)</th><th>Tipo</th><th class="num">Metros</th><th>Avanço</th><th class="num">Executado (m)</th><th>Status</th></tr></thead><tbody>${
+    rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) ? 'changed' : ''}">
+      <td><button class="lname" data-line="${x.i}">${esc(x.line)}</button></td>
+      ${compact && estKey !== 'sth' ? `<td class="muted sth">${esc(x.sth)}</td>` : ''}
+      <td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td><td>${esc(x.tipo)}</td>
+      <td class="num">${f2(x.m)}</td><td>${pctCell(x)}</td><td class="num">${f2(x.m * p / 100)}</td>
+      <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td></tr>`; }).join('')
+  }</tbody></table></div>`;
+}
+
+/* ============ linhas ============ */
+let lnSort = { k: 'sop', d: 1 }, lnPage = 0; const PAGE = 60; const sel = new Set(); let lnFiltered = [];
+function fillFilters() {
+  $('#nLines').textContent = f0(R.length);
+  $('#baseDate').textContent = BASE.emissao;
+  const sopOpts = BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  $('#lnSop').insertAdjacentHTML('beforeend', sopOpts);
+  $('#upSop').insertAdjacentHTML('beforeend', sopOpts);
+  $('#visSop').insertAdjacentHTML('beforeend', sopOpts);
+  const tipos = [...new Set(R.map(x => x.tipo))].sort();
+  $('#lnTipo').insertAdjacentHTML('beforeend', tipos.map(t => `<option>${esc(t)}</option>`).join(''));
+  const dn = d => { const m = d.match(/^(\d+)?\.?(\d+)\/(\d+)$/); return m ? (Number(m[1] || 0) + m[2] / m[3]) : Number(d); };
+  const diams = [...new Set(R.map(x => x.diam))].sort((a, b) => dn(a) - dn(b));
+  $('#lnDiam').insertAdjacentHTML('beforeend', diams.map(d => `<option value="${esc(d)}">${esc(diamTxt(d))}</option>`).join(''));
+  $('#lineList').innerHTML = R.map(x => `<option value="${esc(x.line)}">`).join('');
+}
+['#lnQ', '#lnSop', '#lnStatus', '#lnTipo', '#lnDiam'].forEach(s => $(s).addEventListener(s === '#lnQ' ? 'input' : 'change', () => { lnPage = 0; renderLinhas(); }));
+$$('[data-sort]').forEach(b => b.onclick = () => { const k = b.dataset.sort; lnSort = { k, d: lnSort.k === k ? -lnSort.d : 1 }; renderLinhas(); });
+function renderLinhas() {
+  const q = $('#lnQ').value.trim().toLowerCase(), sop = $('#lnSop').value, sf = $('#lnStatus').value, tp = $('#lnTipo').value, dm = $('#lnDiam').value;
+  lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm));
+  const k = lnSort.k, d = lnSort.d;
+  const val = x => k === 'pct' ? pct(x) : k === 'm' ? x.m : k === 'esp' ? Number(x.esp) : x[k];
+  lnFiltered.sort((a, b) => { const A = val(a), B = val(b); return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B))) * d || a.line.localeCompare(b.line); });
+  const pages = Math.max(1, Math.ceil(lnFiltered.length / PAGE)); lnPage = Math.min(lnPage, pages - 1);
+  const rows = lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE);
+  $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) ? 'changed' : ''}">
+    <td><input type="checkbox" data-sel="${x.i}" ${sel.has(x.i) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar ${esc(x.line)}"></td>
+    <td><button class="lname" data-line="${x.i}">${esc(x.line)}</button></td>
+    <td>${esc(x.sop)}</td><td class="muted sth">${esc(x.sth)}</td><td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td><td>${esc(x.tipo)}</td>
+    <td class="num">${f2(x.m)}</td><td>${pctCell(x)}</td><td class="num">${f2(x.m * p / 100)}</td>
+    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td></tr>`; }).join('')
+    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros.</div></td></tr>`;
+  const t = totals(lnFiltered);
+  $('#pager').innerHTML = `<span>${f0(lnFiltered.length)} linhas · ${f2(t.m)} m · avanço ${pctTxt(t.pct)}</span><span class="spacer"></span>
+    ${canEdit() && lnFiltered.length ? `<button class="btn sm" id="selAll">Selecionar as ${f0(lnFiltered.length)} filtradas</button>` : ''}
+    <button class="btn sm" id="pgPrev" ${lnPage ? '' : 'disabled'}>Anterior</button><span>Página ${lnPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${lnPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#pgPrev').onclick = () => { lnPage--; renderLinhas(); };
+  $('#pgNext').onclick = () => { lnPage++; renderLinhas(); };
+  if ($('#selAll')) $('#selAll').onclick = () => { lnFiltered.forEach(x => sel.add(x.i)); renderLinhas(); };
+  $('#selPage').checked = rows.length > 0 && rows.every(x => sel.has(x.i));
+  $('#selPage').disabled = !canEdit();
+  renderBulk();
+}
+$('#selPage').onchange = e => { lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE).forEach(x => e.target.checked ? sel.add(x.i) : sel.delete(x.i)); renderLinhas(); };
+$('#lnBody').addEventListener('change', e => { const c = e.target.closest('[data-sel]'); if (!c) return; c.checked ? sel.add(+c.dataset.sel) : sel.delete(+c.dataset.sel); renderBulk(); });
+function renderBulk() { $('#bulk').classList.toggle('on', sel.size > 0 && canEdit()); $('#bulkN').textContent = `${f0(sel.size)} ${sel.size === 1 ? 'linha selecionada' : 'linhas selecionadas'}`; }
+$('#bulkApply').onclick = () => { const v = clampPct($('#bulkPct').value); if (v == null) return toast('Informe um valor entre 0 e 100.', true); sel.forEach(i => setPending(i, v, false)); sel.clear(); afterChange(); };
+$('#bulkClear').onclick = () => { sel.clear(); renderLinhas(); };
+
+/* ============ edição de avanço ============ */
+function clampPct(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n >= 0 && n <= 100 ? Math.round(n * 100) / 100 : null; }
+function setPending(i, v, render = true) {
+  const x = R[i];
+  if (Math.abs(v - savedPct(x)) < 0.001) pending.delete(i); else pending.set(i, v);
+  if (render) afterChange();
+}
+document.addEventListener('change', e => {
+  const inp = e.target.closest('.pct-in[data-i]'); if (!inp) return;
+  const v = clampPct(inp.value);
+  if (v == null) { toast('O avanço precisa estar entre 0 e 100.', true); inp.value = +pct(R[+inp.dataset.i]).toFixed(2); return; }
+  setPending(+inp.dataset.i, v);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.pct-in[data-i]')) e.target.blur(); });
+function afterChange() {
+  const scrollY = window.scrollY;
+  renderPending(); renderPainel(); renderLinhas(); renderEstrutura();
+  if (dLine != null) openLine(dLine);
+  window.scrollTo(0, scrollY);
+}
+function renderPending() {
+  const n = pending.size;
+  $('#pending').classList.toggle('on', n > 0);
+  if (!n) return;
+  const before = R.reduce((s, x) => s + x.m * savedPct(x) / 100, 0), after = totals().ex;
+  $('#pendN').textContent = `${n} ${n === 1 ? 'linha alterada' : 'linhas alteradas'}.`;
+  $('#pendImpact').textContent = `Avanço geral passa de ${f2(before / TOTAL_M * 100)}% para ${f2(after / TOTAL_M * 100)}% (${after >= before ? '+' : ''}${f2(after - before)} m).`;
+}
+$('#pendDiscard').onclick = () => { pending.clear(); afterChange(); };
+$('#pendSave').onclick = async () => {
+  if (!canEdit()) return openLogin();
+  const btn = $('#pendSave'); btn.disabled = true; btn.textContent = 'Salvando…';
+  const items = [...pending.entries()].map(([i, p]) => ({ line: R[i].line, pct: p, m: R[i].m, from: savedPct(R[i]) }));
+  try {
+    const r = await api('/progress', { method: 'POST', body: { items, note: $('#pendNote').value.trim() } });
+    pending.clear(); $('#pendNote').value = '';
+    await loadData(); renderAll(); setSync();
+    toast(`Avanço salvo em ${when(r.ts)}.`);
+  } catch (e) { toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : `Não foi possível salvar: ${e.message}`, true); if (e.status === 401) openLogin(); }
+  btn.disabled = false; btn.textContent = 'Salvar avanço';
+};
+window.addEventListener('beforeunload', e => { if (pending.size) { e.preventDefault(); e.returnValue = ''; } });
+
+/* ============ gaveta da linha ============ */
+document.addEventListener('click', e => { const b = e.target.closest('.lname'); if (b) openLine(+b.dataset.line); });
+let dLine = null;
+function openLine(i) {
+  dLine = i;
+  const x = R[i], p = pct(x), sp = BASE.spools[i] || [];
+  const s = server[x.line];
+  const hist = logH.filter(h => h.line === x.line).slice(0, 20);
+  const pics = visuals.filter(v => v.line === x.line);
+  $('#dTitle').textContent = x.line;
+  $('#dBody').innerHTML = `
+    <div class="jacket" style="height:14px">${segs(totals([x]))}</div>
+    <p style="margin:8px 0 18px"><b>${pctTxt(p)}</b> <span class="muted">· ${f2(x.m * p / 100)} de ${f2(x.m)} m · ${s ? `atualizado em ${when(s.updated_at)} por ${esc(s.updated_by)}` : 'valor da planilha'}</span></p>
+    ${canEdit() ? `<div style="display:flex;gap:8px;align-items:center;margin-bottom:18px;flex-wrap:wrap"><span class="muted">Avanço</span><input class="input pct-in" type="number" min="0" max="100" step="1" value="${+p.toFixed(2)}" data-i="${i}"><span>%</span>${[25, 50, 75, 100].map(v => `<button class="btn sm" data-quick="${v}">${v}%</button>`).join('')}</div>` : ''}
+    <dl class="kv">
+      <dt>SOP</dt><dd>${esc(x.sop)}</dd><dt>SUBSOP</dt><dd>${esc(x.sub)}</dd><dt>STH</dt><dd>${esc(x.sth)}</dd>
+      <dt>Diâmetro</dt><dd>${esc(diamTxt(x.diam))}</dd><dt>Espessura</dt><dd>${esc(x.esp)} mm</dd><dt>Espessura Pyrogel</dt><dd>${esc(x.pyro)} mm</dd>
+      <dt>Tipo</dt><dd>${esc(x.tipo)}</dd><dt>Item PPU</dt><dd>Anexo IIB · ${esc(x.ppu)}</dd><dt>Pintura</dt><dd>${esc(x.pint) || '—'}</dd>
+      <dt>Traço de vapor</dt><dd>${x.traco ? 'Sim' : 'Não'}</dd><dt>TH realizado</dt><dd>${x.th ? 'OK' : 'Não'}</dd>
+    </dl>
+    <div class="h4">Spools (${sp.length}) <span class="muted" style="font-weight:400">· Mapa de Spools</span></div>
+    ${sp.length ? `<div class="tbl-wrap" style="max-height:260px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Isométrico-spool</th><th class="num">Comp. (m)</th><th>Isol.</th></tr></thead><tbody>${sp.map(s => `<tr><td>${esc(s[0])}</td><td class="num">${f2(s[1])}</td><td>${esc(s[2])}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted">Linha sem spools no Mapa de Spools.</p>`}
+    <div class="h4">Histórico</div>
+    ${hist.length ? `<ul class="feed" style="border:1px solid var(--line2);border-radius:6px">${hist.map(h => `<li><span class="l">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="muted">${esc(h.user || '')}</span><span class="t">${when(h.ts)}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`).join('')}</ul>` : `<p class="muted">Nenhuma alteração registrada pelo painel.</p>`}
+    ${pics.length ? `<div class="h4">Fotos desta linha</div><div class="gallery">${pics.map(photoCard).join('')}</div>` : ''}`;
+  $('#drawer').classList.add('on'); $('#scrim').classList.add('on');
+}
+$('#dBody').addEventListener('click', e => { const q = e.target.closest('[data-quick]'); if (!q) return; const inp = $('#dBody .pct-in'); inp.value = q.dataset.quick; inp.dispatchEvent(new Event('change', { bubbles: true })); });
+function closeDrawer() { dLine = null; $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); }
+$('#dClose').onclick = closeDrawer; $('#scrim').onclick = closeDrawer;
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeLight(); $('#pwModal').classList.remove('on'); } });
+
+/* ============ acompanhamento visual ============ */
+let upFiles = [];
+const drop = $('#drop');
+drop.addEventListener('click', e => { if (e.target.tagName !== 'INPUT') $('#upFiles').click(); });
+drop.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('#upFiles').click(); } });
+['dragenter', 'dragover'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.add('over'); }));
+['dragleave', 'drop'].forEach(t => drop.addEventListener(t, e => { e.preventDefault(); drop.classList.remove('over'); }));
+drop.addEventListener('drop', e => addFiles(e.dataTransfer.files));
+$('#upFiles').onchange = e => { addFiles(e.target.files); e.target.value = ''; };
+function addFiles(list) {
+  for (const f of list) { if (/^(image\/(jpeg|png|webp)|application\/pdf)$/.test(f.type)) upFiles.push(f); else toast(`${f.name}: formato não aceito.`, true); }
+  renderUpList();
+}
+function renderUpList() {
+  $('#upList').innerHTML = upFiles.map((f, k) => `<li><span>${esc(f.name)} <span class="muted">${(f.size / 1048576).toFixed(1)} MB</span></span><button class="btn ghost sm" data-rm="${k}">Remover</button></li>`).join('');
+  $('#upSend').disabled = !upFiles.length;
+}
+$('#upList').onclick = e => { const b = e.target.closest('[data-rm]'); if (b) { upFiles.splice(+b.dataset.rm, 1); renderUpList(); } };
+async function prepare(f) {
+  if (f.type === 'application/pdf') return { mime: f.type, data: await toB64(f), name: f.name };
+  try {
+    const bmp = await createImageBitmap(f);
+    const k = Math.min(1, 2400 / Math.max(bmp.width, bmp.height));
+    if (k === 1 && f.size < 3 * 1048576) return { mime: f.type, data: await toB64(f), name: f.name };
+    const c = document.createElement('canvas'); c.width = Math.round(bmp.width * k); c.height = Math.round(bmp.height * k);
+    c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, 'image/jpeg', 0.86));
+    return { mime: 'image/jpeg', data: await toB64(blob), name: f.name.replace(/\.[^.]+$/, '') + '.jpg' };
+  } catch (e) { return { mime: f.type, data: await toB64(f), name: f.name }; }
+}
+function toB64(blob) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); }); }
+$('#upSend').onclick = async () => {
+  if (!canEdit()) return openLogin();
+  const line = $('#upLine').value.trim();
+  if (line && !byLine.has(line)) return toast('Linha não encontrada no escopo. Escolha uma da lista.', true);
+  const btn = $('#upSend'); btn.disabled = true;
+  const sop = $('#upSop').value || (line ? byLine.get(line).sop : '');
+  let ok = 0, lastId = null;
+  for (let k = 0; k < upFiles.length; k++) {
+    $('#upMsg').textContent = `Enviando ${k + 1} de ${upFiles.length}…`;
+    try {
+      const p = await prepare(upFiles[k]);
+      if (p.data.length * 3 / 4 > 15 * 1048576) throw new Error('arquivo acima de 15 MB');
+      const r = await api('/visual', { method: 'POST', body: { filename: p.name, mime: p.mime, content: p.data, caption: $('#upCap').value.trim(), sop, line } });
+      ok++; lastId = r.id;
+    } catch (e) { toast(`${upFiles[k].name}: ${e.message}`, true); }
+  }
+  upFiles = []; renderUpList(); $('#upMsg').textContent = '';
+  if (ok) { $('#upCap').value = ''; $('#upLine').value = ''; const v = await api('/visual'); visuals = v.items; renderVisual(lastId); renderPainel(); toast(`${ok} ${ok === 1 ? 'arquivo enviado' : 'arquivos enviados'} em ${when(visuals[0]?.uploaded_at)}.`); }
+  btn.disabled = !upFiles.length;
+};
+const fileUrl = v => `${API_URL}/visual/file/${v.id}${token ? '?t=' + encodeURIComponent(token) : ''}`;
+function photoCard(v) {
+  const isPdf = v.mime === 'application/pdf';
+  return `<article class="ph" data-id="${v.id}">
+    ${isPdf ? `<a class="pdf" href="${fileUrl(v)}" target="_blank" rel="noopener">PDF · abrir</a>` : `<button class="img" data-lb="${v.id}" aria-label="Ampliar foto"><img src="${fileUrl(v)}" alt="${esc(v.caption || v.filename)}" loading="lazy"></button>`}
+    <div class="meta">
+      <span class="when">Enviado em ${when(v.uploaded_at)}</span>
+      ${v.caption ? `<span class="cap">${esc(v.caption)}</span>` : ''}
+      <span class="row">${v.sop ? `<span class="chip">SOP ${esc(v.sop)}</span>` : ''}${v.line && byLine.has(v.line) ? `<button class="chip lname" data-line="${byLine.get(v.line).i}">${esc(v.line)}</button>` : ''}</span>
+      <span class="by">por ${esc(v.uploaded_by || '—')}</span>
+      ${isAdmin() ? `<span><button class="btn sm danger" data-del="${v.id}">Excluir</button></span>` : ''}
+    </div></article>`;
+}
+function renderVisual(justId) {
+  $('#nVis').textContent = visuals.length ? f0(visuals.length) : '';
+  $('#upPanel').style.display = canEdit() ? '' : 'none';
+  if (!canEdit()) $('#visCount').textContent = '';
+  const sop = $('#visSop').value;
+  const list = visuals.filter(v => !sop || v.sop === sop);
+  $('#visCount').textContent = list.length ? `${f0(list.length)} ${list.length === 1 ? 'registro' : 'registros'}${visuals[0] ? ` · último envio em ${when(visuals[0].uploaded_at)}` : ''}` : '';
+  if (!list.length) {
+    $('#gallery').innerHTML = `<div class="empty"><b>${online ? 'Nenhuma foto enviada ainda' : 'Sem conexão com o servidor'}</b>${online ? (canEdit() ? 'Use o envio acima para registrar o andamento em campo.' : 'Entre com um usuário editor para enviar fotos.') : 'As fotos aparecem quando o Worker estiver disponível.'}</div>`;
+    return;
+  }
+  const days = new Map();
+  for (const v of list) { const d = dLong.format(new Date(v.uploaded_at)); if (!days.has(d)) days.set(d, []); days.get(d).push(v); }
+  $('#gallery').innerHTML = [...days.entries()].map(([d, vs]) => `<div class="day">${esc(d.charAt(0).toUpperCase() + d.slice(1))}</div><div class="gallery">${vs.map(photoCard).join('')}</div>`).join('');
+  if (justId) { const el = document.querySelector(`.ph[data-id="${justId}"]`); if (el) { el.classList.add('just'); el.scrollIntoView({ block: 'center' }); } }
+}
+$('#visSop').onchange = () => renderVisual();
+document.addEventListener('click', async e => {
+  const lb = e.target.closest('[data-lb]');
+  if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
+  const del = e.target.closest('[data-del]');
+  if (del) {
+    if (!confirm('Excluir esta foto do painel e do GitHub?')) return;
+    try { await api('/visual/' + del.dataset.del, { method: 'DELETE' }); visuals = visuals.filter(v => v.id != del.dataset.del); renderVisual(); renderPainel(); toast('Foto excluída.'); } catch (err) { toast(err.message, true); }
+  }
+});
+function closeLight() { $('#lightbox').classList.remove('on'); }
+$('#lbClose').onclick = closeLight; $('#lightbox').onclick = e => { if (e.target.id === 'lightbox') closeLight(); };
+
+/* ============ histórico ============ */
+function renderHist() {
+  const q = $('#hQ').value.trim().toLowerCase();
+  const list = logH.filter(h => !q || (h.line + ' ' + h.user + ' ' + (h.note || '')).toLowerCase().includes(q)).slice(0, 1000);
+  $('#hBody').innerHTML = list.length ? list.map(h => {
+    const imp = (Number(h.m) || 0) * (h.new_pct - h.old_pct) / 100;
+    const x = byLine.get(h.line);
+    return `<tr><td>${when(h.ts)}</td><td>${x ? `<button class="lname" data-line="${x.i}">${esc(h.line)}</button>` : esc(h.line)}</td>
+      <td class="num">${f1(h.old_pct)}%</td><td class="num">${f1(h.new_pct)}%</td>
+      <td class="num"><span class="delta ${imp >= 0 ? 'up' : 'down'}">${imp >= 0 ? '+' : ''}${f2(imp)}</span></td>
+      <td>${esc(h.user || '')}</td><td class="muted" style="white-space:normal;min-width:160px">${esc(h.note || '')}</td>
+      <td>${isAdmin() && x ? `<button class="btn sm" data-undo="${h.id}" title="Prepara a volta para ${f1(h.old_pct)}%">Desfazer</button>` : ''}</td></tr>`;
+  }).join('') : `<tr><td colspan="8"><div class="empty"><b>Sem registros</b>Os avanços salvos aparecem aqui com data, hora e responsável.</div></td></tr>`;
+}
+$('#hQ').oninput = renderHist;
+document.addEventListener('click', e => {
+  const u = e.target.closest('[data-undo]'); if (!u) return;
+  const h = logH.find(x => x.id == u.dataset.undo), x = byLine.get(h.line);
+  setPending(x.i, Number(h.old_pct)); toast(`Volta para ${f1(h.old_pct)}% preparada. Confira e clique em Salvar avanço.`);
+});
+
+/* ============ usuários ============ */
+const ROLE_T = { viewer: 'Leitor', editor: 'Editor', admin: 'Administrador' };
+function renderUsers() {
+  $('#navUsers').hidden = !isAdmin();
+  $('#uBody').innerHTML = users.map(u => `<tr><td>${esc(u.username)}</td><td>${esc(u.name)}</td><td>${ROLE_T[u.role] || u.role}</td>
+    <td><span class="acts"><button class="btn sm" data-uedit="${esc(u.username)}">Editar</button><button class="btn sm" data-upw="${esc(u.username)}">Redefinir senha</button>${u.username !== me?.username ? `<button class="btn sm danger" data-udel="${esc(u.username)}">Excluir</button>` : ''}</span></td></tr>`).join('');
+}
+let uEditing = null;
+function setUserForm(u) {
+  uEditing = u ? u.username : null;
+  $('#uUser').value = u ? u.username : ''; $('#uUser').disabled = !!u;
+  $('#uName').value = u ? u.name : ''; $('#uRole').value = u ? u.role : 'editor'; $('#uPass').value = '';
+  $('#uFormT').textContent = u ? `Editar ${u.username}` : 'Adicionar usuário';
+  $('#uFormP').textContent = u ? 'Altere nome e perfil. Preencha a senha só se quiser trocá-la.' : 'Preencha os dados e defina uma senha inicial para repassar à pessoa.';
+  $('#uPassL').textContent = u ? 'Nova senha (deixe em branco para manter a atual)' : 'Senha';
+  $('#uNew').hidden = !u; $('#uErr').textContent = ''; $('#uReveal').classList.remove('on');
+  $('#uPass').type = 'password'; document.querySelector('[data-eye="uPass"]').textContent = 'Mostrar';
+}
+$('#uNew').onclick = () => setUserForm(null);
+function genPass() {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  const v = crypto.getRandomValues(new Uint32Array(10));
+  return [...v].map(n => abc[n % abc.length]).join('');
+}
+function showReveal(el, user, pass) {
+  el.innerHTML = `<span>Senha de <b>${esc(user)}</b>:</span><code>${esc(pass)}</code><button class="btn sm" type="button">Copiar</button><small>Copie agora e repasse à pessoa. Por segurança, a senha não fica visível depois que esta tela for fechada.</small>`;
+  el.querySelector('button').onclick = async () => { try { await navigator.clipboard.writeText(pass); toast('Senha copiada.'); } catch (e) { toast('Selecione a senha e copie com Ctrl+C.', true); } };
+  el.classList.add('on');
+}
+document.addEventListener('click', e => {
+  const eye = e.target.closest('[data-eye]');
+  if (eye) { const i = $('#' + eye.dataset.eye); const show = i.type === 'password'; i.type = show ? 'text' : 'password'; eye.textContent = show ? 'Ocultar' : 'Mostrar'; return; }
+  const g = e.target.closest('[data-gen]');
+  if (g) { const i = $('#' + g.dataset.gen); i.value = genPass(); i.type = 'text'; const eyeB = document.querySelector(`[data-eye="${g.dataset.gen}"]`); if (eyeB) eyeB.textContent = 'Ocultar'; if (g.dataset.gen === 'pwNew') $('#pwConf').value = i.value; }
+});
+$('#uSave').onclick = async () => {
+  $('#uErr').textContent = ''; $('#uReveal').classList.remove('on');
+  const username = $('#uUser').value.trim().toLowerCase(), pass = $('#uPass').value;
+  if (!uEditing && pass.length < 6) { $('#uErr').textContent = 'Defina uma senha com pelo menos 6 caracteres (ou clique em Gerar).'; return; }
+  try {
+    await api('/users', { method: 'POST', body: { username, name: $('#uName').value.trim(), role: $('#uRole').value, password: pass } });
+    users = (await api('/users')).users; renderUsers();
+    if (uEditing === me.username) { me.name = $('#uName').value.trim() || me.name; renderWho(); }
+    const editing = uEditing;
+    setUserForm(null);
+    if (pass) showReveal($('#uReveal'), username, pass);
+    toast(editing ? 'Usuário atualizado.' : 'Usuário criado.');
+  } catch (e) { $('#uErr').textContent = e.message; }
+};
+document.addEventListener('click', async e => {
+  const ed = e.target.closest('[data-uedit]');
+  if (ed) { setUserForm(users.find(u => u.username === ed.dataset.uedit)); $('#uName').focus(); return; }
+  const pw = e.target.closest('[data-upw]');
+  if (pw) { openPw(pw.dataset.upw); return; }
+  const d = e.target.closest('[data-udel]'); if (!d) return;
+  if (!confirm(`Excluir o usuário ${d.dataset.udel}?`)) return;
+  try { await api('/users/' + encodeURIComponent(d.dataset.udel), { method: 'DELETE' }); users = (await api('/users')).users; renderUsers(); if (uEditing === d.dataset.udel) setUserForm(null); } catch (err) { toast(err.message, true); }
+});
+
+/* ============ troca de senha ============ */
+let pwTarget = null; // null = minha senha
+function openPw(username) {
+  pwTarget = username && username !== me.username ? username : null;
+  const self = !pwTarget;
+  $('#pwT').textContent = self ? 'Alterar minha senha' : `Redefinir senha de ${pwTarget}`;
+  $('#pwP').textContent = self ? 'Informe a senha atual e escolha uma nova.' : 'Defina a nova senha e repasse à pessoa. Ela poderá trocá-la depois em "Minha senha".';
+  $('#pwCurW').hidden = !self; $('#pwConfW').hidden = !self; $('#pwGen').hidden = self;
+  ['#pwCur', '#pwNew', '#pwConf'].forEach(x => { $(x).value = ''; $(x).type = 'password'; });
+  document.querySelectorAll('#pwModal [data-eye]').forEach(b => b.textContent = 'Mostrar');
+  $('#pwErr').textContent = ''; $('#pwReveal').classList.remove('on');
+  $('#pwSave').hidden = false; $('#pwCancel').textContent = 'Cancelar';
+  $('#pwModal').classList.add('on');
+  setTimeout(() => (self ? $('#pwCur') : $('#pwNew')).focus(), 30);
+}
+$('#pwCancel').onclick = () => $('#pwModal').classList.remove('on');
+$('#pwSave').onclick = async () => {
+  $('#pwErr').textContent = '';
+  const nw = $('#pwNew').value;
+  if (nw.length < 6) return $('#pwErr').textContent = 'A nova senha precisa de pelo menos 6 caracteres.';
+  try {
+    if (!pwTarget) {
+      if (nw !== $('#pwConf').value) return $('#pwErr').textContent = 'A confirmação não confere com a nova senha.';
+      await api('/auth/password', { method: 'POST', body: { current: $('#pwCur').value, password: nw } });
+      $('#pwModal').classList.remove('on'); toast('Sua senha foi alterada.');
+    } else {
+      await api('/users/' + encodeURIComponent(pwTarget) + '/password', { method: 'POST', body: { password: nw } });
+      showReveal($('#pwReveal'), pwTarget, nw);
+      $('#pwSave').hidden = true; $('#pwCancel').textContent = 'Fechar';
+      toast(`Senha de ${pwTarget} redefinida.`);
+    }
+  } catch (e) { $('#pwErr').textContent = e.message; }
+};
+
+/* ============ login ============ */
+function renderWho() {
+  $('#who').innerHTML = me ? `<span class="chip">${esc(me.name)} · ${ROLE_T[me.role]}</span><button class="btn sm" id="myPw">Minha senha</button><button class="btn sm" id="logout">Sair</button>` : '';
+  if ($('#myPw')) $('#myPw').onclick = () => openPw(null);
+  if ($('#logout')) $('#logout').onclick = () => {
+    if (pending.size && !confirm('Há alterações não salvas. Sair mesmo assim?')) return;
+    setToken(null); location.hash = ''; location.reload();
+  };
+}
+function openLogin() { lockApp(); }
+function showLogin(msg) {
+  document.body.classList.add('locked');
+  const boot = !hasUsers;
+  gateShow('gLogin');
+  $('#loginT').textContent = boot ? 'Criar o primeiro administrador' : 'Entrar';
+  $('#loginP').textContent = boot ? 'Ainda não há usuários. Informe a senha mestre configurada no Worker para criar o seu acesso.' : 'Acesso restrito. Informe seu usuário e senha.';
+  $('#lMasterW').hidden = !boot; $('#lNameW').hidden = !boot;
+  $('#lGo').textContent = boot ? 'Criar e entrar' : 'Entrar';
+  $('#lErr').textContent = msg || '';
+  setTimeout(() => (boot ? $('#lMaster') : $('#lUser')).focus(), 30);
+}
+['#lUser', '#lPass', '#lMaster', '#lName'].forEach(s => $(s).addEventListener('keydown', e => { if (e.key === 'Enter') $('#lGo').click(); }));
+$('#lGo').onclick = async () => {
+  $('#lErr').textContent = '';
+  const btn = $('#lGo'); btn.disabled = true;
+  try {
+    const body = { username: $('#lUser').value.trim(), password: $('#lPass').value };
+    const r = hasUsers ? await api('/auth/login', { method: 'POST', body })
+      : await api('/auth/bootstrap', { method: 'POST', body: { ...body, name: $('#lName').value.trim() }, headers: { 'X-Admin-Password': $('#lMaster').value } });
+    setToken(r.token); me = r.user; hasUsers = true; $('#lPass').value = ''; $('#lMaster').value = '';
+    if (BASE) { await loadData(); document.body.classList.remove('locked'); renderAll(); setSync(); }
+    else await enter();
+    toast(`Bem-vindo, ${me.name}.`);
+  } catch (e) { $('#lErr').textContent = e.message; }
+  btn.disabled = false;
+};
+
+/* ============ base do escopo (admin) ============ */
+async function sendBase(file, errEl) {
+  errEl.textContent = '';
+  if (!file) { errEl.textContent = 'Selecione o arquivo base_escopo.json.'; return false; }
+  let b;
+  try { b = JSON.parse(await file.text()); } catch (e) { errEl.textContent = 'O arquivo não é um JSON válido.'; return false; }
+  if (!b || !Array.isArray(b.rows) || !Array.isArray(b.sops)) { errEl.textContent = 'Este arquivo não é uma base do escopo.'; return false; }
+  try { await api('/base', { method: 'POST', body: { base: b } }); return true; }
+  catch (e) { errEl.textContent = e.message; return false; }
+}
+$('#gBaseGo').onclick = async () => { const btn = $('#gBaseGo'); btn.disabled = true; if (await sendBase($('#gBaseFile').files[0], $('#gBaseErr'))) await enter(); btn.disabled = false; };
+$('#baseGo').onclick = async () => {
+  const btn = $('#baseGo'); btn.disabled = true;
+  if (await sendBase($('#baseFile').files[0], $('#baseErr'))) { toast('Base atualizada. Recarregando…'); setTimeout(() => location.reload(), 900); }
+  btn.disabled = false;
+};
+function renderBaseInfo() {
+  if (!BASE) return;
+  $('#baseInfo').innerHTML = `Base de <b>${esc(BASE.emissao)}</b> com ${f0(R.length)} linhas e ${f0(Object.values(BASE.spools).reduce((s, a) => s + a.length, 0))} spools.` +
+    (BASE_INFO?.updated_at ? ` Carregada em ${when(BASE_INFO.updated_at)} por ${esc(BASE_INFO.updated_by || '—')}.` : '');
+}
+
+/* ============ exportação ============ */
+$('#exportCsv').onclick = () => {
+  const head = ['LINHA', 'm', 'Espessura', 'Espessura Pyrogel', 'Diâmetro', 'ITEM PPU', 'SOP', 'SUBSOP', 'STH', '% Avanço', 'm executado', 'Atualizado em', 'Responsável'];
+  const rows = (lnFiltered.length ? lnFiltered : R).map(x => { const s = server[x.line], p = pct(x); return [x.line, f2(x.m), x.esp, x.pyro, x.diam, 'Anexo IIB - ' + x.ppu, x.sop, x.sub, x.sth, f2(p), f2(x.m * p / 100), s ? when(s.updated_at) : '', s?.updated_by || '']; });
+  const csv = '\ufeff' + [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `isolamento_avanco_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* ============ geral ============ */
+let toastT;
+function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', bad ? 5200 : 3200); }
+function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); if (!isAdmin() && location.hash === '#usuarios') go('painel'); }
+
+document.body.classList.add('locked');
+boot();
+</script>
+</body>
+</html>
