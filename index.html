@@ -156,6 +156,35 @@ td.sth{font-size:12px}
 .tag.s0{background:#EEF1F3;color:#56656F}
 .tag.s1{background:var(--prog-soft);color:#7A6211}
 .tag.s2{background:var(--done-soft);color:#356B22}
+.tag.s3{background:var(--danger-soft);color:var(--danger)}
+.wk{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:#E4EFF7;color:#1B5E8A;border:1px solid #C9DDEB;margin-right:4px;white-space:nowrap}
+.wk.past{background:#F1F3F5;color:#7A8894;border-color:#E1E6EA}
+.wk.hit{background:var(--done-soft);color:#356B22;border-color:#C6E2BA}
+.bulk .sep{width:1px;align-self:stretch;background:#C9DDEB;margin:0 4px}
+.bulk select.input{height:30px;padding:3px 8px}
+.fp{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(300px,1fr);border-top:1px solid var(--line2)}
+.fp-left{border-right:1px solid var(--line2);min-width:0}
+.fp-right{background:linear-gradient(180deg,#F7FAFC,#FFFFFF);display:flex;flex-direction:column;min-width:0}
+.fp-total{margin:18px;padding:18px 20px;border-radius:12px;color:#fff;background:radial-gradient(120% 140% at 100% 0%,#2B86BF 0%,#1B5E8A 45%,#0F2638 100%);box-shadow:0 14px 30px -16px rgba(15,38,56,.7);position:relative;overflow:hidden}
+.fp-total::after{content:"";position:absolute;right:-40px;top:-40px;width:150px;height:150px;border-radius:50%;background:rgba(255,255,255,.08)}
+.fp-total span{font-size:12.5px;color:#BFD6E7;display:block}
+.fp-total strong{font-size:28px;font-weight:700;letter-spacing:-.02em;display:block;margin:4px 0 2px}
+.fp-total small{font-size:12.5px;color:#D6E5F0}
+.fp-total .sb{height:6px;border-radius:3px;background:rgba(255,255,255,.18);margin-top:12px;overflow:hidden}
+.fp-total .sb i{display:block;height:100%;background:linear-gradient(90deg,#86C46B,#4E9A3A);border-radius:3px}
+.fp-total .row2{display:flex;justify-content:space-between;font-size:12px;color:#D6E5F0;margin-top:6px}
+.fp-list{list-style:none;margin:0;padding:0 18px 18px;overflow:auto;max-height:520px}
+.fp-list li{display:grid;grid-template-columns:1fr auto auto;gap:2px 10px;align-items:center;padding:10px 12px;border:1px solid var(--line2);border-radius:10px;background:#fff;margin-bottom:8px}
+.fp-list .l{font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fp-list .m{grid-column:1/2;font-size:12px;color:var(--muted)}
+.fp-list .v{text-align:right;font-weight:600;font-size:13px;white-space:nowrap}
+.fp-list .v small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+.fp-list .x{grid-row:1/3;grid-column:3;border:0;background:none;color:#9AA8B3;cursor:pointer;font-size:16px;padding:4px 6px;border-radius:6px}
+.fp-list .x:hover{background:var(--danger-soft);color:var(--danger)}
+.fp-h{display:flex;align-items:center;justify-content:space-between;padding:0 18px 10px;font-size:13px;font-weight:600;color:var(--ink2)}
+.fp-act{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 20px;background:var(--brand-soft);border-bottom:1px solid #C9DDEB;font-size:13px;position:sticky;top:0;z-index:2}
+.fp-act b{font-weight:700}
+@media (max-width:1100px){.fp{grid-template-columns:1fr}.fp-left{border-right:0}}
 .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:14px 20px;border-bottom:1px solid var(--line2);background:var(--surface2)}
 .filters .input{height:36px}
 .pager{display:flex;align-items:center;gap:10px;padding:12px 20px;font-size:13px;color:var(--muted);border-top:1px solid var(--line2)}
@@ -446,6 +475,7 @@ body.locked .app,body.locked .pending{display:none!important}
       <button data-v="painel" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Painel</button>
       <button data-v="estrutura"><svg viewBox="0 0 24 24"><path d="M4 5h6M4 12h6M4 19h6M14 5h6M14 12h6M14 19h6"/></svg>SOP, SUBSOP e STH</button>
       <button data-v="linhas"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Linhas<span class="count" id="nLines"></span></button>
+      <button data-v="programacao"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7.5 14.5l2 2 4-4"/></svg>Programação</button>
       <button data-v="visual"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>Acompanhamento visual<span class="count" id="nVis"></span></button>
       <button data-v="historico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico</button>
       <button data-v="financeiro" id="navFin" hidden><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Financeiro</button>
@@ -606,6 +636,7 @@ body.locked .app,body.locked .pending{display:none!important}
             <select class="input" id="lnStatus"><option value="">Todos os status</option><option value="0">Não iniciada</option><option value="1">Em andamento</option><option value="2">Concluída</option></select>
             <select class="input" id="lnTipo"><option value="">Todos os tipos</option></select>
             <select class="input" id="lnDiam"><option value="">Todos os diâmetros</option></select>
+            <select class="input" id="lnProg"><option value="">Toda a programação</option><option value="any">Com programação a cumprir</option><option value="none">Sem programação</option></select>
           </div>
           <div class="bulk" id="bulk">
             <b id="bulkN"></b>
@@ -613,6 +644,15 @@ body.locked .app,body.locked .pending{display:none!important}
             <input class="input pct-in" id="bulkPct" type="number" min="0" max="100" step="1" value="100" aria-label="Percentual para as selecionadas">
             <span>%</span>
             <button class="btn primary sm" id="bulkApply">Aplicar</button>
+            <span class="sep"></span>
+            <span>Programar na</span>
+            <select class="input" id="bulkWeek" aria-label="Semana"></select>
+            <span>meta</span>
+            <input class="input pct-in" id="bulkWeekPct" type="number" min="0" max="100" step="1" value="100" aria-label="Meta de avanço na semana">
+            <span>%</span>
+            <button class="btn primary sm" id="bulkProg">Programar</button>
+            <button class="btn sm" id="bulkUnprog">Tirar da semana</button>
+            <span class="sep"></span>
             <button class="btn ghost sm" id="bulkClear">Limpar seleção</button>
           </div>
           <div class="tbl-wrap">
@@ -624,16 +664,52 @@ body.locked .app,body.locked .pending{display:none!important}
                 <th><button data-sort="sth">STH</button></th>
                 <th><button data-sort="diam">Ø</button></th>
                 <th class="num"><button data-sort="esp">Esp. (mm)</button></th>
-                <th>Tipo</th>
-                <th class="num"><button data-sort="m">Metros</button></th>
+                                <th class="num"><button data-sort="m">Metros</button></th>
                 <th><button data-sort="pct">Avanço</button></th>
-                <th class="num">Executado (m)</th>
+                <th class="num">Exec. (m)</th>
                 <th>Status</th>
+                <th>Programação</th>
               </tr></thead>
               <tbody id="lnBody"></tbody>
             </table>
           </div>
           <div class="pager" id="pager"></div>
+        </div>
+      </section>
+
+      <!-- PROGRAMAÇÃO SEMANAL -->
+      <section class="view" id="v-programacao">
+        <div class="fin-top">
+          <label class="period"><span>Semana</span><select class="input" id="pgWeek"></select></label>
+          <div class="muted" id="pgRange" style="font-size:13px;align-self:flex-end;padding-bottom:9px"></div>
+          <div class="spacer"></div>
+          <button class="btn" data-go="linhas">Programar linhas</button>
+          <button class="btn" id="pgCsv">Exportar programação (CSV)</button>
+        </div>
+        <div class="kpis" id="pgKpis"></div>
+        <div class="grid2" style="grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)">
+          <div class="panel mbars">
+            <div class="panel-h"><div><h2>Programado × executado por semana</h2><p>Metros programados e metros efetivamente isolados em cada semana.</p></div></div>
+            <div class="panel-b" id="pgChart"></div>
+            <div class="fin-legend"><span><i style="background:var(--prog-soft);border:1.5px dashed var(--prog)"></i>Programado</span><span><i style="background:var(--brand)"></i>Executado</span><span><i style="background:var(--done)"></i>Semana selecionada</span></div>
+          </div>
+          <div class="panel">
+            <div class="panel-h"><div><h2>Programação por SOP</h2><p>Metros programados, executados e aderência na semana.</p></div></div>
+            <div class="tbl-wrap" id="pgSopTbl"></div>
+          </div>
+        </div>
+        <div class="panel mt">
+          <div class="panel-h"><div><h2>Linhas programadas</h2><p>O avanço continua sendo lançado na aba Linhas e aparece aqui automaticamente.</p></div></div>
+          <div class="filters">
+            <input class="input" id="pgQ" type="search" placeholder="Buscar linha ou STH" style="flex:1;min-width:200px">
+            <select class="input" id="pgSop"><option value="">Todas as SOPs</option></select>
+            <select class="input" id="pgSt"><option value="">Todas as situações</option><option value="hit">Meta atingida</option><option value="part">Parcial</option><option value="todo">Programada / não executada</option></select>
+          </div>
+          <div class="tbl-wrap"><table>
+            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th></th></tr></thead>
+            <tbody id="pgBody"></tbody>
+          </table></div>
+          <div class="pager" id="pgPager"></div>
         </div>
       </section>
 
@@ -691,11 +767,46 @@ body.locked .app,body.locked .pending{display:none!important}
         <div id="finWarn"></div>
         <div class="kpis" id="finKpis"></div>
 
+        <div class="panel mt" id="fpPanel">
+          <div class="panel-h">
+            <div><h2 id="fpT">Programação da medição</h2><p>Escolha as linhas que serão executadas no mês. O valor medido entra no mês em que o avanço for lançado na aba Linhas.</p></div>
+            <div class="tools"><button class="btn" id="fpWeeks">Trazer da programação semanal</button><button class="btn danger" id="fpClear">Limpar programação</button></div>
+          </div>
+          <div class="fp">
+            <div class="fp-left">
+              <div class="filters">
+                <input class="input" id="fpQ" type="search" placeholder="Buscar linha ou STH" style="flex:1;min-width:180px">
+                <select class="input" id="fpSop"><option value="">Todas as SOPs</option></select>
+                <select class="input" id="fpPpu"><option value="">Todos os itens PPU</option></select>
+                <select class="input" id="fpShow"><option value="open">A programar (não concluídas)</option><option value="prog">Já programadas</option><option value="all">Todas as linhas</option></select>
+              </div>
+              <div class="fp-act">
+                <span id="fpSelN">Nenhuma linha selecionada.</span>
+                <span style="flex:1"></span>
+                <span>Programar até</span>
+                <input class="input pct-in" id="fpPct" type="number" min="1" max="100" step="1" value="100" aria-label="Avanço a atingir">
+                <span>%</span>
+                <button class="btn primary" id="fpAdd" disabled>Adicionar à medição</button>
+              </div>
+              <div class="tbl-wrap"><table>
+                <thead><tr><th><input type="checkbox" id="fpAllPage" aria-label="Selecionar página"></th><th>Linha</th><th>SOP</th><th>Item</th><th class="num">Metros</th><th class="num">% atual</th><th class="money">Saldo a medir</th><th>Programação</th></tr></thead>
+                <tbody id="fpBody"></tbody>
+              </table></div>
+              <div class="pager" id="fpPager"></div>
+            </div>
+            <div class="fp-right">
+              <div class="fp-total" id="fpTotal"></div>
+              <div class="fp-h"><span id="fpListT">Linhas programadas</span><span class="muted" style="font-weight:400" id="fpListS"></span></div>
+              <ul class="fp-list" id="fpList"></ul>
+            </div>
+          </div>
+        </div>
+
         <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)">
           <div class="panel mbars">
-            <div class="panel-h"><div><h2>Medições</h2><p>Valor medido em cada medição e previsão cadastrada.</p></div></div>
+            <div class="panel-h"><div><h2>Medições</h2><p>Valor medido em cada medição e valor programado.</p></div></div>
             <div class="panel-b" id="finChart"></div>
-            <div class="fin-legend"><span><i style="background:var(--brand)"></i>Medido</span><span><i style="background:var(--prog-soft);border:1.5px dashed var(--prog)"></i>Previsto</span><span><i style="background:var(--done)"></i>Medição selecionada</span></div>
+            <div class="fin-legend"><span><i style="background:var(--brand)"></i>Medido</span><span><i style="background:var(--prog-soft);border:1.5px dashed var(--prog)"></i>Programado</span><span><i style="background:var(--done)"></i>Medição selecionada</span></div>
           </div>
           <div class="panel">
             <div class="panel-h"><div><h2>Resumo por item PPU</h2><p id="finPpuP">Anexo IIB · preço por metro linear.</p></div></div>
@@ -704,7 +815,7 @@ body.locked .app,body.locked .pending{display:none!important}
         </div>
 
         <div class="panel mt">
-          <div class="panel-h"><div><h2>Previsão por mês</h2><p>Cronograma de medições: previsto e medido em cada mês, com os valores acumulados. Clique em um mês para abri-lo.</p></div></div>
+          <div class="panel-h"><div><h2>Programação × medição por mês</h2><p>Valor programado e medido em cada mês, com os acumulados. Clique em um mês para abri-lo.</p></div></div>
           <div class="tbl-wrap" id="finPlan"></div>
         </div>
 
@@ -721,13 +832,13 @@ body.locked .app,body.locked .pending{display:none!important}
 
         <div class="panel mt">
           <div class="panel-h">
-            <div><h2>Itens da medição</h2><p id="finItemsP">Linhas medidas no período. Na medição aberta, informe a previsão (% a atingir até o corte).</p></div>
+            <div><h2>Itens da medição</h2><p id="finItemsP">Linhas medidas e programadas no período.</p></div>
           </div>
           <div class="filters">
             <input class="input" id="fiQ" type="search" placeholder="Buscar linha ou STH" style="flex:1;min-width:200px">
             <select class="input" id="fiSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="fiPpu"><option value="">Todos os itens PPU</option></select>
-            <select class="input" id="fiShow"><option value="mov">Com medição ou previsão</option><option value="real">Somente medidas</option><option value="fc">Somente previstas</option><option value="all">Todas as linhas</option></select>
+            <select class="input" id="fiShow"><option value="mov">Medidas ou programadas</option><option value="real">Somente medidas</option><option value="fc">Somente programadas</option><option value="all">Todas as linhas</option></select>
           </div>
           <div class="bulk" id="fiBulk" style="display:none">
             <span id="fiBulkN"></span>
@@ -998,8 +1109,9 @@ async function enter() {
   renderAll(); setSync();
 }
 async function loadData() {
-  const [p, h, v] = await Promise.all([api('/progress'), api('/history?limit=' + (isAdmin() ? 100000 : 3000)), api('/visual')]);
+  const [p, h, v] = await Promise.all([api('/progress'), api('/history?limit=' + (isAdmin() ? 100000 : 20000)), api('/visual')]);
   server = {}; for (const it of p.items) server[it.line] = it;
+  try { setProg((await api('/prog')).weeks || {}); } catch (e) {}
   lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
   if (isAdmin()) {
     try { users = (await api('/users')).users; } catch (e) {}
@@ -1016,7 +1128,7 @@ function setSync() {
 setInterval(async () => { if (!BASE || !me || document.body.classList.contains('locked') || pending.size || document.hidden) return; try { await loadData(); renderAll(); setSync(); } catch (e) {} }, 60000);
 
 /* ============ navegação ============ */
-const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', visual: 'Acompanhamento visual', historico: 'Histórico', financeiro: 'Financeiro', usuarios: 'Usuários' };
+const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', visual: 'Acompanhamento visual', historico: 'Histórico', programacao: 'Programação semanal', financeiro: 'Financeiro', usuarios: 'Usuários' };
 function go(v) {
   if (!TITLES[v] || ((v === 'usuarios' || v === 'financeiro') && !isAdmin())) v = 'painel';
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
@@ -1228,11 +1340,14 @@ function fillFilters() {
   $('#lnDiam').insertAdjacentHTML('beforeend', diams.map(d => `<option value="${esc(d)}">${esc(diamTxt(d))}</option>`).join(''));
   $('#lineList').innerHTML = R.map(x => `<option value="${esc(x.line)}">`).join('');
 }
-['#lnQ', '#lnSop', '#lnStatus', '#lnTipo', '#lnDiam'].forEach(s => $(s).addEventListener(s === '#lnQ' ? 'input' : 'change', () => { lnPage = 0; renderLinhas(); }));
+['#lnQ', '#lnSop', '#lnStatus', '#lnTipo', '#lnDiam', '#lnProg'].forEach(s => $(s).addEventListener(s === '#lnQ' ? 'input' : 'change', () => { lnPage = 0; renderLinhas(); }));
 $$('[data-sort]').forEach(b => b.onclick = () => { const k = b.dataset.sort; lnSort = { k, d: lnSort.k === k ? -lnSort.d : 1 }; renderLinhas(); });
 function renderLinhas() {
-  const q = $('#lnQ').value.trim().toLowerCase(), sop = $('#lnSop').value, sf = $('#lnStatus').value, tp = $('#lnTipo').value, dm = $('#lnDiam').value;
-  lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm));
+  const q = $('#lnQ').value.trim().toLowerCase(), sop = $('#lnSop').value, sf = $('#lnStatus').value, tp = $('#lnTipo').value, dm = $('#lnDiam').value, pf = $('#lnProg').value;
+  const pOk = x => { if (!pf) return true; const ws = progIdx.get(x.line) || []; const cur = weekOf(Date.now());
+    if (pf === 'any') return ws.some(([w]) => w >= cur); if (pf === 'none') return !ws.some(([w]) => w >= cur);
+    const n = Number(pf.slice(2)); return ws.some(([w]) => w === n); };
+  lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm) && pOk(x));
   const k = lnSort.k, d = lnSort.d;
   const val = x => k === 'pct' ? pct(x) : k === 'm' ? x.m : k === 'esp' ? Number(x.esp) : x[k];
   lnFiltered.sort((a, b) => { const A = val(a), B = val(b); return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B))) * d || a.line.localeCompare(b.line); });
@@ -1241,9 +1356,9 @@ function renderLinhas() {
   $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) ? 'changed' : ''}">
     <td><input type="checkbox" data-sel="${x.i}" ${sel.has(x.i) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar ${esc(x.line)}"></td>
     <td><button class="lname" data-line="${x.i}">${esc(x.line)}</button></td>
-    <td>${esc(x.sop)}</td><td class="muted sth">${esc(x.sth)}</td><td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td><td>${esc(x.tipo)}</td>
+    <td>${esc(x.sop)}</td><td class="muted sth" title="${esc(x.sth)}">…${esc(x.sth.replace(/^STH-\d{4}-\d{4}-\d{4}-/, ''))}</td><td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td>
     <td class="num">${f2(x.m)}</td><td>${pctCell(x)}</td><td class="num">${f2(x.m * p / 100)}</td>
-    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td></tr>`; }).join('')
+    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChips(x)}</td></tr>`; }).join('')
     : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros.</div></td></tr>`;
   const t = totals(lnFiltered);
   $('#pager').innerHTML = `<span>${f0(lnFiltered.length)} linhas · ${f2(t.m)} m · avanço ${pctTxt(t.pct)}</span><span class="spacer"></span>
@@ -1327,6 +1442,8 @@ function openLine(i) {
     </dl>
     <div class="h4">Spools (${sp.length}) <span class="muted" style="font-weight:400">· Mapa de Spools</span></div>
     ${sp.length ? `<div class="tbl-wrap" style="max-height:260px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Isométrico-spool</th><th class="num">Comp. (m)</th><th>Isol.</th></tr></thead><tbody>${sp.map(s => `<tr><td>${esc(s[0])}</td><td class="num">${f2(s[1])}</td><td>${esc(s[2])}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted">Linha sem spools no Mapa de Spools.</p>`}
+    <div class="h4">Programação semanal</div>
+    ${(progIdx.get(x.line) || []).length ? `<p style="margin:0">${(progIdx.get(x.line) || []).map(([w, v]) => `<span class="wk ${w < weekOf(Date.now()) ? 'past' : ''}">S${w} · ${f0(v)}%</span>`).join(' ')}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
     <div class="h4">Histórico</div>
     ${hist.length ? `<ul class="feed" style="border:1px solid var(--line2);border-radius:6px">${hist.map(h => `<li><span class="l">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="muted">${esc(h.user || '')}</span><span class="t">${when(h.ts)}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`).join('')}</ul>` : `<p class="muted">Nenhuma alteração registrada pelo painel.</p>`}
     ${pics.length ? `<div class="h4">Fotos desta linha</div><div class="gallery">${pics.map(photoCard).join('')}</div>` : ''}`;
@@ -1604,6 +1721,248 @@ function renderBaseInfo() {
 }
 
 
+
+/* ============ programação semanal (avanço físico) ============ */
+const W70 = Date.parse('2026-10-26T03:00:00Z'); // segunda 26/10/2026 00:00 (Recife) = início da Semana 70
+const WEEK = 7 * 864e5;
+const weekOf = ms => 70 + Math.floor((ms - W70) / WEEK);
+const weekStart = n => W70 + (n - 70) * WEEK;
+const dShort = ms => dFmt.format(new Date(ms)).slice(0, 5);
+const weekRange = n => `${dShort(weekStart(n))} a ${dFmt.format(new Date(weekStart(n) + WEEK - 1))}`;
+let prog = {}, progIdx = new Map();
+function setProg(w) {
+  prog = w || {}; progIdx = new Map();
+  for (const [wk, lines] of Object.entries(prog)) for (const [line, v] of Object.entries(lines || {})) {
+    if (!progIdx.has(line)) progIdx.set(line, []); progIdx.get(line).push([Number(wk), Number(v)]);
+  }
+  for (const a of progIdx.values()) a.sort((x, y) => x[0] - y[0]);
+}
+const progOf = (n, line) => { const w = prog[String(n)]; return w && w[line] != null ? Number(w[line]) : null; };
+function progChips(x) {
+  const ws = progIdx.get(x.line); if (!ws || !ws.length) return '<span class="muted">—</span>';
+  const cur = weekOf(Date.now()), p = pct(x);
+  const fut = ws.filter(([w]) => w >= cur), show = fut.length ? fut.slice(0, 2) : ws.slice(-1);
+  return show.map(([w, v]) => `<span class="wk ${w < cur ? 'past' : ''}${p >= v - 1e-6 ? ' hit' : ''}" title="Semana ${w} (${weekRange(w)}): meta ${f0(v)}%">S${w} · ${f0(v)}%</span>`).join('') + (fut.length > 2 ? `<span class="muted">+${fut.length - 2}</span>` : '');
+}
+function weekOptions(from, to, sel) {
+  const cur = weekOf(Date.now()); let h = '';
+  for (let n = from; n <= to; n++) h += `<option value="${n}"${n === sel ? ' selected' : ''}>Semana ${n} · ${weekRange(n)}${n === cur ? ' (atual)' : n === cur + 1 ? ' (próxima)' : ''}</option>`;
+  return h;
+}
+function fillProgFilters() {
+  const cur = weekOf(Date.now());
+  $('#bulkWeek').innerHTML = weekOptions(cur, cur + 8, cur + 1);
+  const lp = $('#lnProg'); lp.querySelectorAll('option[data-w]').forEach(o => o.remove());
+  for (let n = cur - 2; n <= cur + 8; n++) lp.insertAdjacentHTML('beforeend', `<option data-w value="w:${n}">Programadas na Semana ${n}</option>`);
+  if ($('#pgSop').options.length === 1) $('#pgSop').insertAdjacentHTML('beforeend', BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(''));
+}
+async function saveProg(week, items) {
+  await api('/prog', { method: 'POST', body: { week, items } });
+  setProg((await api('/prog')).weeks || {});
+}
+$('#bulkProg').onclick = async () => {
+  const w = Number($('#bulkWeek').value), v = clampPct($('#bulkWeekPct').value);
+  if (v == null || v <= 0) return toast('Informe uma meta entre 1 e 100%.', true);
+  const items = [...sel].map(i => ({ line: R[i].line, pct: v }));
+  try { await saveProg(w, items); toast(`${items.length} ${items.length === 1 ? 'linha programada' : 'linhas programadas'} na Semana ${w} (${weekRange(w)}).`); sel.clear(); renderLinhas(); renderProg(); }
+  catch (e) { toast('Não foi possível programar: ' + e.message, true); }
+};
+$('#bulkUnprog').onclick = async () => {
+  const w = Number($('#bulkWeek').value);
+  const items = [...sel].filter(i => progOf(w, R[i].line) != null).map(i => ({ line: R[i].line, pct: null }));
+  if (!items.length) return toast(`Nenhuma das linhas selecionadas está programada na Semana ${w}.`, true);
+  try { await saveProg(w, items); toast(`${items.length} ${items.length === 1 ? 'linha retirada' : 'linhas retiradas'} da Semana ${w}.`); sel.clear(); renderLinhas(); renderProg(); }
+  catch (e) { toast(e.message, true); }
+};
+
+function weekRows(n) {
+  const cur = weekOf(Date.now()), a = weekStart(n), b = a + WEEK, fut = n > cur;
+  return R.map(x => {
+    const tgt = progOf(n, x.line);
+    let s0 = fut ? savedPct(x) : pctAt(x, a);
+    if (fut) for (let k = cur; k < n; k++) { const t = progOf(k, x.line); if (t != null && t > s0) s0 = t; }
+    const e = fut ? s0 : pctAt(x, b);
+    return { x, tgt, s: s0, e, progM: tgt == null ? 0 : x.m * Math.max(0, tgt - s0) / 100, execM: x.m * (e - s0) / 100, hit: tgt != null && e >= tgt - 1e-6 };
+  });
+}
+function weekSum(rows) {
+  const t = { n: 0, hit: 0, m: 0, progM: 0, execP: 0, capP: 0, execOut: 0, nOut: 0 };
+  for (const r of rows) {
+    if (r.tgt != null) { t.n++; t.m += r.x.m; t.progM += r.progM; t.execP += r.execM; t.capP += Math.min(Math.max(r.execM, 0), r.progM); if (r.hit) t.hit++; }
+    else if (Math.abs(r.execM) > 1e-9) { t.execOut += r.execM; t.nOut++; }
+  }
+  return t;
+}
+let pgSel = null, pgPage = 0;
+function progWeeksList() {
+  const cur = weekOf(Date.now()); const set = new Set(); for (let n = cur - 2; n <= cur + 8; n++) set.add(n);
+  Object.keys(prog).forEach(k => { if (Object.keys(prog[k] || {}).length) set.add(Number(k)); });
+  return [...set].sort((a, b) => a - b);
+}
+function renderProg() {
+  if (!BASE) return;
+  buildHIdx(); fillProgFilters();
+  const cur = weekOf(Date.now()), list = progWeeksList();
+  if (pgSel == null) { const has = n => prog[String(n)] && Object.keys(prog[String(n)]).length; pgSel = has(cur) ? cur : (list.find(n => n > cur && has(n)) ?? cur + 1); }
+  $('#pgWeek').innerHTML = list.map(n => `<option value="${n}"${n === pgSel ? ' selected' : ''}>Semana ${n} · ${weekRange(n)}${n === cur ? ' (atual)' : n === cur + 1 ? ' (próxima)' : n < cur ? ' (encerrada)' : ''}</option>`).join('');
+  const fut = pgSel > cur, past = pgSel < cur;
+  $('#pgRange').textContent = `${weekRange(pgSel)} · ${fut ? 'semana futura' : past ? 'semana encerrada' : 'semana em andamento'}`;
+  const rows = weekRows(pgSel), t = weekSum(rows);
+  const adh = t.progM > 0 ? t.capP / t.progM : null;
+  $('#pgKpis').style.gridTemplateColumns = 'repeat(3,minmax(0,1fr))';
+  $('#pgKpis').innerHTML = [
+    { l: 'Linhas programadas', v: f0(t.n), s: `${f2(t.m)} m de tubulação`, ic: 'layers', c: 'navy' },
+    { l: 'Metros programados', v: f2(t.progM) + ' m', s: 'a isolar na semana', ic: 'calendar', c: 'gold', hl: true },
+    { l: 'Executado nas programadas', v: fut ? '—' : f2(t.execP) + ' m', s: fut ? `semana começa em ${dShort(weekStart(pgSel))}` : 'lançado na aba Linhas', ic: 'ruler', c: 'blue', frac: fut || !t.progM ? null : Math.min(1, Math.max(0, t.execP / t.progM)) },
+    { l: 'Aderência à programação', v: fut || adh == null ? '—' : pctTxt(adh * 100), s: adh == null ? 'programe linhas na aba Linhas' : fut ? 'aguardando a semana' : 'executado ÷ programado', ic: 'target', c: 'teal', frac: fut || adh == null ? null : adh },
+    { l: 'Metas atingidas', v: `${f0(t.hit)} de ${f0(t.n)}`, s: 'linhas que chegaram à meta', ic: 'check', c: 'green', frac: t.n ? t.hit / t.n : null },
+    { l: 'Executado fora da programação', v: fut ? '—' : f2(t.execOut) + ' m', s: fut ? '—' : `${f0(t.nOut)} ${t.nOut === 1 ? 'linha' : 'linhas'} não programadas`, ic: 'flame', c: 'orange' }
+  ].map(scard).join('');
+  renderProgChart(cur);
+  // por SOP
+  const g = new Map(); for (const r of rows) if (r.tgt != null) { if (!g.has(r.x.sop)) g.set(r.x.sop, []); g.get(r.x.sop).push(r); }
+  const sops = [...g.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, rs]) => ({ k, ...weekSum(rs) }));
+  $('#pgSopTbl').innerHTML = sops.length ? `<table><thead><tr><th>SOP</th><th class="num">Linhas</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th class="num">Aderência</th></tr></thead><tbody>${
+    sops.map(x => `<tr><td>${esc(x.k)}</td><td class="num">${f0(x.n)}</td><td class="num">${f2(x.progM)}</td><td class="num">${fut ? '—' : f2(x.execP)}</td><td class="num">${fut || !x.progM ? '—' : pctTxt(x.capP / x.progM * 100)}</td></tr>`).join('')
+  }<tr class="tot"><td>Total</td><td class="num">${f0(t.n)}</td><td class="num">${f2(t.progM)}</td><td class="num">${fut ? '—' : f2(t.execP)}</td><td class="num">${fut || adh == null ? '—' : pctTxt(adh * 100)}</td></tr></tbody></table>`
+    : `<div class="empty"><b>Nenhuma linha programada nesta semana</b>Na aba Linhas, selecione as linhas e use "Programar na Semana ${pgSel}".</div>`;
+  // linhas
+  const q = $('#pgQ').value.trim().toLowerCase(), sop = $('#pgSop').value, sf = $('#pgSt').value;
+  const sit = r => r.hit ? 'hit' : r.e > r.s + 1e-6 ? 'part' : 'todo';
+  const lines = rows.filter(r => r.tgt != null && (!q || (r.x.line + ' ' + r.x.sth).toLowerCase().includes(q)) && (!sop || r.x.sop === sop) && (!sf || sit(r) === sf))
+    .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
+  const pages = Math.max(1, Math.ceil(lines.length / PAGE)); pgPage = Math.min(pgPage, pages - 1);
+  const tag = r => r.hit ? '<span class="tag s2">Meta atingida</span>' : r.e > r.s + 1e-6 ? '<span class="tag s1">Parcial</span>' : past ? '<span class="tag s3">Não executada</span>' : '<span class="tag s0">Programada</span>';
+  $('#pgBody').innerHTML = lines.length ? lines.slice(pgPage * PAGE, pgPage * PAGE + PAGE).map(r => `<tr>
+    <td><button class="lname" data-line="${r.x.i}">${esc(r.x.line)}</button></td><td>${esc(r.x.sop)}</td><td class="muted sth">${esc(r.x.sth)}</td>
+    <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.s)}%</td><td class="num"><b>${f0(r.tgt)}%</b></td><td class="num">${fut ? '—' : f1(r.e) + '%'}</td>
+    <td class="num">${f2(r.progM)}</td><td class="num">${fut ? '—' : f2(r.execM)}</td><td>${tag(r)}</td>
+    <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${r.x.i}" title="Tirar desta semana">Remover</button>` : ''}</td></tr>`).join('')
+    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
+  $('#pgPager').innerHTML = `<span>${f0(lines.length)} linhas</span><span class="spacer"></span><button class="btn sm" id="pgPrev" ${pgPage ? '' : 'disabled'}>Anterior</button><span>Página ${pgPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${pgPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#pgPrev').onclick = () => { pgPage--; renderProg(); };
+  $('#pgNext').onclick = () => { pgPage++; renderProg(); };
+}
+function renderProgChart(cur) {
+  const ks = Object.keys(prog).filter(k => Object.keys(prog[k] || {}).length).map(Number);
+  let a = Math.min(cur - 3, ...ks), b = Math.max(cur + 2, ...ks); if (b - a > 11) a = b - 11;
+  const data = []; for (let n = a; n <= b; n++) { const t = weekSum(weekRows(n)); data.push({ n, prog: t.progM, exec: n > cur ? 0 : weekRows(n).reduce((s, r) => s + r.execM, 0) }); }
+  const W = 560, H = 230, pl = 52, pr = 10, pt = 22, pb = 40, step = (W - pl - pr) / data.length, bw = Math.min(26, step * .32);
+  const max = Math.max(1, ...data.map(d => Math.max(d.prog, d.exec))) * 1.15, y = v => pt + (H - pt - pb) * (1 - Math.max(0, v) / max);
+  $('#pgChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Programado e executado por semana">
+    ${[0, .25, .5, .75, 1].map(f => max / 1.15 * f).map(v => `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="#E7ECF0"/><text x="${pl - 6}" y="${y(v) + 4}" font-size="10.5" text-anchor="end" fill="#617384">${max < 12 ? f1(v) : f0(v)} m</text>`).join('')}
+    ${data.map((d, i) => { const cx = pl + step * i + step / 2, sel = d.n === pgSel;
+      return `<rect x="${cx - bw - 1}" y="${y(d.prog)}" width="${bw}" height="${y(0) - y(d.prog)}" fill="#FAF3D9" stroke="#D2B241" stroke-dasharray="3 2" stroke-width="1.3"><title>Semana ${d.n}: programado ${f2(d.prog)} m</title></rect>
+      <rect x="${cx + 1}" y="${y(d.exec)}" width="${bw}" height="${y(0) - y(d.exec)}" fill="${sel ? '#6FAE55' : '#1B5E8A'}" rx="2"><title>Semana ${d.n}: executado ${f2(d.exec)} m</title></rect>
+      <rect x="${cx - step / 2}" y="${pt}" width="${step}" height="${H - pt - pb}" fill="transparent" style="cursor:pointer" data-week="${d.n}"/>
+      <text x="${cx}" y="${H - 22}" font-size="11" text-anchor="middle" fill="${sel ? '#152330' : '#617384'}" font-weight="${sel ? 700 : 400}">S${d.n}</text>
+      <text x="${cx}" y="${H - 8}" font-size="9.5" text-anchor="middle" fill="#8A99A6">${dShort(weekStart(d.n))}</text>`; }).join('')}
+  </svg>`;
+}
+$('#pgChart').addEventListener('click', e => { const r = e.target.closest('[data-week]'); if (r) { pgSel = Number(r.dataset.week); pgPage = 0; renderProg(); } });
+$('#pgWeek').onchange = e => { pgSel = Number(e.target.value); pgPage = 0; renderProg(); };
+['#pgQ', '#pgSop', '#pgSt'].forEach(s => $(s).addEventListener(s === '#pgQ' ? 'input' : 'change', () => { pgPage = 0; renderProg(); }));
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-pgrm]'); if (!b) return;
+  const x = R[+b.dataset.pgrm];
+  try { await saveProg(pgSel, [{ line: x.line, pct: null }]); renderProg(); renderLinhas(); toast(`${x.line} retirada da Semana ${pgSel}.`); } catch (err) { toast(err.message, true); }
+});
+$('#pgCsv').onclick = () => {
+  const rows = weekRows(pgSel).filter(r => r.tgt != null);
+  const head = ['Semana', 'Período', 'LINHA', 'SOP', 'SUBSOP', 'STH', 'Metros', '% início', 'Meta (%)', '% atual', 'Programado (m)', 'Executado (m)', 'Situação'];
+  const lines = rows.map(r => [pgSel, weekRange(pgSel), r.x.line, r.x.sop, r.x.sub, r.x.sth, f2(r.x.m), f2(r.s), f2(r.tgt), f2(r.e), f2(r.progM), f2(r.execM), r.hit ? 'Meta atingida' : r.e > r.s ? 'Parcial' : 'Não executada']);
+  const csv = '\ufeff' + [head, ...lines].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `programacao_semana_${pgSel}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+/* ============ programação da medição (financeiro) ============ */
+const fpSel = new Set(); let fpPage = 0, fpFiltered = [];
+const fpEditable = () => finSel !== 'prev' && finSel !== 'all' && finSel >= openPeriod();
+function renderFinProg(rows) {
+  const panel = $('#fpPanel');
+  if (!fpEditable()) { panel.style.display = 'none'; return; }
+  panel.style.display = '';
+  if ($('#fpSop').options.length === 1) {
+    $('#fpSop').insertAdjacentHTML('beforeend', BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(''));
+    const codes = [...new Set(R.map(ppuCode))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+    $('#fpPpu').insertAdjacentHTML('beforeend', codes.map(c => `<option value="${esc(c)}">B-${esc(c)}</option>`).join(''));
+  }
+  $('#fpT').textContent = `Programação da ${perLabel(finSel)}`;
+  const q = $('#fpQ').value.trim().toLowerCase(), sop = $('#fpSop').value, ppu = $('#fpPpu').value, show = $('#fpShow').value;
+  fpFiltered = rows.filter(r => (!q || (r.x.line + ' ' + r.x.sth).toLowerCase().includes(q)) && (!sop || r.x.sop === sop) && (!ppu || ppuCode(r.x) === ppu) &&
+    (show === 'all' || (show === 'open' && r.pPlan < 100 - 1e-6 && r.tgt == null) || (show === 'prog' && r.tgt != null)))
+    .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
+  const pages = Math.max(1, Math.ceil(fpFiltered.length / PAGE)); fpPage = Math.min(fpPage, pages - 1);
+  const page = fpFiltered.slice(fpPage * PAGE, fpPage * PAGE + PAGE);
+  $('#fpBody').innerHTML = page.length ? page.map(r => `<tr${fpSel.has(r.x.line) ? ' class="changed"' : ''}>
+    <td><input type="checkbox" data-fpsel="${esc(r.x.line)}" ${fpSel.has(r.x.line) ? 'checked' : ''} ${r.pPlan >= 100 - 1e-6 ? 'disabled' : ''} aria-label="Selecionar ${esc(r.x.line)}"></td>
+    <td><button class="lname" data-line="${r.x.i}">${esc(r.x.line)}</button></td><td>${esc(r.x.sop)}</td><td>B-${esc(ppuCode(r.x))}</td>
+    <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.pPlan)}%</td><td class="money">${brl(r.x.m * Math.max(0, 100 - r.pPlan) / 100 * r.pr)}</td>
+    <td>${r.tgt != null ? `<span class="wk">até ${f0(r.tgt)}% · ${brl(r.fc)}</span>` : r.pPlan >= 100 - 1e-6 ? '<span class="tag s2">Concluída</span>' : '<span class="muted">—</span>'}</td></tr>`).join('')
+    : `<tr><td colspan="8"><div class="empty"><b>Nenhuma linha nesta visão</b>Ajuste a busca ou os filtros.</div></td></tr>`;
+  $('#fpAllPage').checked = page.length > 0 && page.filter(r => r.pPlan < 100 - 1e-6).every(r => fpSel.has(r.x.line));
+  $('#fpPager').innerHTML = `<span>${f0(fpFiltered.length)} linhas</span><span class="spacer"></span>
+    ${fpFiltered.length ? `<button class="btn sm" id="fpSelAll">Selecionar as ${f0(fpFiltered.filter(r => r.pPlan < 100 - 1e-6).length)} filtradas</button>` : ''}
+    <button class="btn sm" id="fpPrev" ${fpPage ? '' : 'disabled'}>Anterior</button><span>Página ${fpPage + 1} de ${pages}</span><button class="btn sm" id="fpNext" ${fpPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#fpPrev').onclick = () => { fpPage--; renderFin(); };
+  $('#fpNext').onclick = () => { fpPage++; renderFin(); };
+  if ($('#fpSelAll')) $('#fpSelAll').onclick = () => { fpFiltered.forEach(r => { if (r.pPlan < 100 - 1e-6) fpSel.add(r.x.line); }); renderFin(); };
+  renderFpAct(rows);
+  // lado direito: total e lista
+  const progd = rows.filter(r => r.tgt != null).sort((a, b) => a.x.sop.localeCompare(b.x.sop) || b.fc - a.fc);
+  const tot = progd.reduce((s, r) => s + r.fc, 0), med = progd.reduce((s, r) => s + Math.max(0, Math.min(r.real, r.fc)), 0);
+  const medAll = rows.reduce((s, r) => s + r.real, 0), fut = isFuture(finSel);
+  $('#fpTotal').innerHTML = `<span>Total programado · ${esc(perLabel(finSel))}</span><strong>${brl(tot)}</strong>
+    <small>${f0(progd.length)} ${progd.length === 1 ? 'linha' : 'linhas'} · ${f2(progd.reduce((s, r) => s + r.x.m * Math.max(0, r.tgt - r.pPlan) / 100, 0))} m a isolar</small>
+    <div class="sb"><i style="width:${tot ? Math.min(100, med / tot * 100) : 0}%"></i></div>
+    <div class="row2"><span>${fut ? 'Medição ainda não iniciada' : `Medido nas programadas: ${brl(med)}`}</span><span>${fut ? '' : tot ? pctTxt(med / tot * 100) : '—'}</span></div>
+    ${fut ? '' : `<div class="row2"><span>Medido no mês (todas as linhas)</span><span>${brl(medAll)}</span></div>`}`;
+  $('#fpListT').textContent = `Linhas programadas (${f0(progd.length)})`;
+  $('#fpListS').textContent = progd.length ? 'valor programado · medido' : '';
+  $('#fpList').innerHTML = progd.length ? progd.map(r => `<li><span class="l" title="${esc(r.x.line)}">${esc(r.x.line)}</span>
+      <span class="v">${brl(r.fc)}<small>${fut ? '—' : brl(Math.max(0, r.real))}</small></span>
+      <button class="x" data-fprm="${esc(r.x.line)}" title="Tirar da programação" aria-label="Tirar ${esc(r.x.line)} da programação">✕</button>
+      <span class="m">${esc(r.x.sop)} · até ${f0(r.tgt)}% · B-${esc(ppuCode(r.x))}</span></li>`).join('')
+    : `<li style="display:block;text-align:center;color:var(--muted);border-style:dashed">Nenhuma linha programada.<br>Selecione linhas à esquerda e clique em <b>Adicionar à medição</b>.</li>`;
+}
+function renderFpAct(rows) {
+  const n = fpSel.size; $('#fpAdd').disabled = !n;
+  if (!n) { $('#fpSelN').textContent = 'Nenhuma linha selecionada.'; return; }
+  const v = clampPct($('#fpPct').value) ?? 100, by = new Map((rows || finRows(finSel)).map(r => [r.x.line, r]));
+  let val = 0; for (const l of fpSel) { const r = by.get(l); if (r) val += r.x.m * Math.max(0, v - r.pPlan) / 100 * r.pr; }
+  $('#fpSelN').innerHTML = `<b>${f0(n)}</b> ${n === 1 ? 'linha selecionada' : 'linhas selecionadas'} · <b>${brl(val)}</b> a programar`;
+}
+$('#fpBody').addEventListener('change', e => { const c = e.target.closest('[data-fpsel]'); if (!c) return; c.checked ? fpSel.add(c.dataset.fpsel) : fpSel.delete(c.dataset.fpsel); c.closest('tr').classList.toggle('changed', c.checked); renderFpAct(); });
+$('#fpAllPage').onchange = e => { fpFiltered.slice(fpPage * PAGE, fpPage * PAGE + PAGE).forEach(r => { if (r.pPlan < 100 - 1e-6) e.target.checked ? fpSel.add(r.x.line) : fpSel.delete(r.x.line); }); renderFin(); };
+$('#fpPct').addEventListener('input', () => renderFpAct());
+['#fpQ', '#fpSop', '#fpPpu', '#fpShow'].forEach(s => $(s).addEventListener(s === '#fpQ' ? 'input' : 'change', () => { fpPage = 0; renderFin(); }));
+async function fpSave(items, msg) {
+  try {
+    await api('/fin/forecast', { method: 'POST', body: { period: finSel, items } });
+    const f = await api('/fin'); fin.forecasts = f.forecasts || {}; renderFin(); if (msg) toast(msg);
+  } catch (e) { toast('Não foi possível salvar: ' + e.message, true); }
+}
+$('#fpAdd').onclick = async () => {
+  const v = clampPct($('#fpPct').value); if (v == null || v <= 0) return toast('Informe até quantos % a linha deve chegar (1 a 100).', true);
+  const items = [...fpSel].map(line => ({ line, pct: v })), n = items.length;
+  fpSel.clear(); await fpSave(items, `${n} ${n === 1 ? 'linha programada' : 'linhas programadas'} na ${perLabel(finSel)}.`);
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-fprm]'); if (b) fpSave([{ line: b.dataset.fprm, pct: null }], 'Linha retirada da programação.'); });
+$('#fpClear').onclick = () => {
+  const f = fin.forecasts[finSel] || {}, lines = Object.keys(f);
+  if (!lines.length) return toast('Não há linhas programadas nesta medição.', true);
+  if (!confirm(`Retirar as ${lines.length} linhas programadas da ${perLabel(finSel)}?`)) return;
+  fpSave(lines.map(line => ({ line, pct: null })), 'Programação da medição limpa.');
+};
+$('#fpWeeks').onclick = () => {
+  const weeks = Object.keys(prog).map(Number).filter(n => monthKey(weekStart(n)) === finSel).sort((a, b) => a - b);
+  const tg = new Map();
+  for (const n of weeks) for (const [line, v] of Object.entries(prog[String(n)] || {})) tg.set(line, Math.max(tg.get(line) ?? 0, Number(v)));
+  if (!tg.size) return toast(`Nenhuma linha programada nas semanas que começam em ${finSel.slice(5)}/${finSel.slice(0, 4)}.`, true);
+  fpSave([...tg.entries()].map(([line, pct]) => ({ line, pct })), `${tg.size} linhas trazidas das semanas ${weeks.join(', ')}.`);
+};
+
 /* ============ financeiro (somente administrador) ============ */
 let fin = { prices: {}, forecasts: {} };
 const BRLf = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -1702,16 +2061,16 @@ function renderFin() {
     ['Saldo a medir', brl(tot - t.accE), `${pctTxt(tot ? (tot - t.accE) / tot * 100 : 0)} do previsto`],
   ];
   if (monthly && isFuture(finSel)) k.push(
-    ['Previsto nesta medição', brl(t.fc), t.nFc ? `${f0(t.nFc)} ${t.nFc === 1 ? 'linha prevista' : 'linhas previstas'}` : 'sem previsão cadastrada', true],
-    ['Previsto acumulado até o corte', brl(t.planS + t.fc), `${pctTxt(tot ? (t.planS + t.fc) / tot * 100 : 0)} do previsto do escopo`],
+    ['Programado nesta medição', brl(t.fc), t.nFc ? `${f0(t.nFc)} ${t.nFc === 1 ? 'linha programada' : 'linhas programadas'}` : 'nenhuma linha programada', true],
+    ['Programado acumulado até o corte', brl(t.planS + t.fc), `${pctTxt(tot ? (t.planS + t.fc) / tot * 100 : 0)} do previsto do escopo`],
     ['Medido nesta medição', 'Ainda não iniciada', `começa em ${dOnly(perRange(finSel)[0])}`]);
   else if (monthly) k.push(
     ['Medido nesta medição', brl(t.real), `${f2(t.realM)} m em ${f0(t.n)} ${t.n === 1 ? 'linha' : 'linhas'}`, true],
-    ['Previsto nesta medição', brl(t.fc), t.nFc ? `${f0(t.nFc)} ${t.nFc === 1 ? 'linha prevista' : 'linhas previstas'}` : 'sem previsão cadastrada'],
-    ['Aderência à previsão', t.fc > 0 ? pctTxt(t.real / t.fc * 100) : '—', t.fc > 0 ? `${t.real >= t.fc ? 'acima' : 'abaixo'} da previsão em ${brl(Math.abs(t.real - t.fc))}` : 'cadastre a previsão nos itens']);
+    ['Programado nesta medição', brl(t.fc), t.nFc ? `${f0(t.nFc)} ${t.nFc === 1 ? 'linha programada' : 'linhas programadas'}` : 'nenhuma linha programada'],
+    ['Aderência à programação', t.fc > 0 ? pctTxt(t.real / t.fc * 100) : '—', t.fc > 0 ? `${t.real >= t.fc ? 'acima' : 'abaixo'} do programado em ${brl(Math.abs(t.real - t.fc))}` : 'programe as linhas abaixo']);
   else k.push([finSel === 'prev' ? 'Valor das medições anteriores' : 'Total medido', brl(t.real), `${f2(t.realM)} m em ${f0(t.n)} ${t.n === 1 ? 'linha' : 'linhas'}`, true]);
-  const KST = { 'Valor previsto do escopo': ['wallet', 'navy'], 'Medido acumulado': ['chart', 'blue'], 'Saldo a medir': ['money', 'slate'], 'Medido nesta medição': ['check', 'green'], 'Previsto nesta medição': ['calendar', 'gold'], 'Aderência à previsão': ['target', 'teal'], 'Previsto acumulado até o corte': ['gauge', 'orange'], 'Valor das medições anteriores': ['layers', 'green'], 'Total medido': ['check', 'green'] };
-  const FR = { 'Medido acumulado': tot ? t.accE / tot : 0, 'Saldo a medir': tot ? (tot - t.accE) / tot : 0, 'Aderência à previsão': t.fc > 0 ? Math.min(1, t.real / t.fc) : null, 'Previsto acumulado até o corte': tot ? (t.planS + t.fc) / tot : 0 };
+  const KST = { 'Valor previsto do escopo': ['wallet', 'navy'], 'Medido acumulado': ['chart', 'blue'], 'Saldo a medir': ['money', 'slate'], 'Medido nesta medição': ['check', 'green'], 'Programado nesta medição': ['calendar', 'gold'], 'Aderência à programação': ['target', 'teal'], 'Programado acumulado até o corte': ['gauge', 'orange'], 'Valor das medições anteriores': ['layers', 'green'], 'Total medido': ['check', 'green'] };
+  const FR = { 'Medido acumulado': tot ? t.accE / tot : 0, 'Saldo a medir': tot ? (tot - t.accE) / tot : 0, 'Aderência à programação': t.fc > 0 ? Math.min(1, t.real / t.fc) : null, 'Programado acumulado até o corte': tot ? (t.planS + t.fc) / tot : 0 };
   $('#finKpis').style.gridTemplateColumns = `repeat(${k.length === 6 ? 3 : k.length},minmax(0,1fr))`;
   $('#finKpis').innerHTML = k.map(([a, b, c, hl]) => scard({ l: a, v: b, s: c, hl, ic: (KST[a] || [])[0], c: (KST[a] || [])[1], frac: FR[a] ?? null })).join('');
 
@@ -1719,6 +2078,7 @@ function renderFin() {
   renderFinPlan(pers);
   renderFinPpu(rows);
   renderFinGroups(rows, monthly);
+  renderFinProg(rows);
   renderFinItems(rows, monthly);
   renderFinPrices();
   renderFcBar();
@@ -1736,10 +2096,10 @@ function renderFinChart(pers) {
   $('#finChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Valor medido por medição">
     ${ticks.map(v => `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="#E7ECF0"/><text x="${pl - 8}" y="${y(v) + 4}" font-size="11" text-anchor="end" fill="#617384">${short(v)}</text>`).join('')}
     ${data.map((d, i) => { const cx = pl + step * i + step / 2, sel = d.k === finSel;
-      return `${d.fc > 0 ? `<rect x="${cx - bw / 2 - 4}" y="${y(d.fc)}" width="${bw + 8}" height="${y(0) - y(d.fc)}" fill="#FAF3D9" stroke="#D2B241" stroke-dasharray="4 3" stroke-width="1.5"><title>Previsto: ${brl(d.fc)}</title></rect>` : ''}
+      return `${d.fc > 0 ? `<rect x="${cx - bw / 2 - 4}" y="${y(d.fc)}" width="${bw + 8}" height="${y(0) - y(d.fc)}" fill="#FAF3D9" stroke="#D2B241" stroke-dasharray="4 3" stroke-width="1.5"><title>Programado: ${brl(d.fc)}</title></rect>` : ''}
       <rect x="${cx - bw / 2}" y="${y(d.real)}" width="${bw}" height="${Math.max(0, y(0) - y(d.real))}" fill="${sel ? '#6FAE55' : '#1B5E8A'}" rx="2" style="cursor:pointer" data-per="${d.k}"><title>${perLabel(d.k)}: ${brl(d.real)}</title></rect>
       <text x="${cx}" y="${y(Math.max(d.real, d.fc)) - (d.fc > 0 ? 20 : 6)}" font-size="11" font-weight="600" text-anchor="middle" fill="#152330">${isFuture(d.k) ? '' : short(d.real)}</text>
-      ${d.fc > 0 ? `<text x="${cx}" y="${y(Math.max(d.real, d.fc)) - 6}" font-size="10.5" text-anchor="middle" fill="#7A6211">prev. ${short(d.fc)}</text>` : ''}
+      ${d.fc > 0 ? `<text x="${cx}" y="${y(Math.max(d.real, d.fc)) - 6}" font-size="10.5" text-anchor="middle" fill="#7A6211">prog. ${short(d.fc)}</text>` : ''}
       <text x="${cx}" y="${H - 22}" font-size="11.5" text-anchor="middle" fill="${sel ? '#152330' : '#617384'}" font-weight="${sel ? 600 : 400}">${d.k === 'prev' ? 'Anteriores' : d.k.slice(5) + '/' + d.k.slice(2, 4)}</text>
       ${isFuture(d.k) ? `<rect x="${cx - step / 2}" y="${pt}" width="${step}" height="${H - pt - pb}" fill="transparent" style="cursor:pointer" data-per="${d.k}"/>` : ''}`; }).join('')}
   </svg>`;
@@ -1758,13 +2118,13 @@ function renderFinPlan(pers) {
     accPlan += fut ? t.fc : Math.max(t.fc, 0);
     return { k, fut, fc: t.fc, real: t.real, nFc: t.nFc, accReal: fut ? null : accReal, accPlan };
   });
-  $('#finPlan').innerHTML = `<table><thead><tr><th>Medição</th><th>Situação</th><th class="money">Previsto no mês</th><th class="money">Medido no mês</th><th class="num">Aderência</th><th class="money">Previsto acumulado</th><th class="money">Medido acumulado</th><th class="num">% medido</th></tr></thead><tbody>
+  $('#finPlan').innerHTML = `<table><thead><tr><th>Medição</th><th>Situação</th><th class="money">Programado no mês</th><th class="money">Medido no mês</th><th class="num">Aderência</th><th class="money">Programado acumulado</th><th class="money">Medido acumulado</th><th class="num">% medido</th></tr></thead><tbody>
     <tr><td>Medições anteriores</td><td><span class="tag s2">Consolidada</span></td><td class="money">—</td><td class="money">${brl(prev)}</td><td class="num">—</td><td class="money">${brl(prev)}</td><td class="money">${brl(prev)}</td><td class="num">${pctTxt(tot ? prev / tot * 100 : 0)}</td></tr>
     ${rows.map(r => `<tr${r.k === finSel ? ' class="changed"' : ''}><td><button class="lname" data-plan="${r.k}">${perLabel(r.k)}</button></td>
       <td><span class="tag ${r.fut ? 's0' : r.k === openPeriod() ? 's1' : 's2'}">${r.fut ? 'Futura' : r.k === openPeriod() ? 'Aberta' : 'Encerrada'}</span></td>
-      <td class="money">${r.nFc ? brl(r.fc) : '<span class="muted">sem previsão</span>'}</td><td class="money">${r.fut ? '—' : brl(r.real)}</td>
+      <td class="money">${r.nFc ? brl(r.fc) : '<span class="muted">sem programação</span>'}</td><td class="money">${r.fut ? '—' : brl(r.real)}</td>
       <td class="num">${!r.fut && r.fc > 0 ? pctTxt(r.real / r.fc * 100) : '—'}</td><td class="money">${brl(r.accPlan)}</td><td class="money">${r.accReal == null ? '—' : brl(r.accReal)}</td>
-      <td class="num">${r.accReal == null ? `<span class="muted">${pctTxt(tot ? r.accPlan / tot * 100 : 0)} prev.</span>` : pctTxt(tot ? r.accReal / tot * 100 : 0)}</td></tr>`).join('')}
+      <td class="num">${r.accReal == null ? `<span class="muted">${pctTxt(tot ? r.accPlan / tot * 100 : 0)} prog.</span>` : pctTxt(tot ? r.accReal / tot * 100 : 0)}</td></tr>`).join('')}
   </tbody></table>`;
 }
 $('#finPlan').addEventListener('click', e => { const b = e.target.closest('[data-plan]'); if (b) { changePer(b.dataset.plan); $('#finKpis').scrollIntoView({ behavior: 'smooth', block: 'start' }); } });
@@ -1785,7 +2145,7 @@ function renderFinGroups(rows, monthly) {
   $('#finGrpT').textContent = 'Medição por ' + { sop: 'SOP', sub: 'SUBSOP', sth: 'STH' }[key];
   const T = sumRows(rows);
   const row = (k, x, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="money">${brl(x.vp)}</td><td class="money">${brl(x.accS)}</td>${monthly ? `<td class="money">${brl(x.fc)}</td>` : ''}<td class="money ${x.real < 0 ? 'neg' : ''}">${brl(x.real)}</td>${monthly ? `<td class="num">${x.fc > 0 ? pctTxt(x.real / x.fc * 100) : '—'}</td>` : ''}<td class="money">${brl(x.accE)}</td><td class="money">${brl(x.vp - x.accE)}</td><td class="num">${pctTxt(x.vp ? x.accE / x.vp * 100 : 0)}</td></tr>`;
-  $('#finGroups').innerHTML = `<table><thead><tr><th>${{ sop: 'SOP', sub: 'SUBSOP', sth: 'STH' }[key]}</th><th class="money">Previsto</th><th class="money">Acum. anterior</th>${monthly ? '<th class="money">Previsto na medição</th>' : ''}<th class="money">${monthly ? 'Medido na medição' : 'Medido'}</th>${monthly ? '<th class="num">Aderência</th>' : ''}<th class="money">Acumulado</th><th class="money">Saldo</th><th class="num">% acum.</th></tr></thead><tbody>${
+  $('#finGroups').innerHTML = `<table><thead><tr><th>${{ sop: 'SOP', sub: 'SUBSOP', sth: 'STH' }[key]}</th><th class="money">Previsto</th><th class="money">Acum. anterior</th>${monthly ? '<th class="money">Programado na medição</th>' : ''}<th class="money">${monthly ? 'Medido na medição' : 'Medido'}</th>${monthly ? '<th class="num">Aderência</th>' : ''}<th class="money">Acumulado</th><th class="money">Saldo</th><th class="num">% acum.</th></tr></thead><tbody>${
     list.length ? list.map(x => row(esc(x.k), x)).join('') + row('Total geral', T, 'tot') : `<tr><td colspan="9"><div class="empty"><b>Sem movimento nesta medição</b>Desmarque "Só com movimento" para ver todos os grupos.</div></td></tr>`}</tbody></table>`;
 }
 function changePer(v) {
@@ -1804,19 +2164,18 @@ function renderFinItems(rows, monthly) {
   fiFiltered = rows.filter(r => (!q || (r.x.line + ' ' + r.x.sth).toLowerCase().includes(q)) && (!sop || r.x.sop === sop) && (!ppu || ppuCode(r.x) === ppu) &&
     (show === 'all' || (show === 'real' && Math.abs(r.realM) > 1e-9) || (show === 'fc' && r.tgt != null) || (show === 'mov' && (Math.abs(r.realM) > 1e-9 || r.tgt != null))));
   fiFiltered.sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
-  const isOpen = monthly; // previsão pode ser cadastrada em qualquer medição mensal
-  $('#fiBulk').style.display = isOpen && fiFiltered.length ? 'flex' : 'none';
+  $('#fiBulk').style.display = 'none';
   $('#fiBulkN').textContent = `${f0(fiFiltered.length)} ${fiFiltered.length === 1 ? 'linha filtrada' : 'linhas filtradas'}.`;
-  $('#finItemsP').textContent = monthly ? 'Linhas medidas no período. Informe a previsão (% a atingir até o corte) para comparar previsto e medido.' : 'Linhas e valores medidos na seleção.';
-  $('#fiHead').innerHTML = `<tr><th>Linha</th><th>SOP</th><th>Item PPU</th><th class="money">R$/m</th><th class="num">Metros</th><th class="num">% início</th><th class="num">% fim</th><th class="num">Medido (m)</th><th class="money">Valor medido</th>${monthly ? '<th class="num">Previsão (%)</th><th class="money">Valor previsto</th>' : ''}</tr>`;
+  $('#finItemsP').textContent = monthly ? 'Linhas medidas e programadas no período. Para programar, use o painel Programação da medição acima.' : 'Linhas e valores medidos na seleção.';
+  $('#fiHead').innerHTML = `<tr><th>Linha</th><th>SOP</th><th>Item PPU</th><th class="money">R$/m</th><th class="num">Metros</th><th class="num">% início</th><th class="num">% fim</th><th class="num">Medido (m)</th><th class="money">Valor medido</th>${monthly ? '<th class="num">Programado até</th><th class="money">Valor programado</th>' : ''}</tr>`;
   const pages = Math.max(1, Math.ceil(fiFiltered.length / PAGE)); fiPage = Math.min(fiPage, pages - 1);
   const page = fiFiltered.slice(fiPage * PAGE, fiPage * PAGE + PAGE);
   $('#fiBody').innerHTML = page.length ? page.map(r => `<tr>
       <td><button class="lname" data-line="${r.x.i}">${esc(r.x.line)}</button></td><td>${esc(r.x.sop)}</td><td>B-${esc(ppuCode(r.x))}</td>
       <td class="money">${r.pr ? nf2.format(r.pr) : '—'}</td><td class="num">${f2(r.x.m)}</td><td class="num">${f1(isFuture(finSel) ? r.pPlan : r.pS)}%</td><td class="num">${f1(r.pE)}%</td>
       <td class="num ${r.realM < 0 ? 'neg' : ''}">${f2(r.realM)}</td><td class="money ${r.real < 0 ? 'neg' : ''}">${brl(r.real)}</td>
-      ${monthly ? `<td class="num"><input class="input fc-in${fcPend.has(r.x.line) ? ' chg' : ''}" type="number" min="0" max="100" step="1" placeholder="—" value="${r.tgt == null ? '' : +r.tgt.toFixed(2)}" data-fc="${r.x.i}" aria-label="Previsão de ${esc(r.x.line)}"></td><td class="money">${r.tgt == null ? '—' : brl(r.fc)}</td>` : ''}</tr>`).join('')
-    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha nesta visão</b>${monthly ? 'Para cadastrar a previsão, escolha "Todas as linhas" e filtre por SOP ou item.' : 'Ajuste os filtros.'}</div></td></tr>`;
+      ${monthly ? `<td class="num">${r.tgt == null ? '—' : f0(r.tgt) + '%'}</td><td class="money">${r.tgt == null ? '—' : brl(r.fc)}</td>` : ''}</tr>`).join('')
+    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha nesta visão</b>${monthly ? 'Programe as linhas no painel Programação da medição.' : 'Ajuste os filtros.'}</div></td></tr>`;
   const T = sumRows(fiFiltered);
   $('#fiPager').innerHTML = `<span>${f0(fiFiltered.length)} linhas · medido ${brl(T.real)}${monthly ? ` · previsto ${brl(T.fc)}` : ''}</span><span class="spacer"></span>
     <button class="btn sm" id="fiPrev" ${fiPage ? '' : 'disabled'}>Anterior</button><span>Página ${fiPage + 1} de ${pages}</span><button class="btn sm" id="fiNext" ${fiPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
@@ -1914,7 +2273,7 @@ $('#exportCsv').onclick = () => {
 /* ============ geral ============ */
 let toastT;
 function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', bad ? 5200 : 3200); }
-function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); if (isAdmin()) renderFin(); if (!isAdmin() && (location.hash === '#usuarios' || location.hash === '#financeiro')) go('painel'); }
+function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); renderProg(); if (isAdmin()) renderFin(); if (!isAdmin() && (location.hash === '#usuarios' || location.hash === '#financeiro')) go('painel'); }
 
 document.body.classList.add('locked');
 boot();
