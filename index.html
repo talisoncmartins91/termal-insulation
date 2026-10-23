@@ -157,6 +157,16 @@ td.sth{font-size:12px}
 .tag.s1{background:var(--prog-soft);color:#7A6211}
 .tag.s2{background:var(--done-soft);color:#356B22}
 .tag.s3{background:var(--danger-soft);color:var(--danger)}
+.lcell{display:inline-flex;align-items:center;gap:6px}
+.spt{width:22px;height:22px;border-radius:6px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-size:11px;color:var(--brand);display:inline-grid;place-items:center;transition:transform .15s;flex:none;padding:0}
+.spt.open{transform:rotate(90deg);background:var(--brand-soft);border-color:#C9DDEB}
+.spt-ph{width:22px;flex:none}
+.nsp{font-size:11px;color:var(--muted);background:#EEF2F5;border-radius:999px;padding:1px 7px;white-space:nowrap}
+.nsp.none{background:none;padding:0}
+tr.sp-open td{background:#F6FAFD}
+tr.sp-row td{background:#FBFCFD;font-size:12.5px;padding-top:5px;padding-bottom:5px;border-bottom-color:#EEF2F5}
+tr.sp-row.changed td{background:#FFFBEA}
+.sp-name{padding-left:34px!important;color:var(--ink2);font-weight:500;white-space:nowrap}
 .wk{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:#E4EFF7;color:#1B5E8A;border:1px solid #C9DDEB;margin-right:4px;white-space:nowrap}
 .wk.past{background:#F1F3F5;color:#7A8894;border-color:#E1E6EA}
 .wk.hit{background:var(--done-soft);color:#356B22;border-color:#C6E2BA}
@@ -628,7 +638,7 @@ body.locked .app,body.locked .pending{display:none!important}
       <section class="view" id="v-linhas">
         <div class="panel">
           <div class="panel-h">
-            <div><h2>Linhas do escopo</h2><p>Informe o avanço de cada linha (0 a 100%). SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
+            <div><h2>Linhas do escopo</h2><p>Lance o avanço por spool (abra a linha em ▸) ou na linha inteira, que aplica o mesmo valor a todos os spools. SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
             <div class="tools"><button class="btn" id="exportCsv">Exportar CSV</button></div>
           </div>
           <div class="filters">
@@ -1008,12 +1018,12 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '23/10/2026 07:39'; // versão deste arquivo
+const APP_BUILD = '23/10/2026 08:35'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
 // A base não fica no HTML: é baixada do Worker somente após o login.
-let BASE = null, BASE_INFO = null, R = [], byLine = new Map(), TOTAL_M = 0;
+let BASE = null, BASE_INFO = null, R = [], byLine = new Map(), TOTAL_M = 0, SP = new Map();
 function initBase(b) {
   BASE = b;
   R = b.rows.map((r, i) => ({
@@ -1024,7 +1034,27 @@ function initBase(b) {
   }));
   byLine = new Map(R.map(x => [x.line, x]));
   TOTAL_M = R.reduce((s, x) => s + x.m, 0);
+  // spools: o metro da ESCOPO é rateado pelo comprimento de cada spool no Mapa de Spools
+  SP = new Map();
+  for (const x of R) {
+    const arr = ((b.spools && b.spools[x.i]) || []).filter(a => a && a[0]);
+    const tot = arr.reduce((t, a) => t + (Number(a[1]) || 0), 0);
+    let acc = 0;
+    x.sps = arr.map((a, k) => {
+      let mm = tot > 0 ? x.m * (Number(a[1]) || 0) / tot : x.m / arr.length;
+      if (k === arr.length - 1) mm = Math.max(0, x.m - acc);
+      acc += mm;
+      const key = x.line + '§' + a[0];
+      const sp = { key, line: key, code: a[0], comp: Number(a[1]) || 0, m: mm, parent: x, isSp: true, i: x.i };
+      Object.defineProperty(sp, 'seed', { get() { return savedPct(x); } });
+      SP.set(key, sp); return sp;
+    });
+  }
 }
+const itemOf = k => SP.get(k) || byLine.get(k) || null;
+const keyLabel = k => { const sp = SP.get(k); return sp ? `${sp.parent.line} · spool ${sp.code}` : k; };
+const keyLine = k => { const sp = SP.get(k); return sp ? sp.parent : byLine.get(k); };
+const isAuto = h => /^\[auto\]/.test(h.note || '');
 
 /* ============ estado ============ */
 let server = {};            // linha -> {pct, updated_at, updated_by}
@@ -1050,7 +1080,15 @@ const canEdit = () => me && (me.role === 'editor' || me.role === 'admin');
 const isAdmin = () => me && me.role === 'admin';
 
 function savedPct(x) { const s = server[x.line]; return s ? Number(s.pct) : x.seed; }
-function pct(x) { return pending.has(x.i) ? pending.get(x.i) : savedPct(x); }
+const pendingSp = new Map(), pendLines = new Set();
+function spSaved(sp) { const s = server[sp.key]; return s ? Number(s.pct) : savedPct(sp.parent); }
+function spPct(sp) { return pendingSp.has(sp.key) ? pendingSp.get(sp.key) : spSaved(sp); }
+function linePctFromSp(x) { return x.m ? x.sps.reduce((t, sp) => t + sp.m * spPct(sp), 0) / x.m : 0; }
+function pct(x) {
+  if (x.isSp) return spPct(x);
+  if (pendLines.has(x.i)) return linePctFromSp(x);
+  return pending.has(x.i) ? pending.get(x.i) : savedPct(x);
+}
 function st(p) { return p >= 100 ? 2 : p > 0 ? 1 : 0; }
 const ST_LINE = ['Não iniciada', 'Em andamento', 'Concluída'];
 const ST_GRP = ['Não iniciado', 'Em andamento', 'Concluído'];
@@ -1251,7 +1289,7 @@ $('#bars').onclick = e => { const b = e.target.closest('.bar-row'); if (!b) retu
 
 function renderCurve() {
   const el = $('#curve');
-  const asc = [...logH].sort((a, b) => a.id - b.id);
+  const asc = logH.filter(h => byLine.has(h.line)).sort((a, b) => a.id - b.id);
   if (!asc.length) { el.innerHTML = `<div class="empty"><b>A curva aparece após os primeiros lançamentos</b>Cada avanço salvo vira um ponto, com a data e a hora do registro.</div>`; return; }
   let cur = R.reduce((s, x) => s + x.m * savedPct(x) / 100, 0);
   const pts = [];
@@ -1277,10 +1315,10 @@ function renderCurve() {
 }
 function renderFeed() {
   $('#lastUpd').textContent = lastTs ? `Último registro em ${when(lastTs)}` : 'Nenhum avanço lançado pelo painel ainda';
-  const items = logH.slice(0, 8);
+  const items = logH.filter(h => !isAuto(h)).slice(0, 8);
   $('#feed').innerHTML = items.length ? items.map(h => {
     const d = h.new_pct - h.old_pct;
-    return `<li><span class="l">${esc(h.line)}</span><span class="delta ${d >= 0 ? 'up' : 'down'}">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="t">${when(h.ts)} · ${esc(h.user || '')}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`;
+    return `<li><span class="l">${esc(keyLabel(h.line))}</span><span class="delta ${d >= 0 ? 'up' : 'down'}">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="t">${when(h.ts)} · ${esc(h.user || '')}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`;
   }).join('') : `<li><span class="t">Os lançamentos aparecem aqui assim que forem salvos.</span></li>`;
 }
 
@@ -1330,12 +1368,12 @@ function pctCell(x) {
   const p = pct(x);
   const bar = `<span class="mini"><i class="${p >= 100 ? 'full' : ''}" style="width:${p}%"></i></span>`;
   return canEdit()
-    ? `<span class="pct-cell"><input class="input pct-in" type="text" inputmode="decimal" autocomplete="off" value="${fmtIn(unitVal(x, p))}" title="${unit === 'm' ? `Executado em metros (linha com ${f2(x.m)} m)` : 'Avanço em % (0 a 100)'}" data-i="${x.i}" aria-label="Avanço de ${esc(x.line)}">${bar}</span>`
+    ? `<span class="pct-cell"><input class="input pct-in" type="text" inputmode="decimal" autocomplete="off" value="${fmtIn(unitVal(x, p))}" title="${unit === 'm' ? `Executado em metros (${x.isSp ? 'spool' : 'linha'} com ${f2(x.m)} m)` : 'Avanço em % (0 a 100)'}${x.sps && x.sps.length ? ' · aplica o mesmo valor a todos os spools' : ''}" ${x.isSp ? `data-sp="${esc(x.key)}"` : `data-i="${x.i}"`} aria-label="Avanço de ${esc(x.isSp ? x.code : x.line)}">${bar}</span>`
     : `<span class="pct-cell"><b style="min-width:52px;text-align:right">${pctTxt(p)}</b>${bar}</span>`;
 }
 function lineTable(rows, compact) {
   return `<div class="tbl-wrap"><table><thead><tr><th>Linha</th>${compact && estKey !== 'sth' ? '<th>STH</th>' : ''}<th>Ø</th><th class="num">Esp. (mm)</th><th>Tipo</th><th class="num">Metros</th><th>Avanço (${unit === 'm' ? 'm' : '%'})</th><th class="num">Executado (m)</th><th>Status</th></tr></thead><tbody>${
-    rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) ? 'changed' : ''}">
+    rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) || pendLines.has(x.i) ? 'changed' : ''}">
       <td><button class="lname" data-line="${x.i}">${esc(x.line)}</button></td>
       ${compact && estKey !== 'sth' ? `<td class="muted sth">${esc(x.sth)}</td>` : ''}
       <td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td><td>${esc(x.tipo)}</td>
@@ -1364,7 +1402,7 @@ function fillFilters() {
 $$('[data-sort]').forEach(b => b.onclick = () => { const k = b.dataset.sort; lnSort = { k, d: lnSort.k === k ? -lnSort.d : 1 }; renderLinhas(); });
 function renderLinhas() {
   const q = $('#lnQ').value.trim().toLowerCase(), sop = $('#lnSop').value, sf = $('#lnStatus').value, tp = $('#lnTipo').value, dm = $('#lnDiam').value, pf = $('#lnProg').value;
-  const pOk = x => { if (!pf) return true; const ws = progIdx.get(x.line) || []; const cur = weekOf(Date.now());
+  const pOk = x => { if (!pf) return true; const ws = [...(progIdx.get(x.line) || []), ...x.sps.flatMap(sp => progIdx.get(sp.key) || [])]; const cur = weekOf(Date.now());
     if (pf === 'any') return ws.some(([w]) => w >= cur); if (pf === 'none') return !ws.some(([w]) => w >= cur);
     const n = Number(pf.slice(2)); return ws.some(([w]) => w === n); };
   lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm) && pOk(x));
@@ -1373,42 +1411,76 @@ function renderLinhas() {
   lnFiltered.sort((a, b) => { const A = val(a), B = val(b); return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B))) * d || a.line.localeCompare(b.line); });
   const pages = Math.max(1, Math.ceil(lnFiltered.length / PAGE)); lnPage = Math.min(lnPage, pages - 1);
   const rows = lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE);
-  $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x); return `<tr class="${pending.has(x.i) ? 'changed' : ''}">
+  $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x), ns = x.sps.length, op = openSp.has(x.i); return `<tr class="${pending.has(x.i) || pendLines.has(x.i) ? 'changed' : ''}${op ? ' sp-open' : ''}">
     <td><input type="checkbox" data-sel="${x.i}" ${sel.has(x.i) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar ${esc(x.line)}"></td>
-    <td><button class="lname" data-line="${x.i}">${esc(x.line)}</button></td>
+    <td><span class="lcell">${ns ? `<button class="spt${op ? ' open' : ''}" data-spt="${x.i}" title="${op ? 'Ocultar' : 'Mostrar'} os ${ns} spools" aria-expanded="${op}">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${ns ? `<small class="nsp">${ns} ${ns === 1 ? 'spool' : 'spools'}</small>` : '<small class="nsp none">sem spool</small>'}</span></td>
     <td>${esc(x.sop)}</td><td class="muted sth" title="${esc(x.sth)}">…${esc(x.sth.replace(/^STH-\d{4}-\d{4}-\d{4}-/, ''))}</td><td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td>
     <td class="num">${f2(x.m)}</td><td>${pctCell(x)}</td><td class="num">${f2(x.m * p / 100)}</td>
-    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChips(x)}</td></tr>`; }).join('')
+    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChips(x)}</td></tr>${op ? x.sps.map(spRow).join('') : ''}`; }).join('')
     : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros.</div></td></tr>`;
   const t = totals(lnFiltered);
-  $('#pager').innerHTML = `<span>${f0(lnFiltered.length)} linhas · ${f2(t.m)} m · avanço ${pctTxt(t.pct)}</span><span class="spacer"></span>
+  $('#pager').innerHTML = `<span>${f0(lnFiltered.length)} ${lnFiltered.length === 1 ? 'linha' : 'linhas'} · ${f2(t.m)} m · avanço ${pctTxt(t.pct)}</span><span class="spacer"></span>
+    ${rows.some(x => x.sps.length) ? `<button class="btn sm" id="spAll">${rows.filter(x => x.sps.length).every(x => openSp.has(x.i)) ? 'Ocultar' : 'Abrir'} spools da página</button>` : ''}
     ${canEdit() && lnFiltered.length ? `<button class="btn sm" id="selAll">Selecionar as ${f0(lnFiltered.length)} filtradas</button>` : ''}
     <button class="btn sm" id="pgPrev" ${lnPage ? '' : 'disabled'}>Anterior</button><span>Página ${lnPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${lnPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
   $('#pgPrev').onclick = () => { lnPage--; renderLinhas(); };
   $('#pgNext').onclick = () => { lnPage++; renderLinhas(); };
   if ($('#selAll')) $('#selAll').onclick = () => { lnFiltered.forEach(x => sel.add(x.i)); renderLinhas(); };
+  if ($('#spAll')) $('#spAll').onclick = () => { const allOpen = rows.filter(x => x.sps.length).every(x => openSp.has(x.i)); rows.forEach(x => { if (x.sps.length) allOpen ? openSp.delete(x.i) : openSp.add(x.i); }); renderLinhas(); };
   $('#selPage').checked = rows.length > 0 && rows.every(x => sel.has(x.i));
   $('#selPage').disabled = !canEdit();
   renderBulk();
 }
 $('#selPage').onchange = e => { lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE).forEach(x => e.target.checked ? sel.add(x.i) : sel.delete(x.i)); renderLinhas(); };
-$('#lnBody').addEventListener('change', e => { const c = e.target.closest('[data-sel]'); if (!c) return; c.checked ? sel.add(+c.dataset.sel) : sel.delete(+c.dataset.sel); renderBulk(); });
-function renderBulk() { $('#bulk').classList.toggle('on', sel.size > 0 && canEdit()); $('#bulkN').textContent = `${f0(sel.size)} ${sel.size === 1 ? 'linha selecionada' : 'linhas selecionadas'}`; }
+const openSp = new Set(), selSp = new Set();
+function spRow(sp) {
+  const p = spPct(sp);
+  return `<tr class="sp-row${pendingSp.has(sp.key) ? ' changed' : ''}">
+    <td><input type="checkbox" data-ssel="${esc(sp.key)}" ${selSp.has(sp.key) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar spool ${esc(sp.code)}"></td>
+    <td class="sp-name">↳ ${esc(sp.code)}</td>
+    <td class="muted" colspan="4">comprimento no Mapa: ${f2(sp.comp)} m</td>
+    <td class="num">${f2(sp.m)}</td><td>${pctCell(sp)}</td><td class="num">${f2(sp.m * p / 100)}</td>
+    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChipsKey(sp)}</td></tr>`;
+}
+$('#lnBody').addEventListener('click', e => { const b = e.target.closest('[data-spt]'); if (!b) return; const i = +b.dataset.spt; openSp.has(i) ? openSp.delete(i) : openSp.add(i); renderLinhas(); });
+$('#lnBody').addEventListener('change', e => {
+  const c = e.target.closest('[data-sel]'); if (c) { c.checked ? sel.add(+c.dataset.sel) : sel.delete(+c.dataset.sel); renderBulk(); return; }
+  const k = e.target.closest('[data-ssel]'); if (k) { k.checked ? selSp.add(k.dataset.ssel) : selSp.delete(k.dataset.ssel); renderBulk(); }
+});
+function renderBulk() {
+  const n = sel.size, m = selSp.size;
+  $('#bulk').classList.toggle('on', (n + m) > 0 && canEdit());
+  $('#bulkN').textContent = [n ? `${f0(n)} ${n === 1 ? 'linha' : 'linhas'}` : '', m ? `${f0(m)} ${m === 1 ? 'spool' : 'spools'}` : ''].filter(Boolean).join(' e ') + (n + m === 1 ? ' selecionado' : ' selecionados');
+}
+// itens efetivos da seleção: linhas sem spool, ou todos os spools da linha, mais os spools marcados
+function selItems() {
+  const out = new Map();
+  for (const i of sel) { const x = R[i]; if (x.sps.length) x.sps.forEach(sp => out.set(sp.key, { it: sp, via: x })); else out.set(x.line, { it: x, via: x }); }
+  for (const k of selSp) { const sp = SP.get(k); if (sp) out.set(k, { it: sp, via: sp }); }
+  return [...out.values()];
+}
 $('#bulkApply').onclick = () => {
   const raw = $('#bulkPct').value, bad = [];
   let ok = 0;
-  sel.forEach(i => { const r = toPct(R[i], raw); if (r.err) bad.push(R[i]); else { setPending(i, Math.round(r.pct * 10000) / 10000, false); ok++; } });
-  bad.length ? bad.forEach(x => sel.delete(x.i)) : sel.clear();
+  // linha inteira: o valor vale para a linha (em m, é convertido em % da linha e aplicado igual a todos os spools)
+  for (const i of [...sel]) { const x = R[i], r = toPct(x, raw); if (r.err) bad.push(x); else { setPending(i, Math.round(r.pct * 10000) / 10000, false); sel.delete(i); ok++; } }
+  for (const k of [...selSp]) { const sp = SP.get(k); if (!sp) continue; const r = toPct(sp, raw); if (r.err) bad.push(sp); else { setSp(sp, Math.round(r.pct * 10000) / 10000, false); selSp.delete(k); ok++; } }
   afterChange();
-  if (bad.length) toast(`${bad.length} ${bad.length === 1 ? 'linha não recebeu' : 'linhas não receberam'} o avanço porque ${parseNum(raw) != null && parseNum(raw) >= 0 ? `${f2(parseNum(raw))} ${unit === 'm' ? 'm' : '%'} passa da quantidade da linha` : 'o valor é inválido'} (ficaram selecionadas: ${bad.slice(0, 3).map(x => `${x.line} com ${f2(x.m)} m`).join('; ')}${bad.length > 3 ? '…' : ''}).${ok ? (ok === 1 ? ' A outra linha foi lançada.' : ` As outras ${ok} linhas foram lançadas.`) : ''}`, true);
+  if (bad.length) toast(`${bad.length} ${bad.length === 1 ? 'item não recebeu' : 'itens não receberam'} o avanço porque ${parseNum(raw) != null && parseNum(raw) >= 0 ? `${f2(parseNum(raw))} ${unit === 'm' ? 'm' : '%'} passa da quantidade` : 'o valor é inválido'} (continuam selecionados: ${bad.slice(0, 3).map(x => `${x.isSp ? 'spool ' + x.code : x.line} com ${f2(x.m)} m`).join('; ')}${bad.length > 3 ? '…' : ''}).${ok ? ` ${ok} ${ok === 1 ? 'item foi lançado' : 'itens foram lançados'}.` : ''}`, true);
 };
-$('#bulkClear').onclick = () => { sel.clear(); renderLinhas(); };
+$('#bulkClear').onclick = () => { sel.clear(); selSp.clear(); renderLinhas(); };
 
 /* ============ edição de avanço ============ */
 function clampPct(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) && n >= 0 && n <= 100 ? Math.round(n * 100) / 100 : null; }
 function setPending(i, v, render = true) {
   const x = R[i];
-  if (Math.abs(v - savedPct(x)) < 0.001) pending.delete(i); else pending.set(i, v);
+  if (x.sps && x.sps.length) { x.sps.forEach(sp => setSp(sp, v, false)); if (render) afterChange(); return; }
+  if (Math.abs(v - savedPct(x)) < 0.0001) pending.delete(i); else pending.set(i, v);
+  if (render) afterChange();
+}
+function setSp(sp, v, render = true) {
+  if (Math.abs(v - spSaved(sp)) < 0.0001) pendingSp.delete(sp.key); else pendingSp.set(sp.key, v);
+  if (sp.parent.sps.some(o => pendingSp.has(o.key))) pendLines.add(sp.i); else pendLines.delete(sp.i);
   if (render) afterChange();
 }
 /* unidade de lançamento: % ou metros */
@@ -1418,14 +1490,14 @@ const unitVal = (x, p) => unit === 'm' ? +(x.m * p / 100).toFixed(2) : +p.toFixe
 const fmtIn = v => String(v).replace('.', ',');
 // converte o valor digitado (na unidade atual) em %; devolve {pct} ou {err}
 function toPct(x, raw, what = 'O avanço') {
-  const n = parseNum(raw);
-  if (n == null) return { err: `Informe um número para ${what.toLowerCase()} de ${x.line}.` };
-  if (n < 0) return { err: `${what} de ${x.line} não pode ser negativo.` };
+  const n = parseNum(raw), nm = x.isSp ? `do spool ${x.code}` : `da linha ${x.line}`, q = x.isSp ? 'a quantidade do spool (rateio da linha na ESCOPO)' : 'a quantidade da linha';
+  if (n == null) return { err: `Informe um número para ${what.toLowerCase()} ${nm}.` };
+  if (n < 0) return { err: `${what} ${nm} não pode ser negativo.` };
   if (unit === 'm') {
-    if (n > x.m + 0.005) return { err: `${what} de ${x.line} não pode passar de ${f2(x.m)} m, que é a quantidade da linha. Você informou ${f2(n)} m.` };
+    if (n > x.m + 0.005) return { err: `${what} ${nm} não pode passar de ${f2(x.m)} m, que é ${q}. Você informou ${f2(n)} m.` };
     return { pct: x.m ? Math.min(100, n / x.m * 100) : 0 };
   }
-  if (n > 100) return { err: `${what} de ${x.line} não pode passar de 100% (${f2(x.m)} m, a quantidade da linha). Você informou ${f2(n)}%.` };
+  if (n > 100) return { err: `${what} ${nm} não pode passar de 100% (${f2(x.m)} m, ${q}). Você informou ${f2(n)}%.` };
   return { pct: n };
 }
 function setUnit(u) {
@@ -1438,12 +1510,14 @@ function setUnit(u) {
 }
 $('#lnUnit').onclick = e => { const b = e.target.closest('button'); if (b) setUnit(b.dataset.u); };
 document.addEventListener('change', e => {
-  const inp = e.target.closest('.pct-in[data-i]'); if (!inp) return;
-  const x = R[+inp.dataset.i], r = toPct(x, inp.value);
+  const inp = e.target.closest('.pct-in[data-i], .pct-in[data-sp]'); if (!inp) return;
+  const x = inp.dataset.sp ? SP.get(inp.dataset.sp) : R[+inp.dataset.i]; if (!x) return;
+  const r = toPct(x, inp.value);
   if (r.err) { toast(r.err, true); inp.value = fmtIn(unitVal(x, pct(x))); inp.classList.add('bad'); setTimeout(() => inp.classList.remove('bad'), 2500); return; }
-  setPending(x.i, Math.round(r.pct * 10000) / 10000);
+  const v = Math.round(r.pct * 10000) / 10000;
+  x.isSp ? setSp(x, v) : setPending(x.i, v);
 });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.pct-in[data-i]')) e.target.blur(); });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.pct-in[data-i], .pct-in[data-sp]')) e.target.blur(); });
 function afterChange() {
   const scrollY = window.scrollY;
   renderPending(); renderPainel(); renderLinhas(); renderEstrutura();
@@ -1451,27 +1525,43 @@ function afterChange() {
   window.scrollTo(0, scrollY);
 }
 function renderPending() {
-  const n = pending.size;
+  const n = pending.size + pendLines.size;
   $('#pending').classList.toggle('on', n > 0);
   if (!n) return;
-  const before = R.reduce((s, x) => s + x.m * savedPct(x) / 100, 0), after = totals().ex;
-  $('#pendN').textContent = `${n} ${n === 1 ? 'linha alterada' : 'linhas alteradas'}.`;
+  const before = R.reduce((t, x) => t + x.m * savedPct(x) / 100, 0), after = totals().ex;
+  $('#pendN').textContent = `${n} ${n === 1 ? 'linha alterada' : 'linhas alteradas'}${pendingSp.size ? ` (${pendingSp.size} ${pendingSp.size === 1 ? 'spool' : 'spools'})` : ''}.`;
   $('#pendImpact').textContent = `Avanço geral passa de ${f2(before / TOTAL_M * 100)}% para ${f2(after / TOTAL_M * 100)}% (${after >= before ? '+' : ''}${f2(after - before)} m).`;
 }
-$('#pendDiscard').onclick = () => { pending.clear(); afterChange(); };
+$('#pendDiscard').onclick = () => { pending.clear(); pendingSp.clear(); pendLines.clear(); afterChange(); };
 $('#pendSave').onclick = async () => {
   if (!canEdit()) return openLogin();
   const btn = $('#pendSave'); btn.disabled = true; btn.textContent = 'Salvando…';
-  const items = [...pending.entries()].map(([i, p]) => ({ line: R[i].line, pct: p, m: R[i].m, from: savedPct(R[i]) }));
+  const r4 = v => Math.round(v * 10000) / 10000;
+  // grupos: cada linha vai inteira no mesmo envio (seus spools + a linha recalculada)
+  const groups = [...pending.entries()].map(([i, p]) => [{ line: R[i].line, pct: r4(p), m: R[i].m, from: savedPct(R[i]) }]);
+  for (const li of pendLines) {
+    const x = R[li];
+    groups.push([...x.sps.map(sp => ({ line: sp.key, pct: r4(spPct(sp)), m: sp.m, from: spSaved(sp), force: true })),
+      { line: x.line, pct: r4(linePctFromSp(x)), m: x.m, from: savedPct(x), auto: true }]);
+  }
+  const chunks = []; let curC = [];
+  for (const g of groups) { if (curC.length && curC.length + g.length > 300) { chunks.push(curC); curC = []; } curC.push(...g); }
+  if (curC.length) chunks.push(curC);
+  const note = $('#pendNote').value.trim();
+  let done = 0, lastR = null;
   try {
-    const r = await api('/progress', { method: 'POST', body: { items, note: $('#pendNote').value.trim() } });
-    pending.clear(); $('#pendNote').value = '';
+    for (const c of chunks) { lastR = await api('/progress', { method: 'POST', body: { items: c, note } }); done++; if (chunks.length > 1) btn.textContent = `Salvando… ${done}/${chunks.length}`; }
+    pending.clear(); pendingSp.clear(); pendLines.clear(); $('#pendNote').value = '';
     await loadData(); renderAll(); setSync();
-    toast(`Avanço salvo em ${when(r.ts)}.`);
-  } catch (e) { toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : `Não foi possível salvar: ${e.message}`, true); if (e.status === 401) openLogin(); }
+    toast(`Avanço salvo em ${when(lastR.ts)}.`);
+  } catch (e) {
+    if (done) { pending.clear(); pendingSp.clear(); pendLines.clear(); await loadData(); renderAll(); }
+    toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : `Não foi possível salvar${done ? ` tudo (${done} de ${chunks.length} partes gravadas; confira e lance o restante)` : ''}: ${e.message}`, true);
+    if (e.status === 401) openLogin();
+  }
   btn.disabled = false; btn.textContent = 'Salvar avanço';
 };
-window.addEventListener('beforeunload', e => { if (pending.size) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (pending.size || pendingSp.size) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ============ gaveta da linha ============ */
 document.addEventListener('click', e => { const b = e.target.closest('.lname'); if (b) openLine(+b.dataset.line); });
@@ -1493,10 +1583,10 @@ function openLine(i) {
       <dt>Tipo</dt><dd>${esc(x.tipo)}</dd><dt>Item PPU</dt><dd>Anexo IIB · ${esc(x.ppu)}</dd><dt>Pintura</dt><dd>${esc(x.pint) || '—'}</dd>
       <dt>Traço de vapor</dt><dd>${x.traco ? 'Sim' : 'Não'}</dd><dt>TH realizado</dt><dd>${x.th ? 'OK' : 'Não'}</dd>
     </dl>
-    <div class="h4">Spools (${sp.length}) <span class="muted" style="font-weight:400">· Mapa de Spools</span></div>
-    ${sp.length ? `<div class="tbl-wrap" style="max-height:260px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Isométrico-spool</th><th class="num">Comp. (m)</th><th>Isol.</th></tr></thead><tbody>${sp.map(s => `<tr><td>${esc(s[0])}</td><td class="num">${f2(s[1])}</td><td>${esc(s[2])}</td></tr>`).join('')}</tbody></table></div>` : `<p class="muted">Linha sem spools no Mapa de Spools.</p>`}
+    <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">· metros da ESCOPO rateados pelo comprimento no Mapa</span></div>
+    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Escopo (m)</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s); return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td><td class="num">${f2(s.comp)}</td><td class="num">${f2(s.m)}</td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
     <div class="h4">Programação semanal</div>
-    ${(progIdx.get(x.line) || []).length ? `<p style="margin:0">${(progIdx.get(x.line) || []).map(([w, v]) => `<span class="wk ${w < weekOf(Date.now()) ? 'past' : ''}">S${w} · ${f0(v)}%</span>`).join(' ')}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
+    ${progMapLine(x).size ? `<p style="margin:0">${progChips(x)}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
     <div class="h4">Histórico</div>
     ${hist.length ? `<ul class="feed" style="border:1px solid var(--line2);border-radius:6px">${hist.map(h => `<li><span class="l">${f0(h.old_pct)}% → ${f0(h.new_pct)}%</span><span class="muted">${esc(h.user || '')}</span><span class="t">${when(h.ts)}${h.note ? ' · ' + esc(h.note) : ''}</span></li>`).join('')}</ul>` : `<p class="muted">Nenhuma alteração registrada pelo painel.</p>`}
     ${pics.length ? `<div class="h4">Fotos desta linha</div><div class="gallery">${pics.map(photoCard).join('')}</div>` : ''}`;
@@ -1603,11 +1693,11 @@ $('#lbClose').onclick = closeLight; $('#lightbox').onclick = e => { if (e.target
 /* ============ histórico ============ */
 function renderHist() {
   const q = $('#hQ').value.trim().toLowerCase();
-  const list = logH.filter(h => !q || (h.line + ' ' + h.user + ' ' + (h.note || '')).toLowerCase().includes(q)).slice(0, 1000);
+  const list = logH.filter(h => !isAuto(h) && (!q || (h.line + ' ' + h.user + ' ' + (h.note || '')).toLowerCase().includes(q))).slice(0, 1000);
   $('#hBody').innerHTML = list.length ? list.map(h => {
     const imp = (Number(h.m) || 0) * (h.new_pct - h.old_pct) / 100;
-    const x = byLine.get(h.line);
-    return `<tr><td>${when(h.ts)}</td><td>${x ? `<button class="lname" data-line="${x.i}">${esc(h.line)}</button>` : esc(h.line)}</td>
+    const x = keyLine(h.line);
+    return `<tr><td>${when(h.ts)}</td><td>${x ? `<button class="lname" data-line="${x.i}">${esc(keyLabel(h.line))}</button>` : esc(h.line)}</td>
       <td class="num">${f1(h.old_pct)}%</td><td class="num">${f1(h.new_pct)}%</td>
       <td class="num"><span class="delta ${imp >= 0 ? 'up' : 'down'}">${imp >= 0 ? '+' : ''}${f2(imp)}</span></td>
       <td>${esc(h.user || '')}</td><td class="muted" style="white-space:normal;min-width:160px">${esc(h.note || '')}</td>
@@ -1617,8 +1707,8 @@ function renderHist() {
 $('#hQ').oninput = renderHist;
 document.addEventListener('click', e => {
   const u = e.target.closest('[data-undo]'); if (!u) return;
-  const h = logH.find(x => x.id == u.dataset.undo), x = byLine.get(h.line);
-  setPending(x.i, Number(h.old_pct)); toast(`Volta para ${f1(h.old_pct)}% preparada. Confira e clique em Salvar avanço.`);
+  const h = logH.find(x => x.id == u.dataset.undo), sp = SP.get(h.line), x = byLine.get(h.line);
+  if (sp) setSp(sp, Number(h.old_pct)); else if (x) setPending(x.i, Number(h.old_pct)); else return; toast(`Volta para ${f1(h.old_pct)}% preparada. Confira e clique em Salvar avanço.`);
 });
 
 /* ============ usuários ============ */
@@ -1836,11 +1926,28 @@ function setProg(w) {
   for (const a of progIdx.values()) a.sort((x, y) => x[0] - y[0]);
 }
 const progOf = (n, line) => { const w = prog[String(n)]; return w && w[line] != null ? Number(w[line]) : null; };
+function progMapLine(x) {
+  // semana -> { whole: meta da linha inteira | null, sp: [[spool, meta]] }
+  const wk = new Map(), add = w => { if (!wk.has(w)) wk.set(w, { whole: null, sp: [] }); return wk.get(w); };
+  for (const [w, v] of progIdx.get(x.line) || []) add(w).whole = v;
+  for (const sp of x.sps) for (const [w, v] of progIdx.get(sp.key) || []) add(w).sp.push([sp, v]);
+  return wk;
+}
 function progChips(x) {
-  const ws = progIdx.get(x.line); if (!ws || !ws.length) return '<span class="muted">—</span>';
-  const cur = weekOf(Date.now()), p = pct(x);
+  const wk = progMapLine(x); if (!wk.size) return '<span class="muted">—</span>';
+  const cur = weekOf(Date.now()), ws = [...wk.keys()].sort((a, b) => a - b), fut = ws.filter(w => w >= cur), show = fut.length ? fut.slice(0, 2) : ws.slice(-1);
+  return show.map(w => {
+    const o = wk.get(w);
+    if (o.whole != null) { const hit = pct(x) >= o.whole - 1e-6; return `<span class="wk ${w < cur ? 'past' : ''}${hit ? ' hit' : ''}" title="Semana ${w} (${weekRange(w)}): linha inteira até ${f1(o.whole)}% = ${f2(x.m * o.whole / 100)} m">S${w} · ${unit === 'm' ? f2(x.m * o.whole / 100) + ' m' : f0(o.whole) + '%'}</span>`; }
+    const metaM = o.sp.reduce((t, [sp, v]) => t + sp.m * v / 100, 0), hit = o.sp.every(([sp, v]) => spPct(sp) >= v - 1e-6);
+    return `<span class="wk ${w < cur ? 'past' : ''}${hit ? ' hit' : ''}" title="Semana ${w} (${weekRange(w)}): ${o.sp.length} de ${x.sps.length} spools programados (meta ${f2(metaM)} m)">S${w} · ${o.sp.length}/${x.sps.length} spools</span>`;
+  }).join('') + (fut.length > 2 ? `<span class="muted">+${fut.length - 2}</span>` : '');
+}
+function progChipsKey(it) {
+  const ws = progIdx.get(it.key || it.line); if (!ws || !ws.length) return '<span class="muted">—</span>';
+  const cur = weekOf(Date.now()), p = pct(it);
   const fut = ws.filter(([w]) => w >= cur), show = fut.length ? fut.slice(0, 2) : ws.slice(-1);
-  return show.map(([w, v]) => `<span class="wk ${w < cur ? 'past' : ''}${p >= v - 1e-6 ? ' hit' : ''}" title="Semana ${w} (${weekRange(w)}): meta ${f1(v)}% = ${f2(x.m * v / 100)} m">S${w} · ${unit === 'm' ? f2(x.m * v / 100) + ' m' : f0(v) + '%'}</span>`).join('') + (fut.length > 2 ? `<span class="muted">+${fut.length - 2}</span>` : '');
+  return show.map(([w, v]) => `<span class="wk ${w < cur ? 'past' : ''}${p >= v - 1e-6 ? ' hit' : ''}" title="Semana ${w} (${weekRange(w)}): meta ${f1(v)}% = ${f2(it.m * v / 100)} m">S${w} · ${unit === 'm' ? f2(it.m * v / 100) + ' m' : f0(v) + '%'}</span>`).join('');
 }
 function weekOptions(from, to, sel) {
   const cur = weekOf(Date.now()); let h = '';
@@ -1862,36 +1969,51 @@ async function saveProg(week, items) {
 $('#bulkProg').onclick = async () => {
   const w = Number($('#bulkWeek').value), raw = $('#bulkWeekPct').value, n0 = parseNum(raw);
   if (n0 == null || n0 <= 0) return toast(`Informe a meta da semana em ${unit === 'm' ? 'metros' : '%'} (maior que zero).`, true);
-  const bad = [], items = [];
-  for (const i of sel) { const r = toPct(R[i], raw, 'A meta'); if (r.err) bad.push(R[i]); else items.push({ line: R[i].line, pct: Math.round(r.pct * 10000) / 10000 }); }
-  if (bad.length) return toast(`A meta de ${f2(n0)} ${unit === 'm' ? 'm' : '%'} passa da quantidade de ${bad.length} ${bad.length === 1 ? 'linha' : 'linhas'} selecionada${bad.length === 1 ? '' : 's'}: ${bad.slice(0, 3).map(x => `${x.line} tem ${f2(x.m)} m`).join('; ')}${bad.length > 3 ? '…' : ''}. Ajuste a meta ou desmarque essas linhas.`, true);
-  try { await saveProg(w, items); toast(`${items.length} ${items.length === 1 ? 'linha programada' : 'linhas programadas'} na Semana ${w} (${weekRange(w)}).`); sel.clear(); renderLinhas(); renderProg(); }
+  const bad = [], items = new Map();
+  // linha marcada: a meta vale para a linha e é aplicada (em %) a cada um dos seus spools
+  for (const i of sel) { const x = R[i], r = toPct(x, raw, 'A meta'); if (r.err) { bad.push(x); continue; } const v = Math.round(r.pct * 10000) / 10000;
+    if (x.sps.length) x.sps.forEach(sp => items.set(sp.key, v)); else items.set(x.line, v); }
+  for (const k of selSp) { const sp = SP.get(k); if (!sp) continue; const r = toPct(sp, raw, 'A meta'); if (r.err) bad.push(sp); else items.set(k, Math.round(r.pct * 10000) / 10000); }
+  if (bad.length) return toast(`A meta de ${f2(n0)} ${unit === 'm' ? 'm' : '%'} passa da quantidade de ${bad.length} ${bad.length === 1 ? 'item selecionado' : 'itens selecionados'}: ${bad.slice(0, 3).map(x => `${x.isSp ? 'spool ' + x.code : x.line} tem ${f2(x.m)} m`).join('; ')}${bad.length > 3 ? '…' : ''}. Ajuste a meta ou desmarque esses itens.`, true);
+  const nl = new Set([...items.keys()].map(k => keyLine(k)?.i)).size, ns = [...items.keys()].filter(k => SP.has(k)).length;
+  try { await saveProg(w, [...items.entries()].map(([line, pct]) => ({ line, pct })));
+    toast(`Programado na Semana ${w} (${weekRange(w)}): ${nl} ${nl === 1 ? 'linha' : 'linhas'}${ns ? `, ${ns} ${ns === 1 ? 'spool' : 'spools'}` : ''}.`); sel.clear(); selSp.clear(); renderLinhas(); renderProg(); }
   catch (e) { toast('Não foi possível programar: ' + e.message, true); }
 };
 $('#bulkUnprog').onclick = async () => {
-  const w = Number($('#bulkWeek').value);
-  const items = [...sel].filter(i => progOf(w, R[i].line) != null).map(i => ({ line: R[i].line, pct: null }));
-  if (!items.length) return toast(`Nenhuma das linhas selecionadas está programada na Semana ${w}.`, true);
-  try { await saveProg(w, items); toast(`${items.length} ${items.length === 1 ? 'linha retirada' : 'linhas retiradas'} da Semana ${w}.`); sel.clear(); renderLinhas(); renderProg(); }
+  const w = Number($('#bulkWeek').value), keys = new Set();
+  for (const i of sel) { const x = R[i]; keys.add(x.line); x.sps.forEach(sp => keys.add(sp.key)); }
+  selSp.forEach(k => keys.add(k));
+  const items = [...keys].filter(k => progOf(w, k) != null).map(k => ({ line: k, pct: null }));
+  if (!items.length) return toast(`Nenhum item selecionado está programado na Semana ${w}.`, true);
+  try { await saveProg(w, items); toast(`${items.length} ${items.length === 1 ? 'item retirado' : 'itens retirados'} da Semana ${w}.`); sel.clear(); selSp.clear(); renderLinhas(); renderProg(); }
   catch (e) { toast(e.message, true); }
 };
 
 function weekRows(n) {
-  const cur = weekOf(Date.now()), a = weekStart(n), b = a + WEEK, fut = n > cur;
-  return R.map(x => {
-    const tgt = progOf(n, x.line);
-    let s0 = fut ? savedPct(x) : pctAt(x, a);
-    if (fut) for (let k = cur; k < n; k++) { const t = progOf(k, x.line); if (t != null && t > s0) s0 = t; }
+  // itens programados na semana: spools (ou a linha inteira, quando ela não tem spool)
+  const cur = weekOf(Date.now()), a = weekStart(n), b = a + WEEK, fut = n > cur, wk = prog[String(n)] || {};
+  return Object.entries(wk).map(([k, v]) => {
+    const x = itemOf(k); if (!x) return null;
+    const tgt = Number(v);
+    let s0 = fut ? 0 : pctAt(x, a);
+    if (fut) { s0 = x.isSp ? spSaved(x) : savedPct(x); for (let w = cur; w < n; w++) { const t = progOf(w, k); if (t != null && t > s0) s0 = t; } }
     const e = fut ? s0 : pctAt(x, b);
-    return { x, tgt, s: s0, e, progM: tgt == null ? 0 : x.m * Math.max(0, tgt - s0) / 100, execM: x.m * (e - s0) / 100, hit: tgt != null && e >= tgt - 1e-6 };
-  });
+    return { x, key: k, ln: x.isSp ? x.parent : x, tgt, s: s0, e, progM: x.m * Math.max(0, tgt - s0) / 100, execM: x.m * (e - s0) / 100, hit: e >= tgt - 1e-6 };
+  }).filter(Boolean);
 }
-function weekSum(rows) {
-  const t = { n: 0, hit: 0, m: 0, progM: 0, execP: 0, capP: 0, execOut: 0, nOut: 0 };
-  for (const r of rows) {
-    if (r.tgt != null) { t.n++; t.m += r.x.m; t.progM += r.progM; t.execP += r.execM; t.capP += Math.min(Math.max(r.execM, 0), r.progM); if (r.hit) t.hit++; }
-    else if (Math.abs(r.execM) > 1e-9) { t.execOut += r.execM; t.nOut++; }
-  }
+function weekExec(n) {
+  const cur = weekOf(Date.now()); if (n > cur) return { m: 0, lines: new Map() };
+  const a = weekStart(n), b = a + WEEK, lines = new Map(); let m = 0;
+  for (const x of R) { const d = x.m * (pctAt(x, b) - pctAt(x, a)) / 100; if (Math.abs(d) > 1e-9) { lines.set(x.i, d); m += d; } }
+  return { m, lines };
+}
+function weekSum(rows, ex) {
+  const t = { n: 0, hit: 0, m: 0, progM: 0, execP: 0, capP: 0, execOut: 0, nOut: 0, nl: 0, ns: 0 };
+  const ln = new Set();
+  for (const r of rows) { t.n++; t.m += r.x.m; t.progM += r.progM; t.execP += r.execM; t.capP += Math.min(Math.max(r.execM, 0), r.progM); if (r.hit) t.hit++; ln.add(r.ln.i); if (r.x.isSp) t.ns++; }
+  t.nl = ln.size;
+  if (ex) { t.execOut = Math.max(0, ex.m - t.execP); for (const i of ex.lines.keys()) if (!ln.has(i)) t.nOut++; }
   return t;
 }
 let pgSel = null, pgPage = 0;
@@ -1908,46 +2030,46 @@ function renderProg() {
   $('#pgWeek').innerHTML = list.map(n => `<option value="${n}"${n === pgSel ? ' selected' : ''}>Semana ${n} · ${weekRange(n)}${n === cur ? ' (atual)' : n === cur + 1 ? ' (próxima)' : n < cur ? ' (encerrada)' : ''}</option>`).join('');
   const fut = pgSel > cur, past = pgSel < cur;
   $('#pgRange').textContent = `${weekRange(pgSel)} · ${fut ? 'semana futura' : past ? 'semana encerrada' : 'semana em andamento'}`;
-  const rows = weekRows(pgSel), t = weekSum(rows);
+  const rows = weekRows(pgSel), t = weekSum(rows, weekExec(pgSel));
   const adh = t.progM > 0 ? t.capP / t.progM : null;
   $('#pgKpis').style.gridTemplateColumns = 'repeat(3,minmax(0,1fr))';
   $('#pgKpis').innerHTML = [
-    { l: 'Linhas programadas', v: f0(t.n), s: `${f2(t.m)} m de tubulação`, ic: 'layers', c: 'navy' },
+    { l: 'Itens programados', v: f0(t.n), s: `${f0(t.nl)} ${t.nl === 1 ? 'linha' : 'linhas'} · ${f0(t.ns)} ${t.ns === 1 ? 'spool' : 'spools'} · ${f2(t.m)} m`, ic: 'layers', c: 'navy' },
     { l: 'Metros programados', v: f2(t.progM) + ' m', s: 'a isolar na semana', ic: 'calendar', c: 'gold', hl: true },
     { l: 'Executado nas programadas', v: fut ? '—' : f2(t.execP) + ' m', s: fut ? `semana começa em ${dShort(weekStart(pgSel))}` : 'lançado na aba Linhas', ic: 'ruler', c: 'blue', frac: fut || !t.progM ? null : Math.min(1, Math.max(0, t.execP / t.progM)) },
     { l: 'Aderência à programação', v: fut || adh == null ? '—' : pctTxt(adh * 100), s: adh == null ? 'programe linhas na aba Linhas' : fut ? 'aguardando a semana' : 'executado ÷ programado', ic: 'target', c: 'teal', frac: fut || adh == null ? null : adh },
-    { l: 'Metas atingidas', v: `${f0(t.hit)} de ${f0(t.n)}`, s: 'linhas que chegaram à meta', ic: 'check', c: 'green', frac: t.n ? t.hit / t.n : null },
-    { l: 'Executado fora da programação', v: fut ? '—' : f2(t.execOut) + ' m', s: fut ? '—' : `${f0(t.nOut)} ${t.nOut === 1 ? 'linha' : 'linhas'} não programadas`, ic: 'flame', c: 'orange' }
+    { l: 'Metas atingidas', v: `${f0(t.hit)} de ${f0(t.n)}`, s: 'itens que chegaram à meta', ic: 'check', c: 'green', frac: t.n ? t.hit / t.n : null },
+    { l: 'Executado fora da programação', v: fut ? '—' : f2(t.execOut) + ' m', s: fut ? '—' : `${f0(t.nOut)} ${t.nOut === 1 ? 'linha não programada' : 'linhas não programadas'}`, ic: 'flame', c: 'orange' }
   ].map(scard).join('');
   renderProgChart(cur);
   // por SOP
-  const g = new Map(); for (const r of rows) if (r.tgt != null) { if (!g.has(r.x.sop)) g.set(r.x.sop, []); g.get(r.x.sop).push(r); }
+  const g = new Map(); for (const r of rows) { if (!g.has(r.ln.sop)) g.set(r.ln.sop, []); g.get(r.ln.sop).push(r); }
   const sops = [...g.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([k, rs]) => ({ k, ...weekSum(rs) }));
-  $('#pgSopTbl').innerHTML = sops.length ? `<table><thead><tr><th>SOP</th><th class="num">Linhas</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th class="num">Aderência</th></tr></thead><tbody>${
+  $('#pgSopTbl').innerHTML = sops.length ? `<table><thead><tr><th>SOP</th><th class="num">Itens</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th class="num">Aderência</th></tr></thead><tbody>${
     sops.map(x => `<tr><td>${esc(x.k)}</td><td class="num">${f0(x.n)}</td><td class="num">${f2(x.progM)}</td><td class="num">${fut ? '—' : f2(x.execP)}</td><td class="num">${fut || !x.progM ? '—' : pctTxt(x.capP / x.progM * 100)}</td></tr>`).join('')
   }<tr class="tot"><td>Total</td><td class="num">${f0(t.n)}</td><td class="num">${f2(t.progM)}</td><td class="num">${fut ? '—' : f2(t.execP)}</td><td class="num">${fut || adh == null ? '—' : pctTxt(adh * 100)}</td></tr></tbody></table>`
     : `<div class="empty"><b>Nenhuma linha programada nesta semana</b>Na aba Linhas, selecione as linhas e use "Programar na Semana ${pgSel}".</div>`;
   // linhas
   const q = $('#pgQ').value.trim().toLowerCase(), sop = $('#pgSop').value, sf = $('#pgSt').value;
   const sit = r => r.hit ? 'hit' : r.e > r.s + 1e-6 ? 'part' : 'todo';
-  const lines = rows.filter(r => r.tgt != null && (!q || (r.x.line + ' ' + r.x.sth).toLowerCase().includes(q)) && (!sop || r.x.sop === sop) && (!sf || sit(r) === sf))
-    .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
+  const lines = rows.filter(r => (!q || (r.key + ' ' + r.ln.sth).toLowerCase().includes(q)) && (!sop || r.ln.sop === sop) && (!sf || sit(r) === sf))
+    .sort((a, b) => a.ln.sop.localeCompare(b.ln.sop) || a.ln.line.localeCompare(b.ln.line) || a.key.localeCompare(b.key));
   const pages = Math.max(1, Math.ceil(lines.length / PAGE)); pgPage = Math.min(pgPage, pages - 1);
   const tag = r => r.hit ? '<span class="tag s2">Meta atingida</span>' : r.e > r.s + 1e-6 ? '<span class="tag s1">Parcial</span>' : past ? '<span class="tag s3">Não executada</span>' : '<span class="tag s0">Programada</span>';
   $('#pgBody').innerHTML = lines.length ? lines.slice(pgPage * PAGE, pgPage * PAGE + PAGE).map(r => `<tr>
-    <td><button class="lname" data-line="${r.x.i}">${esc(r.x.line)}</button></td><td>${esc(r.x.sop)}</td><td class="muted sth">${esc(r.x.sth)}</td>
+    <td>${r.x.isSp ? `<span class="sp-name">↳ ${esc(r.x.code)}</span><br><button class="lname" style="font-size:12px" data-line="${r.ln.i}">${esc(r.ln.line)}</button>` : `<button class="lname" data-line="${r.ln.i}">${esc(r.ln.line)}</button>`}</td><td>${esc(r.ln.sop)}</td><td class="muted sth">${esc(r.ln.sth)}</td>
     <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.s)}%</td><td class="num"><b>${f0(r.tgt)}%</b><br><small class="muted">${f2(r.x.m * r.tgt / 100)} m</small></td><td class="num">${fut ? '—' : f1(r.e) + '%'}</td>
     <td class="num">${f2(r.progM)}</td><td class="num">${fut ? '—' : f2(r.execM)}</td><td>${tag(r)}</td>
-    <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${r.x.i}" title="Tirar desta semana">Remover</button>` : ''}</td></tr>`).join('')
+    <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${esc(r.key)}" title="Tirar desta semana">Remover</button>` : ''}</td></tr>`).join('')
     : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
-  $('#pgPager').innerHTML = `<span>${f0(lines.length)} linhas</span><span class="spacer"></span><button class="btn sm" id="pgPrev" ${pgPage ? '' : 'disabled'}>Anterior</button><span>Página ${pgPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${pgPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#pgPager').innerHTML = `<span>${f0(lines.length)} itens</span><span class="spacer"></span><button class="btn sm" id="pgPrev" ${pgPage ? '' : 'disabled'}>Anterior</button><span>Página ${pgPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${pgPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
   $('#pgPrev').onclick = () => { pgPage--; renderProg(); };
   $('#pgNext').onclick = () => { pgPage++; renderProg(); };
 }
 function renderProgChart(cur) {
   const ks = Object.keys(prog).filter(k => Object.keys(prog[k] || {}).length).map(Number);
   let a = Math.min(cur - 3, ...ks), b = Math.max(cur + 2, ...ks); if (b - a > 11) a = b - 11;
-  const data = []; for (let n = a; n <= b; n++) { const t = weekSum(weekRows(n)); data.push({ n, prog: t.progM, exec: n > cur ? 0 : weekRows(n).reduce((s, r) => s + r.execM, 0) }); }
+  const data = []; for (let n = a; n <= b; n++) { const t = weekSum(weekRows(n)); data.push({ n, prog: t.progM, exec: weekExec(n).m }); }
   const W = 560, H = 230, pl = 52, pr = 10, pt = 22, pb = 40, step = (W - pl - pr) / data.length, bw = Math.min(26, step * .32);
   const max = Math.max(1, ...data.map(d => Math.max(d.prog, d.exec))) * 1.15, y = v => pt + (H - pt - pb) * (1 - Math.max(0, v) / max);
   $('#pgChart').innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Programado e executado por semana">
@@ -1965,13 +2087,13 @@ $('#pgWeek').onchange = e => { pgSel = Number(e.target.value); pgPage = 0; rende
 ['#pgQ', '#pgSop', '#pgSt'].forEach(s => $(s).addEventListener(s === '#pgQ' ? 'input' : 'change', () => { pgPage = 0; renderProg(); }));
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-pgrm]'); if (!b) return;
-  const x = R[+b.dataset.pgrm];
-  try { await saveProg(pgSel, [{ line: x.line, pct: null }]); renderProg(); renderLinhas(); toast(`${x.line} retirada da Semana ${pgSel}.`); } catch (err) { toast(err.message, true); }
+  const k = b.dataset.pgrm;
+  try { await saveProg(pgSel, [{ line: k, pct: null }]); renderProg(); renderLinhas(); toast(`${keyLabel(k)} retirado da Semana ${pgSel}.`); } catch (err) { toast(err.message, true); }
 });
 $('#pgCsv').onclick = () => {
-  const rows = weekRows(pgSel).filter(r => r.tgt != null);
-  const head = ['Semana', 'Período', 'LINHA', 'SOP', 'SUBSOP', 'STH', 'Metros', '% início', 'Meta (%)', '% atual', 'Programado (m)', 'Executado (m)', 'Situação'];
-  const lines = rows.map(r => [pgSel, weekRange(pgSel), r.x.line, r.x.sop, r.x.sub, r.x.sth, f2(r.x.m), f2(r.s), f2(r.tgt), f2(r.e), f2(r.progM), f2(r.execM), r.hit ? 'Meta atingida' : r.e > r.s ? 'Parcial' : 'Não executada']);
+  const rows = weekRows(pgSel);
+  const head = ['Semana', 'Período', 'LINHA', 'SPOOL', 'SOP', 'SUBSOP', 'STH', 'Metros', '% início', 'Meta (%)', '% atual', 'Programado (m)', 'Executado (m)', 'Situação'];
+  const lines = rows.map(r => [pgSel, weekRange(pgSel), r.ln.line, r.x.isSp ? r.x.code : '(linha inteira)', r.ln.sop, r.ln.sub, r.ln.sth, f2(r.x.m), f2(r.s), f2(r.tgt), f2(r.e), f2(r.progM), f2(r.execM), r.hit ? 'Meta atingida' : r.e > r.s ? 'Parcial' : 'Não executada']);
   const csv = '\ufeff' + [head, ...lines].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   a.download = `programacao_semana_${pgSel}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -2058,8 +2180,16 @@ $('#fpClear').onclick = () => {
 };
 $('#fpWeeks').onclick = () => {
   const weeks = Object.keys(prog).map(Number).filter(n => monthKey(weekStart(n)) === finSel).sort((a, b) => a - b);
+  const kt = new Map();
+  for (const n of weeks) for (const [k, v] of Object.entries(prog[String(n)] || {})) kt.set(k, Math.max(kt.get(k) ?? 0, Number(v)));
+  // converte metas de spools em meta da linha (spools não programados ficam no avanço atual)
   const tg = new Map();
-  for (const n of weeks) for (const [line, v] of Object.entries(prog[String(n)] || {})) tg.set(line, Math.max(tg.get(line) ?? 0, Number(v)));
+  for (const [k, v] of kt) { const x = keyLine(k); if (!x) continue;
+    if (!x.sps.length || !SP.has(k)) { tg.set(x.line, Math.max(tg.get(x.line) ?? 0, v)); continue; }
+    if (tg.has(x.line + '§')) continue; tg.set(x.line + '§', 1);
+    const m = x.sps.reduce((t, sp) => t + sp.m * Math.max(spSaved(sp), kt.get(sp.key) ?? 0), 0);
+    tg.set(x.line, Math.max(tg.get(x.line) ?? 0, x.m ? Math.round(m / x.m * 100 * 10000) / 10000 : 0)); }
+  for (const k of [...tg.keys()]) if (k.endsWith('§')) tg.delete(k);
   if (!tg.size) return toast(`Nenhuma linha programada nas semanas que começam em ${finSel.slice(5)}/${finSel.slice(0, 4)}.`, true);
   fpSave([...tg.entries()].map(([line, pct]) => ({ line, pct })), `${tg.size} linhas trazidas das semanas ${weeks.join(', ')}.`);
 };
@@ -2097,7 +2227,9 @@ function buildHIdx() {
 }
 function baseline(x) { const a = hIdx.get(x.line); return a && a.length ? Number(a[0].old_pct) : x.seed; }
 function pctAt(x, t) {
-  const a = hIdx.get(x.line); if (!a || !a.length) return savedPct(x);
+  const a = hIdx.get(x.line);
+  if (x.isSp) { if (!a || !a.length || t <= a[0]._t) return pctAt(x.parent, t); }   // antes do 1º registro do spool, vale o % da linha
+  else if (!a || !a.length) return savedPct(x);
   let v = Number(a[0].old_pct); for (const h of a) { if (h._t < t) v = Number(h.new_pct); else break; } return v;
 }
 const fcPend = new Map(); // linha -> % (null = remover)
