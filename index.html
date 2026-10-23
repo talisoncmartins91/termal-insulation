@@ -1018,7 +1018,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '23/10/2026 08:35'; // versão deste arquivo
+const APP_BUILD = '23/10/2026 08:56'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1034,14 +1034,19 @@ function initBase(b) {
   }));
   byLine = new Map(R.map(x => [x.line, x]));
   TOTAL_M = R.reduce((s, x) => s + x.m, 0);
-  // spools: o metro da ESCOPO é rateado pelo comprimento de cada spool no Mapa de Spools
+  // spools: parte do comprimento de cada spool no Mapa e fecha no metro da linha na ESCOPO
+  //  - spools somam MENOS que a ESCOPO: cada spool fica com o seu comprimento + a diferença dividida igualmente entre todos
+  //  - spools somam MAIS que a ESCOPO: os comprimentos são reduzidos na mesma proporção até fechar na ESCOPO
   SP = new Map();
   for (const x of R) {
     const arr = ((b.spools && b.spools[x.i]) || []).filter(a => a && a[0]);
-    const tot = arr.reduce((t, a) => t + (Number(a[1]) || 0), 0);
+    const tot = arr.reduce((t, a) => t + (Number(a[1]) || 0), 0), dif = x.m - tot;
+    x.spRule = !arr.length ? null : Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
+    x.spMapa = tot;
     let acc = 0;
     x.sps = arr.map((a, k) => {
-      let mm = tot > 0 ? x.m * (Number(a[1]) || 0) / tot : x.m / arr.length;
+      const c = Number(a[1]) || 0;
+      let mm = x.spRule === 'menor' ? c + dif / arr.length : x.spRule === 'maior' ? (tot > 0 ? c * x.m / tot : x.m / arr.length) : c;
       if (k === arr.length - 1) mm = Math.max(0, x.m - acc);
       acc += mm;
       const key = x.line + '§' + a[0];
@@ -1438,7 +1443,7 @@ function spRow(sp) {
   return `<tr class="sp-row${pendingSp.has(sp.key) ? ' changed' : ''}">
     <td><input type="checkbox" data-ssel="${esc(sp.key)}" ${selSp.has(sp.key) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar spool ${esc(sp.code)}"></td>
     <td class="sp-name">↳ ${esc(sp.code)}</td>
-    <td class="muted" colspan="4">comprimento no Mapa: ${f2(sp.comp)} m</td>
+    <td class="muted" colspan="4">${f2(sp.comp)} m no Mapa ${Math.abs(sp.m - sp.comp) < 0.005 ? '' : `${sp.m > sp.comp ? '+' : '−'} ${f2(Math.abs(sp.m - sp.comp))} m de ajuste`}</td>
     <td class="num">${f2(sp.m)}</td><td>${pctCell(sp)}</td><td class="num">${f2(sp.m * p / 100)}</td>
     <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChipsKey(sp)}</td></tr>`;
 }
@@ -1583,8 +1588,8 @@ function openLine(i) {
       <dt>Tipo</dt><dd>${esc(x.tipo)}</dd><dt>Item PPU</dt><dd>Anexo IIB · ${esc(x.ppu)}</dd><dt>Pintura</dt><dd>${esc(x.pint) || '—'}</dd>
       <dt>Traço de vapor</dt><dd>${x.traco ? 'Sim' : 'Não'}</dd><dt>TH realizado</dt><dd>${x.th ? 'OK' : 'Não'}</dd>
     </dl>
-    <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">· metros da ESCOPO rateados pelo comprimento no Mapa</span></div>
-    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Escopo (m)</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s); return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td><td class="num">${f2(s.comp)}</td><td class="num">${f2(s.m)}</td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
+    <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">· ${x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.m - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.m)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO'}</span></div>
+    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Ajuste (m)</th><th class="num">Considerado (m)</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s), aj = s.m - s.comp; return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td><td class="num">${f2(s.comp)}</td><td class="num ${aj < -0.004 ? 'neg' : ''}">${Math.abs(aj) < 0.005 ? '—' : (aj > 0 ? '+' : '') + f2(aj)}</td><td class="num"><b>${f2(s.m)}</b></td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
     <div class="h4">Programação semanal</div>
     ${progMapLine(x).size ? `<p style="margin:0">${progChips(x)}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
     <div class="h4">Histórico</div>
