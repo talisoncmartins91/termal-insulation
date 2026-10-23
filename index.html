@@ -247,7 +247,7 @@ tr.sp-row.changed td{background:#FFFBEA}
 .gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px}
 .ph{background:var(--surface);border:1px solid var(--line);border-radius:var(--r2);overflow:hidden;display:flex;flex-direction:column}
 .ph .img{aspect-ratio:4/3;background:#DDE4EA center/cover no-repeat;border:0;padding:0;cursor:zoom-in;display:block;width:100%}
-.ph .img img{width:100%;height:100%;object-fit:cover;display:block}
+.ph .img img{width:100%;height:100%;object-fit:contain;display:block;background:#fff}
 .ph .pdf{aspect-ratio:4/3;display:grid;place-items:center;background:var(--surface2);color:var(--brand);font-weight:600;text-decoration:none}
 .ph .meta{padding:11px 13px 13px;display:flex;flex-direction:column;gap:6px;font-size:12.5px}
 .ph .when{font-weight:600;color:var(--ink);font-size:13px}
@@ -255,6 +255,25 @@ tr.sp-row.changed td{background:#FFFBEA}
 .ph .by{color:var(--muted)}
 .ph .row{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .just{outline:2px solid var(--done);outline-offset:2px}
+.vlegend{display:flex;gap:14px;flex-wrap:wrap;align-items:center;font-size:12.5px;font-weight:500;color:var(--ink2)}
+.vlegend span{display:inline-flex;align-items:center;gap:7px}
+.vlegend i{width:14px;height:14px;border-radius:4px;display:inline-block;box-shadow:inset 0 0 0 1px rgba(0,0,0,.12)}
+.vlegend i.y,.vt-ic.y{background:#F2C200}
+.vlegend i.g,.vt-ic.g{background:#2EA043}
+.vlegend i.r{background:#D63B3B}
+.vlegend.dark{color:#E6EDF2;justify-content:center}
+.vleg-bar{display:flex;gap:16px;align-items:center;flex-wrap:wrap;padding:10px 20px;background:var(--surface2);border-bottom:1px solid var(--line2)}
+.vtabs{display:flex;gap:4px;padding:0 20px;border-bottom:1px solid var(--line)}
+.vtabs button{border:0;background:none;padding:12px 14px;font-weight:600;font-size:13.5px;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent;margin-bottom:-1px;display:inline-flex;gap:8px;align-items:center}
+.vtabs button b{background:#EEF2F5;color:var(--ink2);border-radius:999px;padding:1px 8px;font-size:12px}
+.vtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--brand)}
+.vt-ic{width:10px;height:10px;border-radius:3px;display:inline-block}
+.vseg{display:flex;width:max-content}
+.ph .cat{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;width:max-content}
+.ph .cat.p{background:#FFF6CC;color:#7A5C00}
+.ph .cat.e{background:#E3F4E6;color:#1F6B30}
+.ph .edit{display:none;flex-direction:column;gap:6px;padding:8px;border:1px dashed var(--line);border-radius:8px}
+.ph .edit.on{display:flex}
 
 /* gaveta e modais */
 .scrim{position:fixed;inset:0;background:rgba(15,38,56,.42);z-index:60;display:none}
@@ -728,7 +747,7 @@ body.locked .app,body.locked .pending{display:none!important}
       <!-- ACOMPANHAMENTO VISUAL -->
       <section class="view" id="v-visual">
         <div class="panel" id="upPanel">
-          <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>As fotos vão para o repositório no GitHub e aparecem aqui com a data e a hora do envio.</p></div></div>
+          <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>Os arquivos vão para o repositório no GitHub e aparecem aqui com a data e a hora do envio.</p></div><div class="tools"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div></div></div>
           <div class="panel-b upload">
             <div>
               <label class="drop" id="drop" tabindex="0">
@@ -740,7 +759,11 @@ body.locked .app,body.locked .pending{display:none!important}
               <ul class="files" id="upList"></ul>
             </div>
             <div class="form">
-              <label>Legenda<textarea class="input" id="upCap" rows="3" placeholder="Ex.: Isolamento concluído no rack da SOP 0039, trecho norte"></textarea></label>
+              <label>Onde publicar
+                <span class="seg vseg" id="upCat"><button type="button" data-c="programacao" aria-pressed="true">Programação semanal</button><button type="button" data-c="executadas" aria-pressed="false">Linhas executadas</button></span></label>
+              <label id="upWeekW">Semana da programação
+                <span class="pw"><input class="input" id="upWeek" type="text" inputmode="numeric" placeholder="Ex.: 70" style="max-width:120px"><span class="muted" id="upWeekR" style="align-self:center;font-size:12.5px"></span></span></label>
+              <label>Descrição<textarea class="input" id="upCap" rows="3" placeholder="Ex.: Isométrico da SOP 0039 marcado com o programado da semana"></textarea></label>
               <label>SOP (opcional)<select class="input" id="upSop"><option value="">Sem SOP</option></select></label>
               <label>Linha (opcional)<input class="input" id="upLine" list="lineList" placeholder="Digite para buscar a linha"></label>
               <div><button class="btn primary" id="upSend" disabled>Enviar para o GitHub</button> <span class="muted" id="upMsg"></span></div>
@@ -750,8 +773,13 @@ body.locked .app,body.locked .pending{display:none!important}
         <div class="panel mt">
           <div class="panel-h">
             <div><h2>Registros enviados</h2><p id="visCount">—</p></div>
-            <div class="tools"><select class="input" id="visSop"><option value="">Todas as SOPs</option></select></div>
+            <div class="tools"><select class="input" id="visWeek" aria-label="Semana"></select><select class="input" id="visSop"><option value="">Todas as SOPs</option></select></div>
           </div>
+          <div class="vtabs" id="visTabs" role="tablist">
+            <button role="tab" data-t="programacao" aria-selected="true"><span class="vt-ic y"></span>Programação semanal <b id="vtP">0</b></button>
+            <button role="tab" data-t="executadas" aria-selected="false"><span class="vt-ic g"></span>Linhas executadas <b id="vtE">0</b></button>
+          </div>
+          <div class="vleg-bar"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div><span class="muted" style="font-size:12px">Cores usadas na marcação dos desenhos e fotos.</span></div>
           <div class="panel-b" id="gallery"></div>
         </div>
       </section>
@@ -1010,7 +1038,7 @@ body.locked .app,body.locked .pending{display:none!important}
   </div>
 </div>
 
-<div class="lightbox" id="lightbox" role="dialog" aria-modal="true"><img id="lbImg" alt=""><p id="lbCap"></p><button class="btn" id="lbClose">Fechar</button></div>
+<div class="lightbox" id="lightbox" role="dialog" aria-modal="true"><img id="lbImg" alt=""><p id="lbCap"></p><div class="vlegend dark" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div><button class="btn" id="lbClose">Fechar</button></div>
 <div class="toast" id="toast" role="status"></div>
 <datalist id="lineList"></datalist>
 
@@ -1018,7 +1046,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '23/10/2026 09:39'; // versão deste arquivo
+const APP_BUILD = '23/10/2026 09:50'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1633,8 +1661,21 @@ async function prepare(f) {
   } catch (e) { return { mime: f.type, data: await toB64(f), name: f.name }; }
 }
 function toB64(blob) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); }); }
+let upCat = 'programacao', visTab = 'programacao';
+const catLabel = c => c === 'programacao' ? 'Programação semanal' : 'Linhas executadas';
+function setUpCat(c) {
+  upCat = c; $$('#upCat button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === c));
+  $('#upWeekW').style.display = c === 'programacao' ? '' : 'none';
+  if (c === 'programacao' && !$('#upWeek').value) $('#upWeek').value = String(weekOf(Date.now()) + 1);
+  updWeekRange();
+}
+function updWeekRange() { const n = parseInt($('#upWeek').value, 10); $('#upWeekR').textContent = Number.isInteger(n) && n > 0 ? weekRange(n) : 'informe o número da semana'; }
+$('#upCat').onclick = e => { const b = e.target.closest('button'); if (b) setUpCat(b.dataset.c); };
+$('#upWeek').addEventListener('input', updWeekRange);
 $('#upSend').onclick = async () => {
   if (!canEdit()) return openLogin();
+  const wk = parseInt($('#upWeek').value, 10);
+  if (upCat === 'programacao' && !(Number.isInteger(wk) && wk > 0)) return toast('Informe o número da semana da programação (ex.: 70).', true);
   const line = $('#upLine').value.trim();
   if (line && !byLine.has(line)) return toast('Linha não encontrada no escopo. Escolha uma da lista.', true);
   const btn = $('#upSend'); btn.disabled = true;
@@ -1645,12 +1686,12 @@ $('#upSend').onclick = async () => {
     try {
       const p = await prepare(upFiles[k]);
       if (p.data.length * 3 / 4 > 15 * 1048576) throw new Error('arquivo acima de 15 MB');
-      const r = await api('/visual', { method: 'POST', body: { filename: p.name, mime: p.mime, content: p.data, caption: $('#upCap').value.trim(), sop, line } });
+      const r = await api('/visual', { method: 'POST', body: { filename: p.name, mime: p.mime, content: p.data, caption: $('#upCap').value.trim(), sop, line, category: upCat, week: upCat === 'programacao' ? wk : null } });
       ok++; lastId = r.id;
     } catch (e) { toast(`${upFiles[k].name}: ${e.message}`, true); }
   }
   upFiles = []; renderUpList(); $('#upMsg').textContent = '';
-  if (ok) { $('#upCap').value = ''; $('#upLine').value = ''; const v = await api('/visual'); visuals = v.items; renderVisual(lastId); renderPainel(); toast(`${ok} ${ok === 1 ? 'arquivo enviado' : 'arquivos enviados'} em ${when(visuals[0]?.uploaded_at)}.`); }
+  if (ok) { $('#upCap').value = ''; $('#upLine').value = ''; const v = await api('/visual'); visuals = v.items; visTab = upCat; if (upCat === 'programacao') visWeek = String(wk); renderVisual(lastId); renderPainel(); toast(`${ok} ${ok === 1 ? 'arquivo enviado' : 'arquivos enviados'} em ${when(visuals[0]?.uploaded_at)}.`); }
   btn.disabled = !upFiles.length;
 };
 const fileUrl = v => `${API_URL}/visual/file/${v.id}${token ? '?t=' + encodeURIComponent(token) : ''}`;
@@ -1659,33 +1700,66 @@ function photoCard(v) {
   return `<article class="ph" data-id="${v.id}">
     ${isPdf ? `<a class="pdf" href="${fileUrl(v)}" target="_blank" rel="noopener">PDF · abrir</a>` : `<button class="img" data-lb="${v.id}" aria-label="Ampliar foto"><img src="${fileUrl(v)}" alt="${esc(v.caption || v.filename)}" loading="lazy"></button>`}
     <div class="meta">
+      <span class="cat ${vcat(v) === 'programacao' ? 'p' : 'e'}">${vcat(v) === 'programacao' ? `Programação · Semana ${v.week ?? '—'}` : 'Linhas executadas'}</span>
       <span class="when">Enviado em ${when(v.uploaded_at)}</span>
       ${v.caption ? `<span class="cap">${esc(v.caption)}</span>` : ''}
       <span class="row">${v.sop ? `<span class="chip">SOP ${esc(v.sop)}</span>` : ''}${v.line && byLine.has(v.line) ? `<button class="chip lname" data-line="${byLine.get(v.line).i}">${esc(v.line)}</button>` : ''}</span>
       <span class="by">por ${esc(v.uploaded_by || '—')}</span>
-      ${isAdmin() ? `<span><button class="btn sm danger" data-del="${v.id}">Excluir</button></span>` : ''}
+      ${canEdit() ? `<div class="edit" id="ve${v.id}">
+          <select class="input" data-vec="${v.id}"><option value="programacao"${vcat(v) === 'programacao' ? ' selected' : ''}>Programação semanal</option><option value="executadas"${vcat(v) === 'executadas' ? ' selected' : ''}>Linhas executadas</option></select>
+          <input class="input" data-vew="${v.id}" inputmode="numeric" placeholder="Semana (ex.: 70)" value="${v.week ?? ''}">
+          <span style="display:flex;gap:6px"><button class="btn sm primary" data-vsave="${v.id}">Salvar</button><button class="btn sm" data-vedit="${v.id}">Cancelar</button></span></div>` : ''}
+      <span style="display:flex;gap:6px">${canEdit() ? `<button class="btn sm" data-vedit="${v.id}">Mover</button>` : ''}${isAdmin() ? `<button class="btn sm danger" data-del="${v.id}">Excluir</button>` : ''}</span>
     </div></article>`;
 }
+const vcat = v => v.category === 'programacao' ? 'programacao' : 'executadas';
+let visWeek = '';
 function renderVisual(justId) {
   $('#nVis').textContent = visuals.length ? f0(visuals.length) : '';
   $('#upPanel').style.display = canEdit() ? '' : 'none';
-  if (!canEdit()) $('#visCount').textContent = '';
+  if (!$('#upWeekW').dataset.init) { $('#upWeekW').dataset.init = 1; setUpCat(upCat); }
+  const prog = visuals.filter(v => vcat(v) === 'programacao'), exe = visuals.filter(v => vcat(v) === 'executadas');
+  $('#vtP').textContent = f0(prog.length); $('#vtE').textContent = f0(exe.length);
+  $$('#visTabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === visTab));
+  // semanas disponíveis na programação
+  const weeks = [...new Set(prog.map(v => v.week).filter(w => w != null))].sort((a, b) => b - a);
+  const ws = $('#visWeek'); ws.style.display = visTab === 'programacao' ? '' : 'none';
+  if (visWeek && !weeks.includes(Number(visWeek))) visWeek = '';
+  ws.innerHTML = `<option value="">Todas as semanas</option>` + weeks.map(w => `<option value="${w}"${String(w) === visWeek ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}</option>`).join('');
   const sop = $('#visSop').value;
-  const list = visuals.filter(v => !sop || v.sop === sop);
-  $('#visCount').textContent = list.length ? `${f0(list.length)} ${list.length === 1 ? 'registro' : 'registros'}${visuals[0] ? ` · último envio em ${when(visuals[0].uploaded_at)}` : ''}` : '';
+  const list = (visTab === 'programacao' ? prog : exe).filter(v => (!sop || v.sop === sop) && (visTab !== 'programacao' || !visWeek || String(v.week) === visWeek));
+  $('#visCount').textContent = `${f0(list.length)} ${list.length === 1 ? 'registro' : 'registros'} em ${catLabel(visTab)}${visuals[0] ? ` · último envio em ${when(visuals[0].uploaded_at)}` : ''}`;
   if (!list.length) {
-    $('#gallery').innerHTML = `<div class="empty"><b>${online ? 'Nenhuma foto enviada ainda' : 'Sem conexão com o servidor'}</b>${online ? (canEdit() ? 'Use o envio acima para registrar o andamento em campo.' : 'Entre com um usuário editor para enviar fotos.') : 'As fotos aparecem quando o Worker estiver disponível.'}</div>`;
+    $('#gallery').innerHTML = `<div class="empty"><b>${online ? `Nenhum registro em ${catLabel(visTab)}` : 'Sem conexão com o servidor'}</b>${online ? (canEdit() ? `Envie no painel acima escolhendo "${catLabel(visTab)}".` : 'Entre com um usuário editor para enviar.') : 'Os registros aparecem quando o Worker estiver disponível.'}</div>`;
     return;
   }
-  const days = new Map();
-  for (const v of list) { const d = dLong.format(new Date(v.uploaded_at)); if (!days.has(d)) days.set(d, []); days.get(d).push(v); }
-  $('#gallery').innerHTML = [...days.entries()].map(([d, vs]) => `<div class="day">${esc(d.charAt(0).toUpperCase() + d.slice(1))}</div><div class="gallery">${vs.map(photoCard).join('')}</div>`).join('');
+  const groups = new Map();
+  if (visTab === 'programacao') {
+    for (const v of [...list].sort((a, b) => (b.week ?? 0) - (a.week ?? 0) || b.uploaded_at.localeCompare(a.uploaded_at))) {
+      const k = v.week != null ? `Semana ${v.week} · ${weekRange(v.week)}${v.week === weekOf(Date.now()) ? ' (atual)' : v.week === weekOf(Date.now()) + 1 ? ' (próxima)' : ''}` : 'Semana não informada';
+      if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v);
+    }
+  } else {
+    for (const v of list) { const d = dLong.format(new Date(v.uploaded_at)); const k = d.charAt(0).toUpperCase() + d.slice(1); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v); }
+  }
+  $('#gallery').innerHTML = [...groups.entries()].map(([k, vs]) => `<div class="day">${esc(k)}</div><div class="gallery">${vs.map(photoCard).join('')}</div>`).join('');
   if (justId) { const el = document.querySelector(`.ph[data-id="${justId}"]`); if (el) { el.classList.add('just'); el.scrollIntoView({ block: 'center' }); } }
 }
+$('#visTabs').onclick = e => { const b = e.target.closest('button'); if (b) { visTab = b.dataset.t; renderVisual(); } };
+$('#visWeek').onchange = e => { visWeek = e.target.value; renderVisual(); };
+document.addEventListener('click', async e => {
+  const ed = e.target.closest('[data-vedit]'); if (ed) { $('#ve' + ed.dataset.vedit).classList.toggle('on'); return; }
+  const sv = e.target.closest('[data-vsave]'); if (!sv) return;
+  const id = sv.dataset.vsave, c = document.querySelector(`[data-vec="${id}"]`).value, w = parseInt(document.querySelector(`[data-vew="${id}"]`).value, 10);
+  if (c === 'programacao' && !(Number.isInteger(w) && w > 0)) return toast('Informe o número da semana.', true);
+  try { await api(`/visual/${id}/meta`, { method: 'POST', body: { category: c, week: c === 'programacao' ? w : null } });
+    visuals = (await api('/visual')).items; visTab = c; if (c === 'programacao') visWeek = String(w); renderVisual(Number(id)); toast(`Registro movido para ${catLabel(c)}${c === 'programacao' ? ' · Semana ' + w : ''}.`); }
+  catch (err) { toast(err.message, true); }
+});
 $('#visSop').onchange = () => renderVisual();
 document.addEventListener('click', async e => {
   const lb = e.target.closest('[data-lb]');
-  if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
+  if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${vcat(v) === 'programacao' ? `Programação · Semana ${v.week ?? '—'}` : 'Linhas executadas'} · ${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
   const del = e.target.closest('[data-del]');
   if (del) {
     if (!confirm('Excluir esta foto do painel e do GitHub?')) return;
