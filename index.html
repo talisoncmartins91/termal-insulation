@@ -804,7 +804,8 @@ body.locked .app,body.locked .pending{display:none!important}
         <div class="len-note err" id="pvNote" hidden style="margin-bottom:12px;border-radius:8px"></div>
         <div class="kpis" id="pvKpis"></div>
         <div class="panel mt">
-          <div class="panel-h"><div><h2>Previsão por linha e spool</h2><p>Escolha o mês da medição acima, em qualquer dia. A previsão é por spool: clique na linha para ver os spools. Use "Tornar real" para lançar o previsto como medição realizada do mês.</p></div></div>
+          <div class="panel-h"><div><h2>Previsão por linha e spool</h2><p>Escolha o mês da medição acima, em qualquer dia. A previsão é por spool: clique na linha para ver os spools.</p></div><div class="tools"><button class="btn primary" id="pvAddMode" hidden>+ Adicionar linhas à previsão</button></div></div>
+          <div class="len-note" id="pvHelp" hidden></div>
           <div class="filters">
             <input class="input" id="pvQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
             <select class="input" id="pvSop"><option value="">Todas as SOPs</option></select>
@@ -1121,7 +1122,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 18:00'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 19:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2860,6 +2861,11 @@ function renderPv() {
   $('#pvMes').innerHTML = perOpts(pvSel, med.forecasts, 'com previsão');
   $('#pvRange').textContent = perRangeTxt(pvSel);
   $('#pvWeeks').hidden = !adm; medNote($('#pvNote'));
+  const addMode = $('#pvShow').value === 'none';
+  $('#pvAddMode').hidden = !adm; $('#pvAddMode').textContent = addMode ? 'Voltar às linhas previstas' : '+ Adicionar linhas à previsão';
+  $('#pvAddMode').classList.toggle('primary', !addMode);
+  $('#pvHelp').hidden = !adm || !addMode;
+  $('#pvHelp').innerHTML = '<b>Adicionar à previsão:</b> marque as linhas (ou abra em ▸ e marque só os spools), informe até quantos % medir na barra azul e clique em <b>Prever</b>. Ou use <b>Até o avanço físico</b> para prever o que já foi executado.';
   const q = $('#pvQ').value.trim().toLowerCase(), sop = $('#pvSop').value, show = $('#pvShow').value;
   const all = R.map(x => medLine(x, pvSel)), withFc = all.filter(L => L.fcs.length);
   // indicadores
@@ -2896,7 +2902,7 @@ function renderPv() {
       <td class="num">${L.fcs.length ? f2(L.prevM) : '—'}</td>${isAdmin() ? `<td class="money">${L.fcs.length ? brl(L.prevM * L.pr) : '—'}</td>` : ''}<td>${pvSitL(L)}</td>
       ${adm ? `<td><span class="acts">${nTo ? `<button class="btn sm primary" ${hasSp ? `data-pvreall="${x.i}"` : `data-pvreal="${esc(o0.key)}"`}>Tornar real</button>` : ''}${L.fcs.length ? `<button class="btn sm ghost" ${hasSp ? `data-pvrml="${x.i}"` : `data-pvrm="${esc(o0.key)}"`}>Remover</button>` : ''}</span></td>` : ''}</tr>
       ${op ? L.its.map(o => spTr(L, o)).join('') : ''}`;
-  }).join('') : `<tr><td colspan="${cols}"><div class="empty"><b>${show === 'fc' ? 'Nenhuma previsão nesta medição' : 'Nenhuma linha nesta visão'}</b>${show === 'fc' && isAdmin() ? 'Troque para "Sem previsão" para escolher as linhas e spools, ou use "Trazer da programação semanal".' : 'Ajuste a busca ou os filtros.'}</div></td></tr>`;
+  }).join('') : `<tr><td colspan="${cols}"><div class="empty"><b>${show === 'fc' ? 'Nenhuma previsão nesta medição' : 'Nenhuma linha nesta visão'}</b>${show === 'fc' && adm ? '<br><button class="btn primary sm" data-pvaddmode style="margin-top:10px">+ Adicionar linhas à previsão</button>' : 'Ajuste a busca ou os filtros.'}</div></td></tr>`;
   const multi = page.filter(L => L.x.sps.length), allOpen = multi.length && multi.every(L => pvOpen.has(L.x.i));
   $('#pvPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'}</span><span class="spacer"></span>
     ${multi.length ? `<button class="btn sm" id="pvAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
@@ -2947,7 +2953,7 @@ async function pvSetTarget(its, fn, what) {
   const per = pvSel, ch = new Map(); let skip = 0;
   for (const it of its) { const v = Math.round(fn(it) * 10000) / 10000, s = realCum(it, per, false); if (!(v > s + 1e-6)) { skip++; continue; } ch.set(itKey(it), Math.min(100, v)); }
   if (!ch.size) return toast(`Nada a prever: ${skip === 1 ? 'o item já está medido' : 'os itens já estão medidos'} até ${what}.`, true);
-  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item previsto' : 'itens previstos'} na ${perLabel(per)}${skip ? ` (${skip} já medidos até ${what} ficaram de fora)` : ''}.`); }
+  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); $('#pvShow').value = 'fc'; pvPage = 0; renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item previsto' : 'itens previstos'} na ${perLabel(per)}${skip ? ` (${skip} já medidos até ${what} ficaram de fora)` : ''}.`); }
   catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
 }
 $('#pvBody').addEventListener('click', e => {
@@ -2964,6 +2970,9 @@ $('#pvAdd').onclick = () => { const v = clampPct($('#pvPct').value); if (v == nu
 $('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual');
 $('#pvReal').onclick = () => pvMakeReal(pvSelItems());
 $('#pvRmSel').onclick = () => pvRemove(pvSelItems());
+const pvToggleAdd = () => { $('#pvShow').value = $('#pvShow').value === 'none' ? 'fc' : 'none'; pvPage = 0; pvSelL.clear(); pvSelS.clear(); renderPv(); if ($('#pvShow').value === 'none') $('#pvQ').focus(); };
+$('#pvAddMode').onclick = pvToggleAdd;
+document.addEventListener('click', e => { if (e.target.closest('[data-pvaddmode]')) pvToggleAdd(); });
 $('#pvClear').onclick = () => { pvSelL.clear(); pvSelS.clear(); renderPv(); };
 $('#pvWeeks').onclick = () => {
   const weeks = Object.keys(prog).map(Number).filter(n => monthKey(weekStart(n)) === pvSel).sort((a, b) => a - b);
@@ -2996,14 +3005,10 @@ function renderRz() {
   const q = $('#rzQ').value.trim().toLowerCase(), sop = $('#rzSop').value;
   const all = R.map(x => medLine(x, rzSel)), done = all.filter(L => L.rzs.length);
   const ns = done.reduce((t, L) => t + L.rzs.filter(o => o.it.isSp).length, 0), mM = done.reduce((t, L) => t + L.realM, 0), val = done.reduce((t, L) => t + L.realM * L.pr, 0);
-  let accM = 0, accV = 0, totV = 0;
-  for (const L of all) { const em = L.x.m * L.e / 100; accM += em; accV += em * L.pr; totV += L.x.m * L.pr; }
   const cards = [
     { l: 'Itens medidos', v: f0(done.length) + (done.length === 1 ? ' linha' : ' linhas'), s: `${f0(ns)} ${ns === 1 ? 'spool' : 'spools'} na ${perLabel(rzSel).toLowerCase()}`, ic: 'layers', c: 'navy' },
     { l: 'Metros medidos', v: f2(mM) + ' m', s: 'nesta medição', ic: 'ruler', c: 'blue', hl: !isAdmin() },
-    ...(isAdmin() ? [{ l: 'Valor medido', v: brl(val), s: 'nesta medição', ic: 'money', c: 'green', hl: true }] : []),
-    isAdmin() ? { l: 'Medido acumulado', v: brl(accV), s: `${pctTxt(totV ? accV / totV * 100 : 0)} do valor do escopo, até esta medição`, ic: 'chart', c: 'teal', frac: totV ? accV / totV : 0 }
-      : { l: 'Medido acumulado', v: f2(accM) + ' m', s: `${pctTxt(TOTAL_M ? accM / TOTAL_M * 100 : 0)} do escopo, até esta medição`, ic: 'chart', c: 'teal', frac: TOTAL_M ? accM / TOTAL_M : 0 }
+    ...(isAdmin() ? [{ l: 'Valor medido', v: brl(val), s: 'nesta medição', ic: 'money', c: 'green', hl: true }] : [])
   ];
   $('#rzKpis').style.gridTemplateColumns = `repeat(${cards.length},minmax(0,1fr))`;
   $('#rzKpis').innerHTML = cards.map(scard).join('');
