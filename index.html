@@ -811,7 +811,7 @@ body.locked .app,body.locked .pending{display:none!important}
             <span class="sep"></span>
             <span>Prever até</span><input class="input pct-in" id="pvPct" type="text" inputmode="decimal" value="100" aria-label="Previsão até %"><span>%</span>
             <button class="btn primary sm" id="pvAdd">Prever</button>
-            <button class="btn sm" id="pvPhys" title="Prevê cada item até o avanço físico lançado na aba Linhas">Até o avanço físico</button>
+            <button class="btn sm" id="pvPhys" title="Prevê cada item até o % de execução já lançado na aba Linhas. Item sem avanço não entra: para ele use Prever até %.">Até o avanço físico</button>
             <span class="sep"></span>
             <button class="btn primary sm" id="pvReal">Tornar real</button>
             <button class="btn sm" id="pvRmSel">Tirar da previsão</button>
@@ -1117,7 +1117,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 21:00'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 21:30'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2906,11 +2906,27 @@ async function pvRemove(its) {
   try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item retirado' : 'itens retirados'} da previsão.`); }
   catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
 }
-async function pvSetTarget(its, fn, what) {
-  const per = pvSel, ch = new Map(); let skip = 0;
-  for (const it of its) { const v = Math.round(fn(it) * 10000) / 10000, s = realCum(it, per, false); if (!(v > s + 1e-6)) { skip++; continue; } ch.set(itKey(it), Math.min(100, v)); }
-  if (!ch.size) return toast(`Nada a prever: ${skip === 1 ? 'o item já está medido' : 'os itens já estão medidos'} até ${what}.`, true);
-  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); $('#pvShow').value = 'fc'; pvPage = 0; renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item previsto' : 'itens previstos'} na ${perLabel(per)}${skip ? ` (${skip} já medidos até ${what} ficaram de fora)` : ''}.`); }
+// por que o item ficou de fora: sem avanço físico, ou já medido (base ou medição realizada)
+function pvWhy(it, per, v, phys) {
+  const nm = it.isSp ? `${it.parent.line} / ${it.code}` : it.line;
+  const s = realCum(it, per, false);
+  if (phys && pct(it) <= s + 1e-6) return { k: 'semav', t: `${nm}: avanço físico ${f1(pct(it))}%${s > 1e-6 ? `, já medido até ${f1(s)}%` : ''}` };
+  const rz = (medIdx.rz.get(itKey(it)) || []).filter(([p]) => p < per);
+  const last = rz.length ? rz[rz.length - 1] : null;
+  const src = last && Number(last[1].pct) >= s - 1e-6 ? `medição realizada de ${perLabel(last[0]).replace('Medição ', '')}` : 'medições anteriores (executado na base do escopo)';
+  return { k: 'med', t: `${nm}: já medido até ${f1(s)}% em ${src}` };
+}
+async function pvSetTarget(its, fn, what, phys) {
+  const per = pvSel, ch = new Map(), why = [];
+  for (const it of its) { const v = Math.round(fn(it) * 10000) / 10000, s = realCum(it, per, false); if (!(v > s + 1e-6)) { why.push(pvWhy(it, per, v, phys)); continue; } ch.set(itKey(it), Math.min(100, v)); }
+  const nSem = why.filter(w => w.k === 'semav').length, nMed = why.length - nSem;
+  const det = why.slice(0, 3).map(w => w.t).join(' · ') + (why.length > 3 ? ` · e mais ${why.length - 3}` : '');
+  if (!ch.size) {
+    if (nSem && !nMed) return toast(`Nada a prever pelo avanço físico: ${nSem === 1 ? 'o item não tem' : 'os itens não têm'} avanço lançado além do já medido (${det}). Para prever mesmo assim, digite o % em "Prever até" e clique em Prever.`, true);
+    return toast(`Nada a prever: ${det}.`, true);
+  }
+  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); $('#pvShow').value = 'fc'; pvPage = 0; renderPv();
+    toast(`${ch.size} ${ch.size === 1 ? 'item previsto' : 'itens previstos'} na ${perLabel(per)}.${why.length ? ` Ficaram de fora: ${det}.` : ''}`); }
   catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
 }
 $('#pvBody').addEventListener('click', e => {
@@ -2924,7 +2940,7 @@ $('#pvBody').addEventListener('click', e => {
   const i = +(t.dataset.pvt ?? t.dataset.pvo); pvOpen.has(i) ? pvOpen.delete(i) : pvOpen.add(i); pvRefresh();
 });
 $('#pvAdd').onclick = () => { const v = clampPct($('#pvPct').value); if (v == null || v <= 0) return toast('Informe até quantos % medir (1 a 100).', true); pvSetTarget(pvSelItems(), () => v, `${f0(v)}%`); };
-$('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual');
+$('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual', true);
 $('#pvReal').onclick = () => pvMakeReal(pvSelItems());
 $('#pvRmSel').onclick = () => pvRemove(pvSelItems());
 const pvToggleAdd = () => { $('#pvShow').value = $('#pvShow').value === 'none' ? 'fc' : 'none'; pvPage = 0; pvSelL.clear(); pvSelS.clear(); renderPv(); if ($('#pvShow').value === 'none') $('#pvQ').focus(); };
@@ -3035,7 +3051,7 @@ $('#exportCsv').onclick = () => {
 
 /* ============ geral ============ */
 let toastT;
-function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', bad ? 5200 : 3200); }
+function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', Math.max(bad ? 5200 : 3200, msg.length * 55)); }
 function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); renderSite(); renderProg(); renderLen(); renderPv(); renderRz(); if (isAdmin()) renderFin(); if ((!isAdmin() && (location.hash === '#usuarios' || location.hash === '#financeiro')) || (!canEdit() && location.hash === '#comprimentos')) go('painel'); }
 
 document.body.classList.add('locked');
