@@ -732,14 +732,14 @@ body.locked .app,body.locked .pending{display:none!important}
       <section class="view" id="v-comprimentos">
         <div class="panel">
           <div class="panel-h">
-            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸, digite o novo comprimento do spool e clique em Salvar. O valor salvo é o que vale: os outros spools não mudam e o metro da linha passa a ser a soma dos spools. Em Detalhes fica o histórico.</p></div>
+            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸, digite o novo comprimento do spool (ou da linha, quando ela não tem spool) e clique em Salvar. O valor salvo é o que vale: os outros spools não mudam e o metro da linha passa a ser a soma dos spools. Em Detalhes fica o histórico.</p></div>
             <div class="tools"><button class="btn" id="lenCsv">Exportar CSV</button></div>
           </div>
           <div class="len-note" id="lenNote" hidden></div>
           <div class="filters">
             <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
             <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
-            <select class="input" id="lenF"><option value="">Todas as linhas com spool</option><option value="ed">Com spool editado</option></select>
+            <select class="input" id="lenF"><option value="">Todas as linhas</option><option value="ed">Com comprimento editado</option></select>
           </div>
           <div class="tbl-wrap">
             <table>
@@ -1117,7 +1117,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 20:00'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 21:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1268,7 +1268,7 @@ async function loadData() {
   server = {}; for (const it of p.items) server[it.line] = it;
   try { setProg((await api('/prog')).weeks || {}); } catch (e) {}
   try { const md = await api('/med'); med = { forecasts: md.forecasts || {}, reals: md.reals || {} }; medIdx = null; medApi = true; } catch (e) { medApi = e.status === 404 ? 'old' : false; }
-  try { const L = await api('/spool-len'); SPLEN = L.items || {}; SPLAST = L.last || {}; lenApi = true; } catch (e) { lenApi = e.status === 404 ? 'old' : false; }
+  try { const L = await api('/spool-len'); SPLEN = L.items || {}; SPLAST = L.last || {}; lenApi = true; lenErr = ''; } catch (e) { lenApi = e.status === 404 ? 'old' : false; lenErr = `${e.status || 'sem resposta'} · ${e.message}`; }
   applySpoolLens();
   lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
   if (isAdmin()) {
@@ -2059,7 +2059,7 @@ function renderBaseInfo() {
 /* ============ comprimento dos spools (edição manual + histórico) ============ */
 // O comprimento editado é o que vale: não é rateado e não mexe nos outros spools.
 // O metro da linha passa a ser a soma dos seus spools quando algum spool foi editado.
-let SPLEN = {}, SPLAST = {}, lenApi = null;   // spool -> {comp, updated_at, updated_by}; linha -> última alteração
+let SPLEN = {}, SPLAST = {}, lenApi = null, lenErr = '';   // spool -> {comp, updated_at, updated_by}; linha -> última alteração
 const lenOpen = new Set(); let lenPage = 0;
 function spLenSaved(sp) { const o = SPLEN[sp.key]; return o && o.comp != null ? Number(o.comp) : null; }
 // rateio original da base (Mapa fechando na ESCOPO), usado só para os spools nunca editados
@@ -2085,7 +2085,7 @@ function applySpoolLens() {
       for (const sp of x.sps) { const v = spLenSaved(sp); sp.mBase = f.ms.get(sp.key) || 0; sp.edited = v != null; sp.m = sp.edited ? v : sp.mBase; sp.len = sp.m; }
       x.nEd = x.sps.filter(sp => sp.edited).length;
       x.m = x.nEd ? x.sps.reduce((t, sp) => t + sp.m, 0) : x.mEsc;
-    } else { x.nEd = 0; x.m = x.mEsc; }
+    } else { const o = SPLEN[x.line], v = o && o.comp != null ? Number(o.comp) : null; x.lenEdited = v != null; x.nEd = x.lenEdited ? 1 : 0; x.m = x.lenEdited ? v : x.mEsc; }
     total += x.m;
   }
   TOTAL_M = total;
@@ -2097,22 +2097,23 @@ function spRuleTxt(x) {
 const lenLast = x => SPLAST[x.line] || null;
 function lenLines() {
   const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value;
-  return R.filter(x => x.sps.length && (!sop || x.sop === sop)
+  return R.filter(x => (!sop || x.sop === sop)
     && (!q || (x.line + ' ' + x.sth + ' ' + x.sps.map(s => s.code).join(' ')).toLowerCase().includes(q))
     && (!f || (f === 'ed' && x.nEd)))
     .sort((a, b) => a.sop.localeCompare(b.sop) || a.line.localeCompare(b.line));
 }
 function lenSubRow(x) {
   const ed = canEdit() && lenApi === true;
-  const rows = x.sps.map(sp => {
+  const items = x.sps.length ? x.sps : [{ key: x.line, code: 'Linha inteira (sem spool)', m: x.m }];
+  const rows = items.map(sp => {
     const sv = SPLEN[sp.key];
     return `<tr><td><b>${esc(sp.code)}</b></td>
       <td class="num"><b>${f2(sp.m)}</b>${sv ? ` <span class="tag s2" title="Editado por ${esc(sv.updated_by)} em ${when(sv.updated_at)}">editado</span>` : ''}</td>
       ${ed ? `<td><span class="acts"><input class="input len-in" type="text" inputmode="decimal" autocomplete="off" data-len="${esc(sp.key)}" placeholder="${fmtIn(+sp.m.toFixed(2))}" aria-label="Novo comprimento do spool ${esc(sp.code)}"><button class="btn sm primary" data-lsave="${esc(sp.key)}">Salvar</button></span></td>` : ''}</tr>`;
   }).join('');
   return `<tr class="len-sub"><td colspan="5"><div class="len-sp"><table>
-    <thead><tr><th>Spool</th><th class="num">Comprimento atual (m)</th>${ed ? '<th>Novo comprimento (m)</th>' : ''}</tr></thead>
-    <tbody>${rows}<tr class="tot"><td>Total da linha</td><td class="num">${f2(x.m)}</td>${ed ? '<td></td>' : ''}</tr></tbody></table></div></td></tr>`;
+    <thead><tr><th>${x.sps.length ? 'Spool' : 'Item'}</th><th class="num">Comprimento atual (m)</th>${ed ? '<th>Novo comprimento (m)</th>' : ''}</tr></thead>
+    <tbody>${rows}${x.sps.length ? `<tr class="tot"><td>Total da linha</td><td class="num">${f2(x.m)}</td>${ed ? '<td></td>' : ''}</tr>` : ''}</tbody></table></div></td></tr>`;
 }
 function renderLen() {
   if (!BASE) return;
@@ -2121,18 +2122,18 @@ function renderLen() {
   const nEd = Object.keys(SPLEN).length; $('#nLenEd').textContent = nEd ? f0(nEd) : '';
   const note = $('#lenNote');
   note.hidden = lenApi === true; note.classList.toggle('err', lenApi !== true);
-  if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker ainda não tem a rota de comprimento dos spools. Publique o worker.js novo no Cloudflare para poder editar.' : 'Não foi possível carregar os comprimentos editados do servidor.';
+  if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker publicado no Cloudflare ainda é o antigo (rota /spool-len não encontrada). Publique o worker.js novo para aparecerem os campos de edição.' : `O servidor recusou a leitura dos comprimentos (${lenErr}). Por isso os campos de edição não aparecem. Mande esta mensagem para conferir.`;
   const list = lenLines(), pages = Math.max(1, Math.ceil(list.length / PAGE)); lenPage = Math.min(lenPage, pages - 1);
   const rows = list.slice(lenPage * PAGE, lenPage * PAGE + PAGE);
   $('#lenBody').innerHTML = rows.length ? rows.map(x => {
     const op = lenOpen.has(x.i), l = lenLast(x);
     return `<tr class="pg-grp${op ? ' sp-open' : ''}" data-lrow="${x.i}">
-      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${x.nEd ? `<small class="nsp">${x.nEd} ${x.nEd === 1 ? 'editado' : 'editados'}</small>` : ''}</span></td>
-      <td>${esc(x.sop)}</td><td class="num">${f0(x.sps.length)}</td><td class="num"><b>${f2(x.m)}</b></td>
+      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${x.sps.length ? '' : '<small class="nsp none">sem spool</small>'}${x.nEd ? `<small class="nsp">${x.sps.length ? `${x.nEd} ${x.nEd === 1 ? 'editado' : 'editados'}` : 'editado'}</small>` : ''}</span></td>
+      <td>${esc(x.sop)}</td><td class="num">${x.sps.length ? f0(x.sps.length) : '—'}</td><td class="num"><b>${f2(x.m)}</b></td>
       <td><span class="acts">${l ? `<span>${when(l.ts)}<br><small class="muted">${esc(l.user || '')}</small></span>` : ''}<button class="btn sm" data-ldet="${x.i}">Detalhes</button></span></td></tr>${op ? lenSubRow(x) : ''}`;
-  }).join('') : `<tr><td colspan="5"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. Linhas sem spool não aparecem aqui.</div></td></tr>`;
+  }).join('') : `<tr><td colspan="5"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. </div></td></tr>`;
   const allOpen = rows.length && rows.every(x => lenOpen.has(x.i));
-  $('#lenPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f0(list.reduce((t, x) => t + x.sps.length, 0))} spools</span><span class="spacer"></span>
+  $('#lenPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f0(list.reduce((t, x) => t + x.sps.length, 0))} spools · ${f0(list.filter(x => !x.sps.length).length)} sem spool</span><span class="spacer"></span>
     ${rows.length ? `<button class="btn sm" id="lenAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
     <button class="btn sm" id="lenPrev" ${lenPage ? '' : 'disabled'}>Anterior</button><span>Página ${lenPage + 1} de ${pages}</span><button class="btn sm" id="lenNext" ${lenPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
   $('#lenPrev').onclick = () => { lenPage--; renderLen(); };
@@ -2143,17 +2144,18 @@ function renderLen() {
 async function lenSaveOne(key) {
   if (!canEdit()) return openLogin();
   if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
-  const sp = SP.get(key), inp = document.querySelector(`[data-len="${CSS.escape(key)}"]`); if (!sp || !inp) return;
+  const spx = SP.get(key), lx = spx ? null : byLine.get(key), inp = document.querySelector(`[data-len="${CSS.escape(key)}"]`); if ((!spx && !lx) || !inp) return;
+  const sp = spx || { code: 'da linha', m: lx.m, edited: lx.lenEdited, parent: lx };
   const n = parseNum(inp.value);
-  if (inp.value.trim() === '') return toast(`Digite o novo comprimento do spool ${sp.code}.`, true);
+  if (inp.value.trim() === '') return toast(`Digite o novo comprimento ${spx ? 'do spool ' + sp.code : 'da linha'}.`, true);
   if (n == null || n < 0 || n > 10000) { inp.classList.add('bad'); setTimeout(() => inp.classList.remove('bad'), 2500); return toast(`Comprimento inválido para o spool ${sp.code}. Use metros, ex.: 12,50.`, true); }
   const v = Math.round(n * 100) / 100;
   if (Math.abs(v - sp.m) < 0.005) return toast(`O spool ${sp.code} já está com ${f2(v)} m.`);
   const btn = document.querySelector(`[data-lsave="${CSS.escape(key)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
   try {
-    const r = await api('/spool-len', { method: 'POST', body: { items: [{ key, line: sp.parent.line, spool: sp.code, comp: v, mapa: Math.round((sp.edited ? spLenSaved(sp) : sp.m) * 100) / 100 }], note: '' } });
+    const r = await api('/spool-len', { method: 'POST', body: { items: [{ key, line: sp.parent.line, spool: spx ? spx.code : '', comp: v, mapa: Math.round((spx ? spx.mBase : lx.mEsc) * 100) / 100 }], note: '' } });
     const y = window.scrollY; await loadData(); renderAll(); setSync(); window.scrollTo(0, y);
-    toast(`Spool ${sp.code}: ${f2(v)} m salvo em ${when(r.ts)}.`);
+    toast(`${spx ? 'Spool ' + spx.code : 'Linha ' + lx.line}: ${f2(v)} m salvo em ${when(r.ts)}.`);
   } catch (e) {
     toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : 'Não foi possível salvar: ' + e.message, true);
     if (e.status === 401) openLogin();
@@ -2171,9 +2173,9 @@ $('#lenBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.targ
 async function openLenDet(i) {
   const x = R[i];
   $('#lmT').textContent = x.line;
-  $('#lmSub').textContent = `${x.sop} · ${x.sps.length} spools · comprimento atual da linha ${f2(x.m)} m`;
+  $('#lmSub').textContent = `${x.sop} · ${x.sps.length ? x.sps.length + ' spools' : 'sem spool'} · comprimento atual da linha ${f2(x.m)} m`;
   const cur = `<div class="h4" style="margin-top:0">Comprimentos atuais</div><div class="len-sp"><table><thead><tr><th>Spool</th><th class="num">Comprimento (m)</th><th>Alterado por</th></tr></thead><tbody>${
-    x.sps.map(s => { const sv = SPLEN[s.key]; return `<tr><td>${esc(s.code)}</td><td class="num"><b>${f2(s.m)}</b></td><td>${sv ? `${esc(sv.updated_by)} <small class="muted">· ${when(sv.updated_at)}</small>` : '<span class="muted">valor original</span>'}</td></tr>`; }).join('')
+    (x.sps.length ? x.sps : [{ key: x.line, code: 'Linha inteira', m: x.m }]).map(s => { const sv = SPLEN[s.key]; return `<tr><td>${esc(s.code)}</td><td class="num"><b>${f2(s.m)}</b></td><td>${sv ? `${esc(sv.updated_by)} <small class="muted">· ${when(sv.updated_at)}</small>` : '<span class="muted">valor original</span>'}</td></tr>`; }).join('')
   }</tbody></table></div>`;
   $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div><p class="muted">Carregando…</p>';
   $('#lenModal').classList.add('on');
@@ -2181,7 +2183,7 @@ async function openLenDet(i) {
     const h = (await api('/spool-len/history?line=' + encodeURIComponent(x.line))).items || [];
     const v = (n, orig) => n == null ? `${f2(orig)} <small class="muted">(original)</small>` : f2(n);
     $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div>' + (h.length ? `<div class="len-sp"><table><thead><tr><th>Data e hora</th><th>Spool</th><th class="num">De (m)</th><th class="num">Para (m)</th><th>Responsável</th></tr></thead><tbody>${
-      h.map(r => `<tr><td>${when(r.ts)}</td><td>${esc(r.spool)}</td><td class="num">${v(r.old_comp, r.mapa)}</td><td class="num"><b>${v(r.new_comp, r.mapa)}</b></td><td>${esc(r.user || '')}</td></tr>`).join('')
+      h.map(r => `<tr><td>${when(r.ts)}</td><td>${r.spool ? esc(r.spool) : '<i>linha inteira</i>'}</td><td class="num">${v(r.old_comp, r.mapa)}</td><td class="num"><b>${v(r.new_comp, r.mapa)}</b></td><td>${esc(r.user || '')}</td></tr>`).join('')
     }</tbody></table></div>` : '<p class="muted">Nenhuma alteração de comprimento registrada para esta linha.</p>');
   } catch (e) {
     $('#lmBody').innerHTML = cur + `<div class="h4">Histórico de alterações</div><p class="err">${esc(e.status === 404 ? 'O Worker ainda não tem a rota do histórico. Publique o worker.js novo.' : 'Não foi possível carregar o histórico: ' + e.message)}</p>`;
@@ -2192,7 +2194,9 @@ $('#lenModal').addEventListener('click', e => { if (e.target.id === 'lenModal') 
 $('#lenCsv').onclick = () => {
   const head = ['LINHA', 'SOP', 'SPOOL', 'Comprimento atual (m)', 'Editado', 'Alterado por', 'Alterado em'];
   const out = [];
-  for (const x of lenLines()) for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); }
+  for (const x of lenLines()) {
+    if (!x.sps.length) { const sv = SPLEN[x.line]; out.push([x.line, x.sop, '(sem spool)', f2(x.m), x.lenEdited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); continue; }
+    for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); } }
   downloadCsv(head, out, 'comprimento_spools.csv');
 };
 
