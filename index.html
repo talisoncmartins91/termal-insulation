@@ -172,6 +172,20 @@ tr.sp-row.changed td{background:#FFFBEA}
 .wk.hit{background:var(--done-soft);color:#356B22;border-color:#C6E2BA}
 .bulk .sep{width:1px;align-self:stretch;background:#C9DDEB;margin:0 4px}
 .bulk select.input{height:30px;padding:3px 8px}
+/* comprimento dos spools */
+tr.len-sub>td{background:#F6FAFD;padding:0 10px 12px 44px;white-space:normal}
+.len-sp{border:1px solid var(--line2);border-radius:6px;overflow:auto;background:var(--surface)}
+.len-sp td{padding:5px 10px;font-size:12.5px}
+.len-sp tr.tot td{font-weight:600;background:var(--surface2)}
+.len-in{width:92px;text-align:right;padding:5px 8px}
+.len-in.bad{border-color:var(--danger)}
+.len-warn{font-size:12px;color:#7A5C00;background:#FFF6CC;border-radius:6px;padding:6px 10px;margin:8px 0 0}
+.len-note{font-size:12.5px;color:var(--muted);padding:10px 20px;border-bottom:1px solid var(--line2)}
+.len-note.err{color:var(--danger);background:var(--danger-soft)}
+.box.wide{width:min(820px,100%);max-height:88vh;display:flex;flex-direction:column}
+.box.wide .lm-b{overflow:auto;flex:1;min-height:0}
+tr.pg-grp{cursor:pointer}
+tr.pg-grp.sp-open td{background:#F6FAFD}
 .fp{display:grid;grid-template-columns:minmax(0,1.85fr) minmax(300px,1fr);border-top:1px solid var(--line2)}
 .fp-left{border-right:1px solid var(--line2);min-width:0}
 .fp-right{background:linear-gradient(180deg,#F7FAFC,#FFFFFF);display:flex;flex-direction:column;min-width:0}
@@ -505,7 +519,10 @@ body.locked .app,body.locked .pending{display:none!important}
       <button data-v="painel" aria-current="page"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>Painel</button>
       <button data-v="estrutura"><svg viewBox="0 0 24 24"><path d="M4 5h6M4 12h6M4 19h6M14 5h6M14 12h6M14 19h6"/></svg>SOP, SUBSOP e STH</button>
       <button data-v="linhas"><svg viewBox="0 0 24 24"><path d="M3 6h18M3 12h18M3 18h18"/></svg>Linhas<span class="count" id="nLines"></span></button>
+      <button data-v="comprimentos" id="navLen" hidden><svg viewBox="0 0 24 24"><path d="M3 17L17 3l4 4L7 21z"/><path d="M7 13l2 2M10 10l2 2M13 7l2 2"/></svg>Comprimentos<span class="count" id="nLenEd"></span></button>
       <button data-v="programacao"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4M7.5 14.5l2 2 4-4"/></svg>Programação</button>
+      <button data-v="previsao"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="M12 13v3l2 1.5"/></svg>Previsão de medição</button>
+      <button data-v="realizada"><svg viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9.5 14l2 2 4-4"/></svg>Medição realizada</button>
       <button data-v="visual"><svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="1"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>Acompanhamento visual<span class="count" id="nVis"></span></button>
       <button data-v="historico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>Histórico</button>
       <button data-v="financeiro" id="navFin" hidden><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Financeiro</button>
@@ -708,6 +725,37 @@ body.locked .app,body.locked .pending{display:none!important}
         </div>
       </section>
 
+      <!-- COMPRIMENTO DOS SPOOLS -->
+      <section class="view" id="v-comprimentos">
+        <div class="panel">
+          <div class="panel-h">
+            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸ e corrija o comprimento de cada spool. O spool editado fica com o valor informado e a diferença para o metro da linha na ESCOPO é rateada entre os spools não editados. Em Detalhes fica o histórico de cada alteração.</p></div>
+            <div class="tools"><button class="btn" id="lenCsv">Exportar CSV</button></div>
+          </div>
+          <div class="len-note" id="lenNote" hidden></div>
+          <div class="filters">
+            <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
+            <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
+            <select class="input" id="lenF"><option value="">Todas as linhas com spool</option><option value="ed">Com spool editado</option><option value="pend">Com alteração não salva</option><option value="dif">Soma dos spools diferente da ESCOPO</option></select>
+          </div>
+          <div class="bulk" id="lenBar">
+            <b id="lenBarN"></b>
+            <span class="muted" id="lenBarI"></span>
+            <span class="spacer" style="flex:1"></span>
+            <input class="input" id="lenNoteIn" placeholder="Motivo da alteração (opcional)" style="min-width:220px;height:30px">
+            <button class="btn sm" id="lenDiscard">Descartar</button>
+            <button class="btn primary sm" id="lenSave">Salvar comprimentos</button>
+          </div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Linha</th><th>SOP</th><th class="num">Spools</th><th class="num">ESCOPO (m)</th><th class="num">Soma Mapa (m)</th><th class="num">Soma atual (m)</th><th class="num">Diferença (m)</th><th>Última alteração</th><th></th></tr></thead>
+              <tbody id="lenBody"></tbody>
+            </table>
+          </div>
+          <div class="pager" id="lenPager"></div>
+        </div>
+      </section>
+
       <!-- PROGRAMAÇÃO SEMANAL -->
       <section class="view" id="v-programacao">
         <div class="fin-top">
@@ -730,17 +778,72 @@ body.locked .app,body.locked .pending{display:none!important}
           </div>
         </div>
         <div class="panel mt">
-          <div class="panel-h"><div><h2>Linhas programadas</h2><p>O avanço continua sendo lançado na aba Linhas e aparece aqui automaticamente.</p></div></div>
+          <div class="panel-h"><div><h2>Linhas programadas</h2><p>Os spools ficam agrupados na linha. Clique na linha para ver os spools programados. O avanço continua sendo lançado na aba Linhas.</p></div></div>
           <div class="filters">
-            <input class="input" id="pgQ" type="search" placeholder="Buscar linha ou STH" style="flex:1;min-width:200px">
+            <input class="input" id="pgQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
             <select class="input" id="pgSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="pgSt"><option value="">Todas as situações</option><option value="hit">Meta atingida</option><option value="part">Parcial</option><option value="todo">Programada / não executada</option></select>
           </div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th></th></tr></thead>
+            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Spools</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th></th></tr></thead>
             <tbody id="pgBody"></tbody>
           </table></div>
           <div class="pager" id="pgPager"></div>
+        </div>
+      </section>
+
+      <!-- PREVISÃO DE MEDIÇÃO -->
+      <section class="view" id="v-previsao">
+        <div class="fin-top">
+          <label class="period"><span>Medição (mês)</span><select class="input" id="pvMes"></select></label>
+          <div class="muted" id="pvRange" style="font-size:13px;align-self:flex-end;padding-bottom:9px"></div>
+          <div class="spacer"></div>
+          <button class="btn" id="pvWeeks" hidden>Trazer da programação semanal</button>
+          <button class="btn" id="pvCsv">Exportar previsão (CSV)</button>
+        </div>
+        <div class="len-note err" id="pvNote" hidden style="margin-bottom:12px;border-radius:8px"></div>
+        <div class="kpis" id="pvKpis"></div>
+        <div class="panel mt">
+          <div class="panel-h"><div><h2>Previsão por linha e spool</h2><p>Escolha o mês da medição acima, em qualquer dia. A previsão é por spool: clique na linha para ver os spools. Use "Tornar real" para lançar o previsto como medição realizada do mês.</p></div></div>
+          <div class="filters">
+            <input class="input" id="pvQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
+            <select class="input" id="pvSop"><option value="">Todas as SOPs</option></select>
+            <select class="input" id="pvShow"><option value="fc">Com previsão no mês</option><option value="real">Com medição realizada no mês</option><option value="none">Sem previsão (não medidas por completo)</option><option value="all">Todas as linhas</option></select>
+          </div>
+          <div class="bulk" id="pvBar">
+            <b id="pvBarN"></b>
+            <span class="sep"></span>
+            <span>Prever até</span><input class="input pct-in" id="pvPct" type="text" inputmode="decimal" value="100" aria-label="Previsão até %"><span>%</span>
+            <button class="btn primary sm" id="pvAdd">Prever</button>
+            <button class="btn sm" id="pvPhys" title="Prevê cada item até o avanço físico lançado na aba Linhas">Até o avanço físico</button>
+            <span class="sep"></span>
+            <button class="btn primary sm" id="pvReal">Tornar real</button>
+            <button class="btn sm" id="pvRmSel">Tirar da previsão</button>
+            <button class="btn ghost sm" id="pvClear">Limpar seleção</button>
+          </div>
+          <div class="tbl-wrap"><table><thead id="pvHead"></thead><tbody id="pvBody"></tbody></table></div>
+          <div class="pager" id="pvPager"></div>
+        </div>
+      </section>
+
+      <!-- MEDIÇÃO REALIZADA -->
+      <section class="view" id="v-realizada">
+        <div class="fin-top">
+          <label class="period"><span>Medição (mês)</span><select class="input" id="rzMes"></select></label>
+          <div class="muted" id="rzRange" style="font-size:13px;align-self:flex-end;padding-bottom:9px"></div>
+          <div class="spacer"></div>
+          <button class="btn" id="rzCsv">Exportar medição (CSV)</button>
+        </div>
+        <div class="len-note err" id="rzNote" hidden style="margin-bottom:12px;border-radius:8px"></div>
+        <div class="kpis" id="rzKpis"></div>
+        <div class="panel mt">
+          <div class="panel-h"><div><h2>Linhas e spools medidos</h2><p>Itens tornados reais na aba Previsão de medição. Clique na linha para ver os spools.</p></div></div>
+          <div class="filters">
+            <input class="input" id="rzQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
+            <select class="input" id="rzSop"><option value="">Todas as SOPs</option></select>
+          </div>
+          <div class="tbl-wrap"><table><thead id="rzHead"></thead><tbody id="rzBody"></tbody></table></div>
+          <div class="pager" id="rzPager"></div>
         </div>
       </section>
 
@@ -806,41 +909,6 @@ body.locked .app,body.locked .pending{display:none!important}
         </div>
         <div id="finWarn"></div>
         <div class="kpis" id="finKpis"></div>
-
-        <div class="panel mt" id="fpPanel">
-          <div class="panel-h">
-            <div><h2 id="fpT">Programação da medição</h2><p>Escolha as linhas que serão executadas no mês. O valor medido entra no mês em que o avanço for lançado na aba Linhas.</p></div>
-            <div class="tools"><button class="btn" id="fpWeeks">Trazer da programação semanal</button><button class="btn danger" id="fpClear">Limpar programação</button></div>
-          </div>
-          <div class="fp">
-            <div class="fp-left">
-              <div class="filters">
-                <input class="input" id="fpQ" type="search" placeholder="Buscar linha ou STH" style="flex:1;min-width:180px">
-                <select class="input" id="fpSop"><option value="">Todas as SOPs</option></select>
-                <select class="input" id="fpPpu"><option value="">Todos os itens PPU</option></select>
-                <select class="input" id="fpShow"><option value="open">A programar (não concluídas)</option><option value="prog">Já programadas</option><option value="all">Todas as linhas</option></select>
-              </div>
-              <div class="fp-act">
-                <span id="fpSelN">Nenhuma linha selecionada.</span>
-                <span style="flex:1"></span>
-                <span>Programar até</span>
-                <input class="input pct-in" id="fpPct" type="number" min="1" max="100" step="1" value="100" aria-label="Avanço a atingir">
-                <span>%</span>
-                <button class="btn primary" id="fpAdd" disabled>Adicionar à medição</button>
-              </div>
-              <div class="tbl-wrap"><table>
-                <thead><tr><th><input type="checkbox" id="fpAllPage" aria-label="Selecionar página"></th><th>Linha</th><th>SOP</th><th>Item</th><th class="num">Metros</th><th class="num">% atual</th><th class="money">Saldo a medir</th><th>Programação</th></tr></thead>
-                <tbody id="fpBody"></tbody>
-              </table></div>
-              <div class="pager" id="fpPager"></div>
-            </div>
-            <div class="fp-right">
-              <div class="fp-total" id="fpTotal"></div>
-              <div class="fp-h"><span id="fpListT">Linhas programadas</span><span class="muted" style="font-weight:400" id="fpListS"></span></div>
-              <ul class="fp-list" id="fpList"></ul>
-            </div>
-          </div>
-        </div>
 
         <div class="grid2" style="grid-template-columns:minmax(0,1fr) minmax(0,1.35fr)">
           <div class="panel mbars">
@@ -1023,6 +1091,13 @@ body.locked .app,body.locked .pending{display:none!important}
   </div>
 </div>
 
+<div class="modal" id="lenModal" role="dialog" aria-modal="true" aria-labelledby="lmT">
+  <div class="box wide">
+    <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><div class="muted" style="font-size:12.5px">Comprimento dos spools · detalhes</div><h3 id="lmT" style="word-break:break-all"></h3><p id="lmSub" style="margin:2px 0 12px"></p></div><button class="btn ghost" id="lmClose" aria-label="Fechar">✕</button></div>
+    <div class="lm-b" id="lmBody"></div>
+  </div>
+</div>
+
 <div class="modal" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwT">
   <div class="box">
     <h3 id="pwT">Alterar minha senha</h3>
@@ -1046,7 +1121,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '23/10/2026 09:50'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 18:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1068,21 +1143,14 @@ function initBase(b) {
   SP = new Map();
   for (const x of R) {
     const arr = ((b.spools && b.spools[x.i]) || []).filter(a => a && a[0]);
-    const tot = arr.reduce((t, a) => t + (Number(a[1]) || 0), 0), dif = x.m - tot;
-    x.spRule = !arr.length ? null : Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
-    x.spMapa = tot;
-    let acc = 0;
-    x.sps = arr.map((a, k) => {
-      const c = Number(a[1]) || 0;
-      let mm = x.spRule === 'menor' ? c + dif / arr.length : x.spRule === 'maior' ? (tot > 0 ? c * x.m / tot : x.m / arr.length) : c;
-      if (k === arr.length - 1) mm = Math.max(0, x.m - acc);
-      acc += mm;
-      const key = x.line + '§' + a[0];
-      const sp = { key, line: key, code: a[0], comp: Number(a[1]) || 0, m: mm, parent: x, isSp: true, i: x.i };
+    x.sps = arr.map(a => {
+      const key = x.line + '§' + a[0], comp = Number(a[1]) || 0;
+      const sp = { key, line: key, code: a[0], comp, len: comp, m: 0, edited: false, parent: x, isSp: true, i: x.i };
       Object.defineProperty(sp, 'seed', { get() { return savedPct(x); } });
       SP.set(key, sp); return sp;
     });
   }
+  applySpoolLens();
 }
 const itemOf = k => SP.get(k) || byLine.get(k) || null;
 const keyLabel = k => { const sp = SP.get(k); return sp ? `${sp.parent.line} · spool ${sp.code}` : k; };
@@ -1203,10 +1271,13 @@ async function loadData() {
   const [p, h, v] = await Promise.all([api('/progress'), api('/history?limit=' + (isAdmin() ? 100000 : 20000)), api('/visual')]);
   server = {}; for (const it of p.items) server[it.line] = it;
   try { setProg((await api('/prog')).weeks || {}); } catch (e) {}
+  try { const md = await api('/med'); med = { forecasts: md.forecasts || {}, reals: md.reals || {} }; medIdx = null; medApi = true; } catch (e) { medApi = e.status === 404 ? 'old' : false; }
+  try { const L = await api('/spool-len'); SPLEN = L.items || {}; SPLAST = L.last || {}; lenApi = true; } catch (e) { lenApi = e.status === 404 ? 'old' : false; }
+  applySpoolLens();
   lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
   if (isAdmin()) {
     try { users = (await api('/users')).users; } catch (e) {}
-    try { const f = await api('/fin'); fin = { prices: f.prices || {}, forecasts: f.forecasts || {}, pricesAt: f.prices_updated_at, pricesBy: f.prices_updated_by }; } catch (e) {}
+    try { const f = await api('/fin'); fin = { prices: f.prices || {}, forecasts: f.forecasts || {}, pricesAt: f.prices_updated_at, pricesBy: f.prices_updated_by }; if (medApi !== true) { med = { forecasts: f.forecasts || {}, reals: {} }; medIdx = null; } } catch (e) {}
   }
 }
 function setSync() {
@@ -1219,9 +1290,9 @@ function setSync() {
 setInterval(async () => { if (!BASE || !me || document.body.classList.contains('locked') || pending.size || document.hidden) return; try { await loadData(); renderAll(); setSync(); } catch (e) {} }, 60000);
 
 /* ============ navegação ============ */
-const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', visual: 'Acompanhamento visual', historico: 'Histórico', programacao: 'Programação semanal', financeiro: 'Financeiro', usuarios: 'Usuários' };
+const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', comprimentos: 'Comprimento dos spools', visual: 'Acompanhamento visual', historico: 'Histórico', programacao: 'Programação semanal', previsao: 'Previsão de medição', realizada: 'Medição realizada', financeiro: 'Financeiro', usuarios: 'Usuários' };
 function go(v) {
-  if (!TITLES[v] || ((v === 'usuarios' || v === 'financeiro') && !isAdmin())) v = 'painel';
+  if (!TITLES[v] || ((v === 'usuarios' || v === 'financeiro') && !isAdmin()) || (v === 'comprimentos' && !canEdit())) v = 'painel';
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   $$('.nav button').forEach(b => b.dataset.v === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   $('#title').textContent = TITLES[v];
@@ -1471,7 +1542,7 @@ function spRow(sp) {
   return `<tr class="sp-row${pendingSp.has(sp.key) ? ' changed' : ''}">
     <td><input type="checkbox" data-ssel="${esc(sp.key)}" ${selSp.has(sp.key) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar spool ${esc(sp.code)}"></td>
     <td class="sp-name">↳ ${esc(sp.code)}</td>
-    <td class="muted" colspan="4">${isAdmin() ? `${f2(sp.comp)} m no Mapa ${Math.abs(sp.m - sp.comp) < 0.005 ? '' : `${sp.m > sp.comp ? '+' : '−'} ${f2(Math.abs(sp.m - sp.comp))} m de ajuste`}` : ''}</td>
+    <td class="muted" colspan="4">${isAdmin() ? `${f2(sp.len)} m ${sp.edited ? 'editado' : 'no Mapa'} ${Math.abs(sp.m - sp.len) < 0.005 ? '' : `${sp.m > sp.len ? '+' : '−'} ${f2(Math.abs(sp.m - sp.len))} m de ajuste`}` : ''}</td>
     <td class="num">${f2(sp.m)}</td><td>${pctCell(sp)}</td><td class="num">${f2(sp.m * p / 100)}</td>
     <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChipsKey(sp)}</td></tr>`;
 }
@@ -1594,7 +1665,7 @@ $('#pendSave').onclick = async () => {
   }
   btn.disabled = false; btn.textContent = 'Salvar avanço';
 };
-window.addEventListener('beforeunload', e => { if (pending.size || pendingSp.size) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (pending.size || pendingSp.size || lenPend.size) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ============ gaveta da linha ============ */
 document.addEventListener('click', e => { const b = e.target.closest('.lname'); if (b) openLine(+b.dataset.line); });
@@ -1616,8 +1687,8 @@ function openLine(i) {
       <dt>Tipo</dt><dd>${esc(x.tipo)}</dd><dt>Item PPU</dt><dd>Anexo IIB · ${esc(x.ppu)}</dd><dt>Pintura</dt><dd>${esc(x.pint) || '—'}</dd>
       <dt>Traço de vapor</dt><dd>${x.traco ? 'Sim' : 'Não'}</dd><dt>TH realizado</dt><dd>${x.th ? 'OK' : 'Não'}</dd>
     </dl>
-    <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">${!isAdmin() ? '' : `· ${x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.m - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.m)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO'}`}</span></div>
-    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th>${isAdmin() ? '<th class="num">Mapa (m)</th><th class="num">Ajuste (m)</th>' : ''}<th class="num">${isAdmin() ? 'Considerado (m)' : 'Metros'}</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s), aj = s.m - s.comp; return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td>${isAdmin() ? `<td class="num">${f2(s.comp)}</td><td class="num ${aj < -0.004 ? 'neg' : ''}">${Math.abs(aj) < 0.005 ? '—' : (aj > 0 ? '+' : '') + f2(aj)}</td>` : ''}<td class="num"><b>${f2(s.m)}</b></td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
+    <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">${!isAdmin() ? '' : `· ${spRuleTxt(x)}`}</span></div>
+    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th>${isAdmin() ? '<th class="num">Comprimento (m)</th><th class="num">Ajuste (m)</th>' : ''}<th class="num">${isAdmin() ? 'Considerado (m)' : 'Metros'}</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s), aj = s.m - s.len; return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td>${isAdmin() ? `<td class="num" title="${s.edited ? `Editado · Mapa ${f2(s.comp)} m` : 'Comprimento do Mapa'}">${f2(s.len)}${s.edited ? ' ✎' : ''}</td><td class="num ${aj < -0.004 ? 'neg' : ''}">${Math.abs(aj) < 0.005 ? '—' : (aj > 0 ? '+' : '') + f2(aj)}</td>` : ''}<td class="num"><b>${f2(s.m)}</b></td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
     <div class="h4">Programação semanal</div>
     ${progMapLine(x).size ? `<p style="margin:0">${progChips(x)}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
     <div class="h4">Histórico</div>
@@ -1628,7 +1699,7 @@ function openLine(i) {
 $('#dBody').addEventListener('click', e => { const q = e.target.closest('[data-quick]'); if (!q) return; const inp = $('#dBody .pct-in'); inp.value = fmtIn(unitVal(R[dLine], Number(q.dataset.quick))); inp.dispatchEvent(new Event('change', { bubbles: true })); });
 function closeDrawer() { dLine = null; $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); }
 $('#dClose').onclick = closeDrawer; $('#scrim').onclick = closeDrawer;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeLight(); $('#pwModal').classList.remove('on'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeLight(); $('#pwModal').classList.remove('on'); $('#lenModal').classList.remove('on'); } });
 
 /* ============ acompanhamento visual ============ */
 let upFiles = [];
@@ -1989,6 +2060,188 @@ function renderBaseInfo() {
 
 
 
+/* ============ comprimento dos spools (edição manual + histórico) ============ */
+let SPLEN = {}, SPLAST = {}, lenApi = null;   // spool -> {comp, updated_at, updated_by}; linha -> última alteração
+const lenPend = new Map();                     // spool -> comprimento digitado (null = voltar ao Mapa)
+const lenOpen = new Set(); let lenPage = 0;
+function spLenSaved(sp) { const o = SPLEN[sp.key]; return o && o.comp != null ? Number(o.comp) : null; }
+function spLenNow(sp) { return lenPend.has(sp.key) ? lenPend.get(sp.key) : spLenSaved(sp); }   // null = comprimento do Mapa
+// Rateio dos spools para fechar no metro da linha na ESCOPO.
+//  - sem spool editado: regra original (diferença dividida igualmente, ou redução proporcional)
+//  - com spool editado: o editado fica com o valor informado e o restante é rateado entre os não editados
+//  - se os editados passam da ESCOPO (ou todos foram editados e não fecham): todos são ajustados para fechar
+function spoolFit(x, lenOf) {
+  const sps = x.sps, ms = new Map();
+  const L = sp => { const v = lenOf(sp); return v == null ? sp.comp : v; };
+  const sum = sps.reduce((t, sp) => t + L(sp), 0);
+  if (!sps.length) return { ms, rule: null, sum };
+  const fit = (list, target) => {
+    const tot = list.reduce((t, sp) => t + L(sp), 0), dif = target - tot;
+    const rule = Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
+    let acc = 0;
+    list.forEach((sp, k) => {
+      const c = L(sp);
+      let mm = rule === 'menor' ? c + dif / list.length : rule === 'maior' ? (tot > 0 ? c * target / tot : target / list.length) : c;
+      if (k === list.length - 1) mm = Math.max(0, target - acc);
+      acc += mm; ms.set(sp.key, mm);
+    });
+    return rule;
+  };
+  const fixed = sps.filter(sp => lenOf(sp) != null), free = sps.filter(sp => lenOf(sp) == null);
+  if (!fixed.length) return { ms, rule: fit(sps, x.m), sum };
+  const fixT = fixed.reduce((t, sp) => t + L(sp), 0);
+  if (free.length && fixT <= x.m + 0.005) { fixed.forEach(sp => ms.set(sp.key, L(sp))); return { ms, rule: 'edit-' + fit(free, Math.max(0, x.m - fixT)), sum }; }
+  const r = fit(sps, x.m);
+  return { ms, rule: r === 'igual' ? 'edit-igual' : 'forcado', sum };
+}
+function applySpoolLens() {
+  for (const x of R) {
+    const f = spoolFit(x, spLenSaved);
+    x.spMapa = f.sum; x.spRule = x.sps.length ? f.rule : null;
+    for (const sp of x.sps) { const v = spLenSaved(sp); sp.edited = v != null; sp.len = sp.edited ? v : sp.comp; sp.m = f.ms.get(sp.key) || 0; }
+  }
+}
+function spRuleTxt(x) {
+  const ne = x.sps.filter(s => s.edited).length;
+  if (x.spRule === 'forcado') return `spools somam ${f2(x.spMapa)} m (${ne} ${ne === 1 ? 'editado' : 'editados'}) e não fecham com os ${f2(x.m)} m da ESCOPO; todos foram ajustados para fechar`;
+  if (/^edit-/.test(x.spRule)) return x.spRule === 'edit-igual' ? `${ne} ${ne === 1 ? 'spool editado' : 'spools editados'}; comprimentos fecham com a ESCOPO` : `${ne} ${ne === 1 ? 'spool editado' : 'spools editados'}; a diferença para a ESCOPO foi rateada entre os spools não editados`;
+  return x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.m - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.m)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO';
+}
+const lenSumMapa = x => x.sps.reduce((t, s) => t + s.comp, 0);
+const lenSumNow = x => x.sps.reduce((t, s) => { const v = spLenNow(s); return t + (v == null ? s.comp : v); }, 0);
+const lenLast = x => SPLAST[x.line] || null;
+function lenLines() {
+  const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value;
+  return R.filter(x => x.sps.length && (!sop || x.sop === sop)
+    && (!q || (x.line + ' ' + x.sth + ' ' + x.sps.map(s => s.code).join(' ')).toLowerCase().includes(q))
+    && (!f || (f === 'ed' ? x.sps.some(s => spLenNow(s) != null) : f === 'pend' ? x.sps.some(s => lenPend.has(s.key)) : Math.abs(lenSumNow(x) - x.m) >= 0.005)))
+    .sort((a, b) => a.sop.localeCompare(b.sop) || a.line.localeCompare(b.line));
+}
+function lenSubRow(x) {
+  const f = spoolFit(x, spLenNow), ed = canEdit() && lenApi === true;
+  const rows = x.sps.map(sp => {
+    const now = spLenNow(sp), sv = SPLEN[sp.key], pend = lenPend.has(sp.key);
+    const origem = pend ? '<span class="tag s1">Não salvo</span>' : sv ? `<span class="tag s2" title="Editado por ${esc(sv.updated_by)} em ${when(sv.updated_at)}">Editado</span>` : '<span class="muted">Mapa</span>';
+    const val = now == null ? sp.comp : now;
+    return `<tr${pend ? ' class="changed"' : ''}><td><b>${esc(sp.code)}</b></td><td class="num">${f2(sp.comp)}</td>
+      <td class="num">${ed ? `<input class="input len-in" type="text" inputmode="decimal" autocomplete="off" data-len="${esc(sp.key)}" value="${fmtIn(+val.toFixed(2))}" aria-label="Comprimento do spool ${esc(sp.code)}">` : f2(val)}</td>
+      <td class="num">${f2(f.ms.get(sp.key) || 0)}</td><td class="num">${f1(spPct(sp))}%</td><td>${origem}</td>
+      <td>${ed && now != null ? `<button class="btn sm ghost" data-lreset="${esc(sp.key)}" title="Voltar ao comprimento do Mapa (${f2(sp.comp)} m)">Usar Mapa</button>` : ''}</td></tr>`;
+  }).join('');
+  const sNow = lenSumNow(x);
+  return `<tr class="len-sub"><td colspan="9"><div class="len-sp"><table>
+    <thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Comprimento (m)</th><th class="num" title="Comprimento usado no avanço, já rateado para fechar com a ESCOPO">Considerado (m)</th><th class="num">Avanço</th><th>Origem</th><th></th></tr></thead>
+    <tbody>${rows}<tr class="tot"><td>Total</td><td class="num">${f2(lenSumMapa(x))}</td><td class="num">${f2(sNow)}</td><td class="num">${f2(x.m)}</td><td></td><td></td><td></td></tr></tbody></table></div>
+    ${f.rule === 'forcado' ? `<p class="len-warn">Os spools editados somam ${f2(x.sps.filter(s => spLenNow(s) != null).reduce((t, s) => t + spLenNow(s), 0))} m e ${x.sps.every(s => spLenNow(s) != null) ? 'todos os spools foram editados, mas a soma' : 'isso'} não fecha com os ${f2(x.m)} m da ESCOPO. Para o avanço, todos os spools são ajustados na mesma proporção até fechar.</p>` : ''}</td></tr>`;
+}
+function renderLen() {
+  if (!BASE) return;
+  $('#navLen').hidden = !canEdit();
+  if ($('#lenSop').options.length === 1) $('#lenSop').insertAdjacentHTML('beforeend', BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(''));
+  const nEd = Object.keys(SPLEN).length; $('#nLenEd').textContent = nEd ? f0(nEd) : '';
+  const note = $('#lenNote');
+  note.hidden = lenApi === true; note.classList.toggle('err', lenApi !== true);
+  if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker ainda não tem a rota de comprimento dos spools. Publique o worker.js novo no Cloudflare para poder editar e guardar o histórico.' : 'Não foi possível carregar os comprimentos editados do servidor. Os valores abaixo são os do Mapa.';
+  const list = lenLines(), pages = Math.max(1, Math.ceil(list.length / PAGE)); lenPage = Math.min(lenPage, pages - 1);
+  const rows = list.slice(lenPage * PAGE, lenPage * PAGE + PAGE);
+  $('#lenBody').innerHTML = rows.length ? rows.map(x => {
+    const op = lenOpen.has(x.i), mapa = lenSumMapa(x), now = lenSumNow(x), dif = now - x.m, ne = x.sps.filter(s => spLenNow(s) != null).length, pend = x.sps.some(s => lenPend.has(s.key)), l = lenLast(x);
+    return `<tr class="pg-grp${op ? ' sp-open' : ''}${pend ? ' changed' : ''}" data-lrow="${x.i}">
+      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${ne ? `<small class="nsp">${ne} ${ne === 1 ? 'editado' : 'editados'}</small>` : ''}</span></td>
+      <td>${esc(x.sop)}</td><td class="num">${f0(x.sps.length)}</td><td class="num">${f2(x.m)}</td><td class="num">${f2(mapa)}</td><td class="num"><b>${f2(now)}</b></td>
+      <td class="num ${Math.abs(dif) >= 0.005 ? 'neg' : ''}">${Math.abs(dif) < 0.005 ? '—' : (dif > 0 ? '+' : '') + f2(dif)}</td>
+      <td>${l ? `${when(l.ts)}<br><small class="muted">${esc(l.user || '')}</small>` : '<span class="muted">—</span>'}</td>
+      <td><button class="btn sm" data-ldet="${x.i}">Detalhes</button></td></tr>${op ? lenSubRow(x) : ''}`;
+  }).join('') : `<tr><td colspan="9"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. Linhas sem spool no Mapa não aparecem aqui.</div></td></tr>`;
+  const allOpen = rows.length && rows.every(x => lenOpen.has(x.i));
+  $('#lenPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f0(list.reduce((t, x) => t + x.sps.length, 0))} spools</span><span class="spacer"></span>
+    ${rows.length ? `<button class="btn sm" id="lenAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
+    <button class="btn sm" id="lenPrev" ${lenPage ? '' : 'disabled'}>Anterior</button><span>Página ${lenPage + 1} de ${pages}</span><button class="btn sm" id="lenNext" ${lenPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#lenPrev').onclick = () => { lenPage--; renderLen(); };
+  $('#lenNext').onclick = () => { lenPage++; renderLen(); };
+  if ($('#lenAll')) $('#lenAll').onclick = () => { rows.forEach(x => allOpen ? lenOpen.delete(x.i) : lenOpen.add(x.i)); renderLen(); };
+  const n = lenPend.size;
+  $('#lenBar').classList.toggle('on', n > 0);
+  if (n) {
+    const nl = new Set([...lenPend.keys()].map(k => SP.get(k)?.i)).size;
+    $('#lenBarN').textContent = `${n} ${n === 1 ? 'spool alterado' : 'spools alterados'} em ${nl} ${nl === 1 ? 'linha' : 'linhas'}`;
+    $('#lenBarI').textContent = 'O avanço em metros das linhas é recalculado ao salvar.';
+  }
+}
+['#lenQ', '#lenSop', '#lenF'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
+$('#lenBody').addEventListener('click', e => {
+  const d = e.target.closest('[data-ldet]'); if (d) return openLenDet(+d.dataset.ldet);
+  const r = e.target.closest('[data-lreset]'); if (r) { const sp = SP.get(r.dataset.lreset); if (sp) setLen(sp, null); return; }
+  if (e.target.closest('input, .lname, a') ) return;
+  const t = e.target.closest('[data-lt], tr[data-lrow]'); if (!t) return;
+  const i = +(t.dataset.lt ?? t.dataset.lrow); lenOpen.has(i) ? lenOpen.delete(i) : lenOpen.add(i); renderLen();
+});
+function setLen(sp, v) {
+  if (v != null && Math.abs(v - sp.comp) < 0.005) v = null;          // igual ao Mapa = sem edição
+  const sv = spLenSaved(sp);
+  const same = (v == null && sv == null) || (v != null && sv != null && Math.abs(v - sv) < 0.005);
+  same ? lenPend.delete(sp.key) : lenPend.set(sp.key, v);
+  const y = window.scrollY; renderLen(); window.scrollTo(0, y);
+}
+$('#lenBody').addEventListener('change', e => {
+  const inp = e.target.closest('[data-len]'); if (!inp) return;
+  const sp = SP.get(inp.dataset.len); if (!sp) return;
+  const n = parseNum(inp.value);
+  if (n == null || n < 0 || n > 10000) {
+    toast(`Informe o comprimento do spool ${sp.code} em metros (número maior ou igual a zero).`, true);
+    const v = spLenNow(sp); inp.value = fmtIn(+(v == null ? sp.comp : v).toFixed(2)); inp.classList.add('bad'); setTimeout(() => inp.classList.remove('bad'), 2500); return;
+  }
+  setLen(sp, Math.round(n * 100) / 100);
+});
+$('#lenBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-len]')) e.target.blur(); });
+$('#lenDiscard').onclick = () => { lenPend.clear(); $('#lenNoteIn').value = ''; renderLen(); };
+$('#lenSave').onclick = async () => {
+  if (!canEdit()) return openLogin();
+  if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
+  const btn = $('#lenSave'); btn.disabled = true; btn.textContent = 'Salvando…';
+  const items = [...lenPend.entries()].map(([k, v]) => { const sp = SP.get(k); return { key: k, line: sp.parent.line, spool: sp.code, comp: v, mapa: sp.comp }; });
+  try {
+    const r = await api('/spool-len', { method: 'POST', body: { items, note: $('#lenNoteIn').value.trim() } });
+    lenPend.clear(); $('#lenNoteIn').value = '';
+    await loadData(); renderAll(); setSync();
+    toast(`${r.saved} ${r.saved === 1 ? 'comprimento salvo' : 'comprimentos salvos'} em ${when(r.ts)}.`);
+  } catch (e) {
+    toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : 'Não foi possível salvar os comprimentos: ' + e.message, true);
+    if (e.status === 401) openLogin();
+  }
+  btn.disabled = false; btn.textContent = 'Salvar comprimentos';
+};
+async function openLenDet(i) {
+  const x = R[i];
+  $('#lmT').textContent = x.line;
+  $('#lmSub').textContent = `${x.sop} · ${x.sps.length} spools · ESCOPO ${f2(x.m)} m · soma atual ${f2(x.sps.reduce((t, s) => t + s.len, 0))} m`;
+  const cur = `<div class="h4" style="margin-top:0">Comprimentos atuais</div><div class="len-sp"><table><thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Atual (m)</th><th class="num">Considerado (m)</th><th>Alterado por</th></tr></thead><tbody>${
+    x.sps.map(s => { const sv = SPLEN[s.key]; return `<tr><td>${esc(s.code)}</td><td class="num">${f2(s.comp)}</td><td class="num"><b>${f2(s.len)}</b>${s.edited ? ' ✎' : ''}</td><td class="num">${f2(s.m)}</td><td>${sv ? `${esc(sv.updated_by)} <small class="muted">· ${when(sv.updated_at)}</small>` : '<span class="muted">Mapa</span>'}</td></tr>`; }).join('')
+  }</tbody></table></div>`;
+  $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div><p class="muted">Carregando…</p>';
+  $('#lenModal').classList.add('on');
+  try {
+    const h = (await api('/spool-len/history?line=' + encodeURIComponent(x.line))).items || [];
+    const v = (n, mapa) => n == null ? `${f2(mapa)} <small class="muted">(Mapa)</small>` : f2(n);
+    $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div>' + (h.length ? `<div class="len-sp"><table><thead><tr><th>Data e hora</th><th>Spool</th><th class="num">De (m)</th><th class="num">Para (m)</th><th>Responsável</th><th>Motivo</th></tr></thead><tbody>${
+      h.map(r => `<tr><td>${when(r.ts)}</td><td>${esc(r.spool)}</td><td class="num">${v(r.old_comp, r.mapa)}</td><td class="num"><b>${v(r.new_comp, r.mapa)}</b></td><td>${esc(r.user || '')}</td><td style="white-space:normal">${esc(r.note || '') || '<span class="muted">—</span>'}</td></tr>`).join('')
+    }</tbody></table></div>` : '<p class="muted">Nenhuma alteração de comprimento registrada para esta linha. Os valores são os do Mapa de Spools.</p>');
+  } catch (e) {
+    $('#lmBody').innerHTML = cur + `<div class="h4">Histórico de alterações</div><p class="err">${esc(e.status === 404 ? 'O Worker ainda não tem a rota do histórico. Publique o worker.js novo.' : 'Não foi possível carregar o histórico: ' + e.message)}</p>`;
+  }
+}
+$('#lmClose').onclick = () => $('#lenModal').classList.remove('on');
+$('#lenModal').addEventListener('click', e => { if (e.target.id === 'lenModal') $('#lenModal').classList.remove('on'); });
+$('#lenCsv').onclick = () => {
+  const head = ['LINHA', 'SOP', 'SPOOL', 'ESCOPO linha (m)', 'Mapa (m)', 'Comprimento atual (m)', 'Considerado (m)', 'Editado', 'Alterado por', 'Alterado em'];
+  const out = [];
+  for (const x of lenLines()) for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(x.m), f2(s.comp), f2(s.len), f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); }
+  const csv = '\ufeff' + [head, ...out].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = 'comprimento_spools.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+};
+
+
 /* ============ programação semanal (avanço físico) ============ */
 const W70 = Date.parse('2026-10-26T03:00:00Z'); // segunda 26/10/2026 00:00 (Recife) = início da Semana 70
 const WEEK = 7 * 864e5;
@@ -2128,23 +2381,61 @@ function renderProg() {
     sops.map(x => `<tr><td>${esc(x.k)}</td><td class="num">${f0(x.n)}</td><td class="num">${f2(x.progM)}</td><td class="num">${fut ? '—' : f2(x.execP)}</td><td class="num">${fut || !x.progM ? '—' : pctTxt(x.capP / x.progM * 100)}</td></tr>`).join('')
   }<tr class="tot"><td>Total</td><td class="num">${f0(t.n)}</td><td class="num">${f2(t.progM)}</td><td class="num">${fut ? '—' : f2(t.execP)}</td><td class="num">${fut || adh == null ? '—' : pctTxt(adh * 100)}</td></tr></tbody></table>`
     : `<div class="empty"><b>Nenhuma linha programada nesta semana</b>Na aba Linhas, selecione as linhas e use "Programar na Semana ${pgSel}".</div>`;
-  // linhas
+  // linhas (spools agrupados na linha; clique na linha para ver os spools)
   const q = $('#pgQ').value.trim().toLowerCase(), sop = $('#pgSop').value, sf = $('#pgSt').value;
-  const sit = r => r.hit ? 'hit' : r.e > r.s + 1e-6 ? 'part' : 'todo';
-  const lines = rows.filter(r => (!q || (r.key + ' ' + r.ln.sth).toLowerCase().includes(q)) && (!sop || r.ln.sop === sop) && (!sf || sit(r) === sf))
-    .sort((a, b) => a.ln.sop.localeCompare(b.ln.sop) || a.ln.line.localeCompare(b.ln.line) || a.key.localeCompare(b.key));
+  const byLn = new Map(); for (const r of rows) { if (!byLn.has(r.ln.i)) byLn.set(r.ln.i, []); byLn.get(r.ln.i).push(r); }
+  const sum = (rs, f) => rs.reduce((t, r) => t + f(r), 0);
+  const grps = [...byLn.values()].map(rs => {
+    const ln = rs[0].ln, m = sum(rs, r => r.x.m), w = f => m ? sum(rs, r => r.x.m * f(r)) / m : 0;
+    rs.sort((a, b) => a.key.localeCompare(b.key));
+    return { ln, rs, m, s: w(r => r.s), tgt: w(r => r.tgt), e: w(r => r.e), metaM: sum(rs, r => r.x.m * r.tgt / 100), progM: sum(rs, r => r.progM), execM: sum(rs, r => r.execM),
+      hit: rs.every(r => r.hit), part: rs.some(r => r.e > r.s + 1e-6), nHit: rs.filter(r => r.hit).length, nsp: rs.filter(r => r.x.isSp).length, multi: rs.length > 1 || rs[0].x.isSp };
+  });
+  const sit = g => g.hit ? 'hit' : g.part ? 'part' : 'todo';
+  const lnMatch = g => !q || (g.ln.line + ' ' + g.ln.sth).toLowerCase().includes(q);
+  const spMatch = g => q && g.rs.some(r => r.x.isSp && r.x.code.toLowerCase().includes(q));
+  const lines = grps.filter(g => (lnMatch(g) || spMatch(g)) && (!sop || g.ln.sop === sop) && (!sf || sit(g) === sf))
+    .sort((a, b) => a.ln.sop.localeCompare(b.ln.sop) || a.ln.line.localeCompare(b.ln.line));
   const pages = Math.max(1, Math.ceil(lines.length / PAGE)); pgPage = Math.min(pgPage, pages - 1);
-  const tag = r => r.hit ? '<span class="tag s2">Meta atingida</span>' : r.e > r.s + 1e-6 ? '<span class="tag s1">Parcial</span>' : past ? '<span class="tag s3">Não executada</span>' : '<span class="tag s0">Programada</span>';
-  $('#pgBody').innerHTML = lines.length ? lines.slice(pgPage * PAGE, pgPage * PAGE + PAGE).map(r => `<tr>
-    <td>${r.x.isSp ? `<span class="sp-name">↳ ${esc(r.x.code)}</span><br><button class="lname" style="font-size:12px" data-line="${r.ln.i}">${esc(r.ln.line)}</button>` : `<button class="lname" data-line="${r.ln.i}">${esc(r.ln.line)}</button>`}</td><td>${esc(r.ln.sop)}</td><td class="muted sth">${esc(r.ln.sth)}</td>
-    <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.s)}%</td><td class="num"><b>${f0(r.tgt)}%</b><br><small class="muted">${f2(r.x.m * r.tgt / 100)} m</small></td><td class="num">${fut ? '—' : f1(r.e) + '%'}</td>
+  const tag = r => r.hit ? '<span class="tag s2">Meta atingida</span>' : (r.part ?? r.e > r.s + 1e-6) ? '<span class="tag s1">Parcial</span>' : past ? '<span class="tag s3">Não executada</span>' : '<span class="tag s0">Programada</span>';
+  const page = lines.slice(pgPage * PAGE, pgPage * PAGE + PAGE);
+  const isOpen = g => g.multi && (pgOpen.has(g.ln.i) || (spMatch(g) && !lnMatch(g)));
+  const spTr = r => `<tr class="sp-row"><td class="sp-name">↳ ${r.x.isSp ? esc(r.x.code) : '<i>linha inteira</i>'}</td><td></td><td></td><td></td>
+    <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.s)}%</td><td class="num"><b>${f0(r.tgt)}%</b> <small class="muted">${f2(r.x.m * r.tgt / 100)} m</small></td><td class="num">${fut ? '—' : f1(r.e) + '%'}</td>
     <td class="num">${f2(r.progM)}</td><td class="num">${fut ? '—' : f2(r.execM)}</td><td>${tag(r)}</td>
-    <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${esc(r.key)}" title="Tirar desta semana">Remover</button>` : ''}</td></tr>`).join('')
-    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
-  $('#pgPager').innerHTML = `<span>${f0(lines.length)} itens</span><span class="spacer"></span><button class="btn sm" id="pgPrev" ${pgPage ? '' : 'disabled'}>Anterior</button><span>Página ${pgPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${pgPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+    <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${esc(r.key)}" title="Tirar este spool da semana">Remover</button>` : ''}</td></tr>`;
+  $('#pgBody').innerHTML = page.length ? page.map(g => { const op = isOpen(g), ns = g.ln.sps.length; return `<tr class="${g.multi ? 'pg-grp' : ''}${op ? ' sp-open' : ''}" ${g.multi ? `data-pgo="${g.ln.i}"` : ''}>
+    <td><span class="lcell">${g.multi ? `<button class="spt${op ? ' open' : ''}" data-pgt="${g.ln.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools programados">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${g.ln.i}">${esc(g.ln.line)}</button></span></td>
+    <td>${esc(g.ln.sop)}</td><td class="muted sth" title="${esc(g.ln.sth)}">…${esc(g.ln.sth.replace(/^STH-\d{4}-\d{4}-\d{4}-/, ''))}</td>
+    <td class="num">${ns ? `${f0(g.nsp)} de ${f0(ns)}` : '—'}</td>
+    <td class="num">${f2(g.m)}</td><td class="num">${f1(g.s)}%</td><td class="num"><b>${f0(g.tgt)}%</b><br><small class="muted">${f2(g.metaM)} m</small></td><td class="num">${fut ? '—' : f1(g.e) + '%'}</td>
+    <td class="num">${f2(g.progM)}</td><td class="num">${fut ? '—' : f2(g.execM)}</td>
+    <td>${tag(g)}${g.multi && !g.hit && g.nHit ? `<br><small class="muted">${f0(g.nHit)} de ${f0(g.rs.length)} na meta</small>` : ''}</td>
+    <td>${canEdit() ? (g.multi ? `<button class="btn sm ghost" data-pgrmln="${g.ln.i}" title="Tirar a linha inteira (todos os spools programados) desta semana">Remover</button>` : `<button class="btn sm ghost" data-pgrm="${esc(g.rs[0].key)}" title="Tirar desta semana">Remover</button>`) : ''}</td></tr>${op ? g.rs.map(spTr).join('') : ''}`; }).join('')
+    : `<tr><td colspan="12"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
+  const multi = page.filter(g => g.multi), allOpen = multi.length && multi.every(g => pgOpen.has(g.ln.i));
+  $('#pgPager').innerHTML = `<span>${f0(lines.length)} ${lines.length === 1 ? 'linha' : 'linhas'} · ${f0(sum(lines, g => g.nsp))} spools</span><span class="spacer"></span>
+    ${multi.length ? `<button class="btn sm" id="pgAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
+    <button class="btn sm" id="pgPrev" ${pgPage ? '' : 'disabled'}>Anterior</button><span>Página ${pgPage + 1} de ${pages}</span><button class="btn sm" id="pgNext" ${pgPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
   $('#pgPrev').onclick = () => { pgPage--; renderProg(); };
   $('#pgNext').onclick = () => { pgPage++; renderProg(); };
+  if ($('#pgAll')) $('#pgAll').onclick = () => { multi.forEach(g => allOpen ? pgOpen.delete(g.ln.i) : pgOpen.add(g.ln.i)); renderProg(); };
 }
+const pgOpen = new Set();
+$('#pgBody').addEventListener('click', e => {
+  if (e.target.closest('.lname, [data-pgrm], [data-pgrmln], input, a')) return;
+  const t = e.target.closest('[data-pgt], tr[data-pgo]'); if (!t) return;
+  const i = +(t.dataset.pgt ?? t.dataset.pgo); pgOpen.has(i) ? pgOpen.delete(i) : pgOpen.add(i);
+  const y = window.scrollY; renderProg(); window.scrollTo(0, y);
+});
+document.addEventListener('click', async e => {
+  const b = e.target.closest('[data-pgrmln]'); if (!b) return;
+  const x = R[+b.dataset.pgrmln], wk = prog[String(pgSel)] || {};
+  const keys = [x.line, ...x.sps.map(sp => sp.key)].filter(k => wk[k] != null);
+  if (!keys.length) return;
+  if (!confirm(`Tirar a linha ${x.line} da Semana ${pgSel}? ${keys.length} ${keys.length === 1 ? 'item programado será retirado' : 'itens programados serão retirados'}.`)) return;
+  try { await saveProg(pgSel, keys.map(k => ({ line: k, pct: null }))); renderProg(); renderLinhas(); toast(`${x.line} retirada da Semana ${pgSel}.`); } catch (err) { toast(err.message, true); }
+});
 function renderProgChart(cur) {
   const ks = Object.keys(prog).filter(k => Object.keys(prog[k] || {}).length).map(Number);
   let a = Math.min(cur - 3, ...ks), b = Math.max(cur + 2, ...ks); if (b - a > 11) a = b - 11;
@@ -2178,101 +2469,6 @@ $('#pgCsv').onclick = () => {
   a.download = `programacao_semana_${pgSel}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
 };
 
-/* ============ programação da medição (financeiro) ============ */
-const fpSel = new Set(); let fpPage = 0, fpFiltered = [];
-const fpEditable = () => finSel !== 'prev' && finSel !== 'all' && finSel >= openPeriod();
-function renderFinProg(rows) {
-  const panel = $('#fpPanel');
-  if (!fpEditable()) { panel.style.display = 'none'; return; }
-  panel.style.display = '';
-  if ($('#fpSop').options.length === 1) {
-    $('#fpSop').insertAdjacentHTML('beforeend', BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join(''));
-    const codes = [...new Set(R.map(ppuCode))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
-    $('#fpPpu').insertAdjacentHTML('beforeend', codes.map(c => `<option value="${esc(c)}">B-${esc(c)}</option>`).join(''));
-  }
-  $('#fpT').textContent = `Programação da ${perLabel(finSel)}`;
-  const q = $('#fpQ').value.trim().toLowerCase(), sop = $('#fpSop').value, ppu = $('#fpPpu').value, show = $('#fpShow').value;
-  fpFiltered = rows.filter(r => (!q || (r.x.line + ' ' + r.x.sth).toLowerCase().includes(q)) && (!sop || r.x.sop === sop) && (!ppu || ppuCode(r.x) === ppu) &&
-    (show === 'all' || (show === 'open' && r.pPlan < 100 - 1e-6 && r.tgt == null) || (show === 'prog' && r.tgt != null)))
-    .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
-  const pages = Math.max(1, Math.ceil(fpFiltered.length / PAGE)); fpPage = Math.min(fpPage, pages - 1);
-  const page = fpFiltered.slice(fpPage * PAGE, fpPage * PAGE + PAGE);
-  $('#fpBody').innerHTML = page.length ? page.map(r => `<tr${fpSel.has(r.x.line) ? ' class="changed"' : ''}>
-    <td><input type="checkbox" data-fpsel="${esc(r.x.line)}" ${fpSel.has(r.x.line) ? 'checked' : ''} ${r.pPlan >= 100 - 1e-6 ? 'disabled' : ''} aria-label="Selecionar ${esc(r.x.line)}"></td>
-    <td><button class="lname" data-line="${r.x.i}">${esc(r.x.line)}</button></td><td>${esc(r.x.sop)}</td><td>B-${esc(ppuCode(r.x))}</td>
-    <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.pPlan)}%</td><td class="money">${brl(r.x.m * Math.max(0, 100 - r.pPlan) / 100 * r.pr)}</td>
-    <td>${r.tgt != null ? `<span class="wk">até ${f0(r.tgt)}% · ${brl(r.fc)}</span>` : r.pPlan >= 100 - 1e-6 ? '<span class="tag s2">Concluída</span>' : '<span class="muted">—</span>'}</td></tr>`).join('')
-    : `<tr><td colspan="8"><div class="empty"><b>Nenhuma linha nesta visão</b>Ajuste a busca ou os filtros.</div></td></tr>`;
-  $('#fpAllPage').checked = page.length > 0 && page.filter(r => r.pPlan < 100 - 1e-6).every(r => fpSel.has(r.x.line));
-  $('#fpPager').innerHTML = `<span>${f0(fpFiltered.length)} linhas</span><span class="spacer"></span>
-    ${fpFiltered.length ? `<button class="btn sm" id="fpSelAll">Selecionar as ${f0(fpFiltered.filter(r => r.pPlan < 100 - 1e-6).length)} filtradas</button>` : ''}
-    <button class="btn sm" id="fpPrev" ${fpPage ? '' : 'disabled'}>Anterior</button><span>Página ${fpPage + 1} de ${pages}</span><button class="btn sm" id="fpNext" ${fpPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
-  $('#fpPrev').onclick = () => { fpPage--; renderFin(); };
-  $('#fpNext').onclick = () => { fpPage++; renderFin(); };
-  if ($('#fpSelAll')) $('#fpSelAll').onclick = () => { fpFiltered.forEach(r => { if (r.pPlan < 100 - 1e-6) fpSel.add(r.x.line); }); renderFin(); };
-  renderFpAct(rows);
-  // lado direito: total e lista
-  const progd = rows.filter(r => r.tgt != null).sort((a, b) => a.x.sop.localeCompare(b.x.sop) || b.fc - a.fc);
-  const tot = progd.reduce((s, r) => s + r.fc, 0), med = progd.reduce((s, r) => s + Math.max(0, Math.min(r.real, r.fc)), 0);
-  const medAll = rows.reduce((s, r) => s + r.real, 0), fut = isFuture(finSel);
-  $('#fpTotal').innerHTML = `<span>Total programado · ${esc(perLabel(finSel))}</span><strong>${brl(tot)}</strong>
-    <small>${f0(progd.length)} ${progd.length === 1 ? 'linha' : 'linhas'} · ${f2(progd.reduce((s, r) => s + r.x.m * Math.max(0, r.tgt - r.pPlan) / 100, 0))} m a isolar</small>
-    <div class="sb"><i style="width:${tot ? Math.min(100, med / tot * 100) : 0}%"></i></div>
-    <div class="row2"><span>${fut ? 'Medição ainda não iniciada' : `Medido nas programadas: ${brl(med)}`}</span><span>${fut ? '' : tot ? pctTxt(med / tot * 100) : '—'}</span></div>
-    ${fut ? '' : `<div class="row2"><span>Medido no mês (todas as linhas)</span><span>${brl(medAll)}</span></div>`}`;
-  $('#fpListT').textContent = `Linhas programadas (${f0(progd.length)})`;
-  $('#fpListS').textContent = progd.length ? 'valor programado · medido' : '';
-  $('#fpList').innerHTML = progd.length ? progd.map(r => `<li><span class="l" title="${esc(r.x.line)}">${esc(r.x.line)}</span>
-      <span class="v">${brl(r.fc)}<small>${fut ? '—' : brl(Math.max(0, r.real))}</small></span>
-      <button class="x" data-fprm="${esc(r.x.line)}" title="Tirar da programação" aria-label="Tirar ${esc(r.x.line)} da programação">✕</button>
-      <span class="m">${esc(r.x.sop)} · até ${f0(r.tgt)}% · B-${esc(ppuCode(r.x))}</span></li>`).join('')
-    : `<li style="display:block;text-align:center;color:var(--muted);border-style:dashed">Nenhuma linha programada.<br>Selecione linhas à esquerda e clique em <b>Adicionar à medição</b>.</li>`;
-}
-function renderFpAct(rows) {
-  const n = fpSel.size; $('#fpAdd').disabled = !n;
-  if (!n) { $('#fpSelN').textContent = 'Nenhuma linha selecionada.'; return; }
-  const v = clampPct($('#fpPct').value) ?? 100, by = new Map((rows || finRows(finSel)).map(r => [r.x.line, r]));
-  let val = 0; for (const l of fpSel) { const r = by.get(l); if (r) val += r.x.m * Math.max(0, v - r.pPlan) / 100 * r.pr; }
-  $('#fpSelN').innerHTML = `<b>${f0(n)}</b> ${n === 1 ? 'linha selecionada' : 'linhas selecionadas'} · <b>${brl(val)}</b> a programar`;
-}
-$('#fpBody').addEventListener('change', e => { const c = e.target.closest('[data-fpsel]'); if (!c) return; c.checked ? fpSel.add(c.dataset.fpsel) : fpSel.delete(c.dataset.fpsel); c.closest('tr').classList.toggle('changed', c.checked); renderFpAct(); });
-$('#fpAllPage').onchange = e => { fpFiltered.slice(fpPage * PAGE, fpPage * PAGE + PAGE).forEach(r => { if (r.pPlan < 100 - 1e-6) e.target.checked ? fpSel.add(r.x.line) : fpSel.delete(r.x.line); }); renderFin(); };
-$('#fpPct').addEventListener('input', () => renderFpAct());
-['#fpQ', '#fpSop', '#fpPpu', '#fpShow'].forEach(s => $(s).addEventListener(s === '#fpQ' ? 'input' : 'change', () => { fpPage = 0; renderFin(); }));
-async function fpSave(items, msg) {
-  try {
-    await api('/fin/forecast', { method: 'POST', body: { period: finSel, items } });
-    const f = await api('/fin'); fin.forecasts = f.forecasts || {}; renderFin(); if (msg) toast(msg);
-  } catch (e) { toast('Não foi possível salvar: ' + e.message, true); }
-}
-$('#fpAdd').onclick = async () => {
-  const v = clampPct($('#fpPct').value); if (v == null || v <= 0) return toast('Informe até quantos % a linha deve chegar (1 a 100).', true);
-  const items = [...fpSel].map(line => ({ line, pct: v })), n = items.length;
-  fpSel.clear(); await fpSave(items, `${n} ${n === 1 ? 'linha programada' : 'linhas programadas'} na ${perLabel(finSel)}.`);
-};
-document.addEventListener('click', e => { const b = e.target.closest('[data-fprm]'); if (b) fpSave([{ line: b.dataset.fprm, pct: null }], 'Linha retirada da programação.'); });
-$('#fpClear').onclick = () => {
-  const f = fin.forecasts[finSel] || {}, lines = Object.keys(f);
-  if (!lines.length) return toast('Não há linhas programadas nesta medição.', true);
-  if (!confirm(`Retirar as ${lines.length} linhas programadas da ${perLabel(finSel)}?`)) return;
-  fpSave(lines.map(line => ({ line, pct: null })), 'Programação da medição limpa.');
-};
-$('#fpWeeks').onclick = () => {
-  const weeks = Object.keys(prog).map(Number).filter(n => monthKey(weekStart(n)) === finSel).sort((a, b) => a - b);
-  const kt = new Map();
-  for (const n of weeks) for (const [k, v] of Object.entries(prog[String(n)] || {})) kt.set(k, Math.max(kt.get(k) ?? 0, Number(v)));
-  // converte metas de spools em meta da linha (spools não programados ficam no avanço atual)
-  const tg = new Map();
-  for (const [k, v] of kt) { const x = keyLine(k); if (!x) continue;
-    if (!x.sps.length || !SP.has(k)) { tg.set(x.line, Math.max(tg.get(x.line) ?? 0, v)); continue; }
-    if (tg.has(x.line + '§')) continue; tg.set(x.line + '§', 1);
-    const m = x.sps.reduce((t, sp) => t + sp.m * Math.max(spSaved(sp), kt.get(sp.key) ?? 0), 0);
-    tg.set(x.line, Math.max(tg.get(x.line) ?? 0, x.m ? Math.round(m / x.m * 100 * 10000) / 10000 : 0)); }
-  for (const k of [...tg.keys()]) if (k.endsWith('§')) tg.delete(k);
-  if (!tg.size) return toast(`Nenhuma linha programada nas semanas que começam em ${finSel.slice(5)}/${finSel.slice(0, 4)}.`, true);
-  fpSave([...tg.entries()].map(([line, pct]) => ({ line, pct })), `${tg.size} linhas trazidas das semanas ${weeks.join(', ')}.`);
-};
-
 /* ============ financeiro (somente administrador) ============ */
 let fin = { prices: {}, forecasts: {} };
 const BRLf = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -2286,7 +2482,7 @@ const openPeriod = () => periods().slice(-1)[0];
 const FUTURE_MONTHS = 12; // meses à frente liberados para previsão
 function futurePeriods() { const out = []; let k = nextKey(openPeriod()); for (let i = 0; i < FUTURE_MONTHS; i++) { out.push(k); k = nextKey(k); } return out; }
 const isFuture = k => /^\d{4}-\d{2}$/.test(k) && k > openPeriod();
-function lastFcPeriod() { const ks = Object.keys(fin.forecasts).filter(k => Object.keys(fin.forecasts[k] || {}).length); return ks.sort().pop() || null; }
+function lastFcPeriod() { const ks = Object.keys(med.forecasts).filter(k => Object.keys(med.forecasts[k] || {}).length); return ks.sort().pop() || null; }
 const perLabel = k => k === 'prev' ? 'Medições anteriores' : k === 'all' ? 'Acumulado (todas as medições)' : `Medição ${k.slice(5)}/${k.slice(0, 4)}`;
 function perRange(k) { return [k === FIRST_PERIOD ? -Infinity : monthStart(k), monthStart(nextKey(k))]; }
 const dOnly = ms => dFmt.format(new Date(ms));
@@ -2315,20 +2511,15 @@ const fcPend = new Map(); // linha -> % (null = remover)
 function fcOf(per, line) { if (per === finSel && fcPend.has(line)) return fcPend.get(line); const f = fin.forecasts[per]; return f && f[line] != null ? Number(f[line]) : null; }
 
 function finRows(per) {
+  buildHIdx(); buildMedIdx();
   const monthly = per !== 'prev' && per !== 'all';
-  const [a, b] = monthly ? perRange(per) : [0, 0];
   return R.map(x => {
     const pr = priceOf(x) ?? 0, vp = x.m * pr;
-    let pS, pE;
-    if (per === 'prev') { pS = 0; pE = baseline(x); }
-    else if (per === 'all') { pS = 0; pE = savedPct(x); }
-    else { pS = a === -Infinity ? baseline(x) : pctAt(x, a); pE = pctAt(x, b); }
-    // Em meses futuros a previsão parte do que já foi previsto nos meses anteriores (ou do realizado, se maior)
-    let pPlan = pS;
-    if (monthly && per > openPeriod()) { for (let k = openPeriod(); k < per; k = nextKey(k)) { const t0 = fcOf(k, x.line); if (t0 != null && t0 > pPlan) pPlan = t0; } }
-    const tgt = monthly ? fcOf(per, x.line) : null;
-    const fc = tgt == null ? 0 : x.m * Math.max(0, tgt - pPlan) / 100 * pr;
-    const accS = x.m * pS / 100 * pr, accE = x.m * pE / 100 * pr;
+    let pS, pE, pPlan, tgt = null, fcM = 0;
+    if (per === 'prev') { pS = 0; pE = baseline(x); pPlan = pE; }
+    else if (per === 'all') { pS = 0; pE = medLine(x, '9999-12').e; pPlan = pE; }
+    else { const L = medLine(x, per); pS = L.s; pE = L.e; pPlan = L.ps; tgt = L.tgt; fcM = L.prevM; }
+    const fc = fcM * pr, accS = x.m * pS / 100 * pr, accE = x.m * pE / 100 * pr;
     return { x, pr, vp, pS, pE, pPlan, planS: x.m * pPlan / 100 * pr, accS, accE, real: accE - accS, realM: x.m * (pE - pS) / 100, tgt, fc };
   });
 }
@@ -2352,7 +2543,7 @@ function renderFin() {
   const fut = futurePeriods(), past = pers.slice(0, -1).reverse();
   $('#finSel').innerHTML =
     `<optgroup label="Atual"><option value="${open}">${perLabel(open)} (aberta)</option></optgroup>` +
-    `<optgroup label="Próximas (previsão)">${fut.map(k => `<option value="${k}">${perLabel(k)}${(fin.forecasts[k] && Object.keys(fin.forecasts[k]).length) ? ' · com previsão' : ''}</option>`).join('')}</optgroup>` +
+    `<optgroup label="Próximas (previsão)">${fut.map(k => `<option value="${k}">${perLabel(k)}${(med.forecasts[k] && Object.keys(med.forecasts[k]).length) ? ' · com previsão' : ''}</option>`).join('')}</optgroup>` +
     (past.length ? `<optgroup label="Encerradas">${past.map(k => `<option value="${k}">${perLabel(k)}</option>`).join('')}</optgroup>` : '') +
     `<optgroup label="Consolidado"><option value="prev">${perLabel('prev')}</option><option value="all">${perLabel('all')}</option></optgroup>`;
   $('#finSel').value = finSel;
@@ -2379,7 +2570,7 @@ function renderFin() {
   else if (monthly) k.push(
     ['Medido nesta medição', brl(t.real), `${f2(t.realM)} m em ${f0(t.n)} ${t.n === 1 ? 'linha' : 'linhas'}`, true],
     ['Programado nesta medição', brl(t.fc), t.nFc ? `${f0(t.nFc)} ${t.nFc === 1 ? 'linha programada' : 'linhas programadas'}` : 'nenhuma linha programada'],
-    ['Aderência à programação', t.fc > 0 ? pctTxt(t.real / t.fc * 100) : '—', t.fc > 0 ? `${t.real >= t.fc ? 'acima' : 'abaixo'} do programado em ${brl(Math.abs(t.real - t.fc))}` : 'programe as linhas abaixo']);
+    ['Aderência à programação', t.fc > 0 ? pctTxt(t.real / t.fc * 100) : '—', t.fc > 0 ? `${t.real >= t.fc ? 'acima' : 'abaixo'} do programado em ${brl(Math.abs(t.real - t.fc))}` : 'cadastre na aba Previsão de medição']);
   else k.push([finSel === 'prev' ? 'Valor das medições anteriores' : 'Total medido', brl(t.real), `${f2(t.realM)} m em ${f0(t.n)} ${t.n === 1 ? 'linha' : 'linhas'}`, true]);
   const KST = { 'Valor previsto do escopo': ['wallet', 'navy'], 'Medido acumulado': ['chart', 'blue'], 'Saldo a medir': ['money', 'slate'], 'Medido nesta medição': ['check', 'green'], 'Programado nesta medição': ['calendar', 'gold'], 'Aderência à programação': ['target', 'teal'], 'Programado acumulado até o corte': ['gauge', 'orange'], 'Valor das medições anteriores': ['layers', 'green'], 'Total medido': ['check', 'green'] };
   const FR = { 'Medido acumulado': tot ? t.accE / tot : 0, 'Saldo a medir': tot ? (tot - t.accE) / tot : 0, 'Aderência à programação': t.fc > 0 ? Math.min(1, t.real / t.fc) : null, 'Programado acumulado até o corte': tot ? (t.planS + t.fc) / tot : 0 };
@@ -2390,7 +2581,6 @@ function renderFin() {
   renderFinPlan(pers);
   renderFinPpu(rows);
   renderFinGroups(rows, monthly);
-  renderFinProg(rows);
   renderFinItems(rows, monthly);
   renderFinPrices();
   renderFcBar();
@@ -2478,7 +2668,7 @@ function renderFinItems(rows, monthly) {
   fiFiltered.sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
   $('#fiBulk').style.display = 'none';
   $('#fiBulkN').textContent = `${f0(fiFiltered.length)} ${fiFiltered.length === 1 ? 'linha filtrada' : 'linhas filtradas'}.`;
-  $('#finItemsP').textContent = monthly ? 'Linhas medidas e programadas no período. Para programar, use o painel Programação da medição acima.' : 'Linhas e valores medidos na seleção.';
+  $('#finItemsP').textContent = monthly ? 'Linhas medidas (medição realizada) e previstas no período. Para prever e tornar real, use a aba Previsão de medição.' : 'Linhas e valores medidos na seleção.';
   $('#fiHead').innerHTML = `<tr><th>Linha</th><th>SOP</th><th>Item PPU</th><th class="money">R$/m</th><th class="num">Metros</th><th class="num">% início</th><th class="num">% fim</th><th class="num">Medido (m)</th><th class="money">Valor medido</th>${monthly ? '<th class="num">Programado até</th><th class="money">Valor programado</th>' : ''}</tr>`;
   const pages = Math.max(1, Math.ceil(fiFiltered.length / PAGE)); fiPage = Math.min(fiPage, pages - 1);
   const page = fiFiltered.slice(fiPage * PAGE, fiPage * PAGE + PAGE);
@@ -2487,7 +2677,7 @@ function renderFinItems(rows, monthly) {
       <td class="money">${r.pr ? nf2.format(r.pr) : '—'}</td><td class="num">${f2(r.x.m)}</td><td class="num">${f1(isFuture(finSel) ? r.pPlan : r.pS)}%</td><td class="num">${f1(r.pE)}%</td>
       <td class="num ${r.realM < 0 ? 'neg' : ''}">${f2(r.realM)}</td><td class="money ${r.real < 0 ? 'neg' : ''}">${brl(r.real)}</td>
       ${monthly ? `<td class="num">${r.tgt == null ? '—' : f0(r.tgt) + '%'}</td><td class="money">${r.tgt == null ? '—' : brl(r.fc)}</td>` : ''}</tr>`).join('')
-    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha nesta visão</b>${monthly ? 'Programe as linhas no painel Programação da medição.' : 'Ajuste os filtros.'}</div></td></tr>`;
+    : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha nesta visão</b>${monthly ? 'Cadastre a previsão na aba Previsão de medição.' : 'Ajuste os filtros.'}</div></td></tr>`;
   const T = sumRows(fiFiltered);
   $('#fiPager').innerHTML = `<span>${f0(fiFiltered.length)} linhas · medido ${brl(T.real)}${monthly ? ` · previsto ${brl(T.fc)}` : ''}</span><span class="spacer"></span>
     <button class="btn sm" id="fiPrev" ${fiPage ? '' : 'disabled'}>Anterior</button><span>Página ${fiPage + 1} de ${pages}</span><button class="btn sm" id="fiNext" ${fiPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
@@ -2557,6 +2747,7 @@ $('#finPriceSave').onclick = async () => {
   try {
     await api('/fin/prices', { method: 'POST', body: { prices } });
     const f = await api('/fin'); fin = { prices: f.prices || {}, forecasts: f.forecasts || {}, pricesAt: f.prices_updated_at, pricesBy: f.prices_updated_by };
+    renderPv(); renderRz();
     $('#finPaste').value = ''; $('#finPriceErr').textContent = ''; renderFin(); toast('Preços salvos.');
   } catch (e) { $('#finPriceErr').textContent = e.message; }
 };
@@ -2573,6 +2764,304 @@ $('#finCsv').onclick = () => {
 };
 window.addEventListener('beforeunload', e => { if (fcPend.size) { e.preventDefault(); e.returnValue = ''; } });
 
+/* ============ previsão de medição e medição realizada (por spool) ============ */
+// Previsão: fin_forecast:AAAA-MM  { spool (ou linha sem spool) -> % acumulado a atingir }
+// Realizada: fin_real:AAAA-MM     { spool (ou linha sem spool) -> { pct, at, by } }  (criada pelo "Tornar real")
+let med = { forecasts: {}, reals: {} }, medApi = null, medIdx = null;
+const medItems = x => x.sps.length ? x.sps : [x];
+const itKey = it => it.isSp ? it.key : it.line;
+const itLine = it => it.isSp ? it.parent : it;
+function buildMedIdx() {
+  if (medIdx && medIdx.src === med) return;
+  const fc = new Map(), rz = new Map();
+  const push = (map, k, per, v) => { if (!map.has(k)) map.set(k, []); map.get(k).push([per, v]); };
+  for (const [per, o0] of Object.entries(med.forecasts || {})) {
+    const o = o0 || {};
+    for (const [k, v] of Object.entries(o)) {
+      const x = byLine.get(k);
+      // previsão antiga gravada na linha inteira: vale para cada spool que não tem previsão própria
+      if (x && x.sps.length) { for (const sp of x.sps) if (o[sp.key] == null) push(fc, sp.key, per, Number(v)); }
+      else push(fc, k, per, Number(v));
+    }
+  }
+  for (const [per, o] of Object.entries(med.reals || {})) for (const [k, v] of Object.entries(o || {})) push(rz, k, per, v);
+  for (const a of [...fc.values(), ...rz.values()]) a.sort((p, q) => p[0].localeCompare(q[0]));
+  medIdx = { src: med, fc, rz };
+}
+const fcOfIt = (it, per) => { const a = medIdx.fc.get(itKey(it)), e = a && a.find(([p]) => p === per); return e ? e[1] : null; };
+const rzOfIt = (it, per) => { const a = medIdx.rz.get(itKey(it)), e = a && a.find(([p]) => p === per); return e ? e[1] : null; };
+// % acumulado medido até a medição (antes dela ou incluindo ela); parte do executado na base (medições anteriores)
+function realCum(it, per, incl) {
+  let v = baseline(itLine(it));
+  for (const [p, r] of medIdx.rz.get(itKey(it)) || []) { if (incl ? p <= per : p < per) { if (Number(r.pct) > v) v = Number(r.pct); } else break; }
+  return v;
+}
+// ponto de partida da previsão: o medido; em meses futuros, também o que já foi previsto nos meses anteriores
+function planStart(it, per) {
+  let v = realCum(it, per, false); const op = openPeriod();
+  if (per > op) for (const [p, t] of medIdx.fc.get(itKey(it)) || []) if (p >= op && p < per && t > v) v = t;
+  return v;
+}
+function medIt(it, per) {
+  const s = realCum(it, per, false), ps = planStart(it, per), t = fcOfIt(it, per), r = rzOfIt(it, per), e = realCum(it, per, true);
+  return { it, key: itKey(it), s, ps, t, r, e, isReal: r != null, phys: pct(it),
+    prevM: t == null ? 0 : it.m * Math.max(0, t - ps) / 100, realM: it.m * Math.max(0, e - s) / 100,
+    toReal: t != null && t > s + 1e-6 && !(r && Math.abs(Number(r.pct) - t) < 1e-6) };
+}
+function medLine(x, per) {
+  const its = medItems(x).map(it => medIt(it, per)), W = f => x.m ? its.reduce((t, o) => t + o.it.m * f(o), 0) / x.m : 0;
+  const fcs = its.filter(o => o.t != null), rzs = its.filter(o => o.isReal);
+  return { x, its, fcs, rzs, s: W(o => o.s), e: W(o => o.e), phys: W(o => o.phys), ps: W(o => o.ps),
+    tgt: fcs.length ? W(o => o.t == null ? o.ps : Math.max(o.t, o.ps)) : null,
+    prevM: its.reduce((t, o) => t + o.prevM, 0), realM: its.reduce((t, o) => t + o.realM, 0), pr: priceOf(x) ?? 0 };
+}
+function medPeriods() {
+  const out = new Set(); let k = FIRST_PERIOD; const end = futurePeriods().slice(-1)[0];
+  while (k <= end) { out.add(k); k = nextKey(k); }
+  for (const k2 of [...Object.keys(med.forecasts || {}), ...Object.keys(med.reals || {})]) if (/^\d{4}-\d{2}$/.test(k2)) out.add(k2);
+  return [...out].sort();
+}
+function perOpts(sel, map, what) {
+  const op = openPeriod();
+  return medPeriods().map(k => { const n = map && map[k] ? Object.keys(map[k]).length : 0;
+    return `<option value="${k}"${k === sel ? ' selected' : ''}>${perLabel(k)} · ${k === op ? 'aberta' : k > op ? 'futura' : 'encerrada'}${n ? ` · ${what}` : ''}</option>`; }).join('');
+}
+async function reloadMed() {
+  const md = await api('/med'); med = { forecasts: md.forecasts || {}, reals: md.reals || {} }; medIdx = null; medApi = true;
+  fin.forecasts = med.forecasts;
+  renderPv(); renderRz(); if (isAdmin()) renderFin();
+}
+async function saveFc(per, changes) {
+  // previsão antiga gravada na linha: passa a ser gravada spool a spool
+  const f = med.forecasts[per] || {}, items = new Map(changes);
+  for (const k of changes.keys()) { const sp = SP.get(k); if (!sp) continue; const L = sp.parent.line;
+    if (f[L] != null && !items.has(L)) { items.set(L, null); for (const o of sp.parent.sps) if (!items.has(o.key) && f[o.key] == null) items.set(o.key, Number(f[L])); } }
+  await api('/fin/forecast', { method: 'POST', body: { period: per, items: [...items.entries()].map(([line, pct]) => ({ line, pct })) } });
+  await reloadMed();
+}
+async function saveReal(per, changes) {
+  await api('/med/real', { method: 'POST', body: { period: per, items: [...changes.entries()].map(([key, pct]) => ({ key, pct })) } });
+  await reloadMed();
+}
+const medNote = el => { el.hidden = medApi === true; if (medApi !== true) el.textContent = medApi === 'old' ? 'O Worker ainda não tem as rotas de previsão e medição realizada. Publique o worker.js novo no Cloudflare.' : 'Não foi possível carregar as previsões e medições do servidor.'; };
+const fillSop = sel => { if ($(sel).options.length === 1) $(sel).insertAdjacentHTML('beforeend', BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('')); };
+const matchQ = (L, q) => !q || (L.x.line + ' ' + L.x.sth).toLowerCase().includes(q);
+const matchSpQ = (L, q) => q && L.x.sps.some(sp => sp.code.toLowerCase().includes(q));
+
+/* ---------- aba Previsão de medição ---------- */
+let pvSel = null, pvPage = 0; const pvOpen = new Set(), pvSelL = new Set(), pvSelS = new Set();
+function pvSit(o) { return o.isReal ? '<span class="tag s2">Real</span>' : o.t != null ? '<span class="tag s0">Previsto</span>' : '<span class="muted">—</span>'; }
+function pvSitL(L) { if (!L.fcs.length) return '<span class="muted">—</span>'; const n = L.fcs.filter(o => o.isReal).length;
+  return n === L.fcs.length ? '<span class="tag s2">Real</span>' : n ? `<span class="tag s1">Parcial real</span><br><small class="muted">${n} de ${L.fcs.length}</small>` : '<span class="tag s0">Previsto</span>'; }
+function renderPv() {
+  if (!BASE) return;
+  buildHIdx(); buildMedIdx(); fillSop('#pvSop');
+  const adm = isAdmin() && medApi === true; if (!pvSel) pvSel = openPeriod();
+  $('#pvMes').innerHTML = perOpts(pvSel, med.forecasts, 'com previsão');
+  $('#pvRange').textContent = perRangeTxt(pvSel);
+  $('#pvWeeks').hidden = !adm; medNote($('#pvNote'));
+  const q = $('#pvQ').value.trim().toLowerCase(), sop = $('#pvSop').value, show = $('#pvShow').value;
+  const all = R.map(x => medLine(x, pvSel)), withFc = all.filter(L => L.fcs.length);
+  // indicadores
+  const nS = withFc.reduce((t, L) => t + L.fcs.filter(o => o.it.isSp).length, 0), pM = withFc.reduce((t, L) => t + L.prevM, 0);
+  const rItems = withFc.flatMap(L => L.fcs.filter(o => o.isReal)), rM = rItems.reduce((t, o) => t + o.realM, 0), nR = rItems.length, nF = withFc.reduce((t, L) => t + L.fcs.length, 0);
+  const val = withFc.reduce((t, L) => t + L.prevM * L.pr, 0), rVal = withFc.reduce((t, L) => t + L.fcs.filter(o => o.isReal).reduce((u, o) => u + o.realM, 0) * L.pr, 0);
+  const cards = [
+    { l: 'Itens previstos', v: f0(withFc.length) + (withFc.length === 1 ? ' linha' : ' linhas'), s: `${f0(nS)} ${nS === 1 ? 'spool' : 'spools'} na ${perLabel(pvSel).toLowerCase()}`, ic: 'layers', c: 'navy' },
+    { l: 'Metros previstos', v: f2(pM) + ' m', s: 'a medir no mês', ic: 'calendar', c: 'gold', hl: !isAdmin() },
+    ...(isAdmin() ? [{ l: 'Valor previsto', v: brl(val), s: 'preço PPU × metros previstos', ic: 'wallet', c: 'gold', hl: true }] : []),
+    { l: 'Tornado real', v: isAdmin() ? brl(rVal) : f2(rM) + ' m', s: `${f0(nR)} de ${f0(nF)} itens · ${isAdmin() ? f2(rM) + ' m' : pctTxt(pM ? rM / pM * 100 : 0) + ' do previsto'}`, ic: 'check', c: 'green', frac: nF ? nR / nF : null }
+  ];
+  $('#pvKpis').style.gridTemplateColumns = `repeat(${cards.length},minmax(0,1fr))`;
+  $('#pvKpis').innerHTML = cards.map(scard).join('');
+  // tabela
+  const list = all.filter(L => (matchQ(L, q) || matchSpQ(L, q)) && (!sop || L.x.sop === sop) &&
+    (show === 'all' || (show === 'fc' && L.fcs.length) || (show === 'real' && L.rzs.length) || (show === 'none' && !L.fcs.length && L.s < 100 - 1e-6)))
+    .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
+  const pages = Math.max(1, Math.ceil(list.length / PAGE)); pvPage = Math.min(pvPage, pages - 1);
+  const page = list.slice(pvPage * PAGE, pvPage * PAGE + PAGE);
+  const cols = adm ? 12 : 9;
+  $('#pvHead').innerHTML = `<tr>${adm ? '<th><input type="checkbox" id="pvAllPage" aria-label="Selecionar página"></th>' : ''}<th>Linha</th><th>SOP</th><th class="num">Spools</th><th class="num">Metros</th><th class="num" title="Acumulado medido antes desta medição">Medido antes</th><th class="num">Físico atual</th><th class="num">Previsto até</th><th class="num">Previsto (m)</th>${isAdmin() ? '<th class="money">Valor previsto</th>' : ''}<th>Situação</th>${adm ? '<th></th>' : ''}</tr>`;
+  const spTr = (L, o) => `<tr class="sp-row${pvSelS.has(o.key) ? ' changed' : ''}">${adm ? `<td><input type="checkbox" data-pvs="${esc(o.key)}" ${pvSelS.has(o.key) ? 'checked' : ''} aria-label="Selecionar spool"></td>` : ''}
+    <td class="sp-name">↳ ${esc(o.it.code)}</td><td></td><td></td><td class="num">${f2(o.it.m)}</td><td class="num">${f1(o.s)}%</td><td class="num">${f1(o.phys)}%</td>
+    <td class="num">${o.t == null ? '<span class="muted">—</span>' : `<b>${f1(o.t)}%</b>`}</td><td class="num">${o.t == null ? '—' : f2(o.prevM)}</td>${isAdmin() ? `<td class="money">${o.t == null ? '—' : brl(o.prevM * L.pr)}</td>` : ''}
+    <td>${pvSit(o)}</td>${adm ? `<td><span class="acts">${o.toReal ? `<button class="btn sm primary" data-pvreal="${esc(o.key)}">Tornar real</button>` : ''}${o.t != null ? `<button class="btn sm ghost" data-pvrm="${esc(o.key)}">Remover</button>` : ''}</span></td>` : ''}</tr>`;
+  $('#pvBody').innerHTML = page.length ? page.map(L => {
+    const x = L.x, hasSp = x.sps.length > 0, op = hasSp && (pvOpen.has(x.i) || (matchSpQ(L, q) && !matchQ(L, q))), o0 = L.its[0], nTo = L.its.filter(o => o.toReal).length;
+    return `<tr class="${hasSp ? 'pg-grp' : ''}${op ? ' sp-open' : ''}${pvSelL.has(x.i) ? ' changed' : ''}" ${hasSp ? `data-pvo="${x.i}"` : ''}>
+      ${adm ? `<td><input type="checkbox" data-pvl="${x.i}" ${pvSelL.has(x.i) ? 'checked' : ''} aria-label="Selecionar ${esc(x.line)}"></td>` : ''}
+      <td><span class="lcell">${hasSp ? `<button class="spt${op ? ' open' : ''}" data-pvt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${hasSp ? '' : '<small class="nsp none">sem spool</small>'}</span></td>
+      <td>${esc(x.sop)}</td><td class="num">${hasSp ? `${f0(L.fcs.length)} de ${f0(x.sps.length)}` : '—'}</td><td class="num">${f2(x.m)}</td>
+      <td class="num">${f1(L.s)}%</td><td class="num">${f1(L.phys)}%</td><td class="num">${L.tgt == null ? '<span class="muted">—</span>' : `<b>${f1(L.tgt)}%</b>`}</td>
+      <td class="num">${L.fcs.length ? f2(L.prevM) : '—'}</td>${isAdmin() ? `<td class="money">${L.fcs.length ? brl(L.prevM * L.pr) : '—'}</td>` : ''}<td>${pvSitL(L)}</td>
+      ${adm ? `<td><span class="acts">${nTo ? `<button class="btn sm primary" ${hasSp ? `data-pvreall="${x.i}"` : `data-pvreal="${esc(o0.key)}"`}>Tornar real</button>` : ''}${L.fcs.length ? `<button class="btn sm ghost" ${hasSp ? `data-pvrml="${x.i}"` : `data-pvrm="${esc(o0.key)}"`}>Remover</button>` : ''}</span></td>` : ''}</tr>
+      ${op ? L.its.map(o => spTr(L, o)).join('') : ''}`;
+  }).join('') : `<tr><td colspan="${cols}"><div class="empty"><b>${show === 'fc' ? 'Nenhuma previsão nesta medição' : 'Nenhuma linha nesta visão'}</b>${show === 'fc' && isAdmin() ? 'Troque para "Sem previsão" para escolher as linhas e spools, ou use "Trazer da programação semanal".' : 'Ajuste a busca ou os filtros.'}</div></td></tr>`;
+  const multi = page.filter(L => L.x.sps.length), allOpen = multi.length && multi.every(L => pvOpen.has(L.x.i));
+  $('#pvPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'}</span><span class="spacer"></span>
+    ${multi.length ? `<button class="btn sm" id="pvAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
+    ${adm && list.length ? `<button class="btn sm" id="pvSelAll">Selecionar as ${f0(list.length)} filtradas</button>` : ''}
+    <button class="btn sm" id="pvPrev" ${pvPage ? '' : 'disabled'}>Anterior</button><span>Página ${pvPage + 1} de ${pages}</span><button class="btn sm" id="pvNext" ${pvPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#pvPrev').onclick = () => { pvPage--; renderPv(); };
+  $('#pvNext').onclick = () => { pvPage++; renderPv(); };
+  if ($('#pvAll')) $('#pvAll').onclick = () => { multi.forEach(L => allOpen ? pvOpen.delete(L.x.i) : pvOpen.add(L.x.i)); renderPv(); };
+  if ($('#pvSelAll')) $('#pvSelAll').onclick = () => { list.forEach(L => pvSelL.add(L.x.i)); renderPv(); };
+  if ($('#pvAllPage')) { $('#pvAllPage').checked = page.length > 0 && page.every(L => pvSelL.has(L.x.i)); $('#pvAllPage').onchange = e => { page.forEach(L => e.target.checked ? pvSelL.add(L.x.i) : pvSelL.delete(L.x.i)); renderPv(); }; }
+  renderPvBar(adm);
+}
+function pvSelItems() {
+  const out = new Map();
+  for (const i of pvSelL) for (const it of medItems(R[i])) out.set(itKey(it), it);
+  for (const k of pvSelS) { const it = itemOf(k); if (it) out.set(k, it); }
+  return [...out.values()];
+}
+function renderPvBar(adm) {
+  const its = adm ? pvSelItems() : [];
+  $('#pvBar').classList.toggle('on', its.length > 0);
+  if (!its.length) return;
+  const ns = its.filter(it => it.isSp).length, nl = new Set(its.map(it => itLine(it).i)).size;
+  $('#pvBarN').textContent = `${f0(nl)} ${nl === 1 ? 'linha' : 'linhas'}${ns ? ` · ${f0(ns)} ${ns === 1 ? 'spool' : 'spools'}` : ''} selecionados`;
+}
+const pvRefresh = () => { const y = window.scrollY; renderPv(); window.scrollTo(0, y); };
+$('#pvMes').onchange = e => { pvSel = e.target.value; pvPage = 0; pvSelL.clear(); pvSelS.clear(); renderPv(); };
+['#pvQ', '#pvSop', '#pvShow'].forEach(s => $(s).addEventListener(s === '#pvQ' ? 'input' : 'change', () => { pvPage = 0; renderPv(); }));
+$('#pvBody').addEventListener('change', e => {
+  const l = e.target.closest('[data-pvl]'); if (l) { l.checked ? pvSelL.add(+l.dataset.pvl) : pvSelL.delete(+l.dataset.pvl); return pvRefresh(); }
+  const s = e.target.closest('[data-pvs]'); if (s) { s.checked ? pvSelS.add(s.dataset.pvs) : pvSelS.delete(s.dataset.pvs); return pvRefresh(); }
+});
+async function pvMakeReal(its) {
+  const per = pvSel, ch = new Map(); let m = 0, v = 0;
+  for (const it of its) { const o = medIt(it, per); if (!o.toReal) continue; ch.set(o.key, o.t); m += it.m * Math.max(0, o.t - o.s) / 100; v += it.m * Math.max(0, o.t - o.s) / 100 * (priceOf(itLine(it)) ?? 0); }
+  if (!ch.size) return toast('Nenhum dos itens tem previsão a tornar real nesta medição.', true);
+  if (!confirm(`Tornar real ${ch.size} ${ch.size === 1 ? 'item' : 'itens'} na ${perLabel(per)}?\n\n${f2(m)} m · ${brl(v)}\n\nA medição realizada passa a contar no Financeiro. O avanço físico não é alterado.`)) return;
+  try { await saveReal(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item tornado real' : 'itens tornados reais'} na ${perLabel(per)}.`); }
+  catch (err) { toast('Não foi possível tornar real: ' + err.message, true); }
+}
+async function pvRemove(its) {
+  const per = pvSel, ch = new Map(); for (const it of its) if (fcOfIt(it, per) != null) ch.set(itKey(it), null);
+  if (!ch.size) return toast('Nenhum dos itens está previsto nesta medição.', true);
+  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item retirado' : 'itens retirados'} da previsão.`); }
+  catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
+}
+async function pvSetTarget(its, fn, what) {
+  const per = pvSel, ch = new Map(); let skip = 0;
+  for (const it of its) { const v = Math.round(fn(it) * 10000) / 10000, s = realCum(it, per, false); if (!(v > s + 1e-6)) { skip++; continue; } ch.set(itKey(it), Math.min(100, v)); }
+  if (!ch.size) return toast(`Nada a prever: ${skip === 1 ? 'o item já está medido' : 'os itens já estão medidos'} até ${what}.`, true);
+  try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item previsto' : 'itens previstos'} na ${perLabel(per)}${skip ? ` (${skip} já medidos até ${what} ficaram de fora)` : ''}.`); }
+  catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
+}
+$('#pvBody').addEventListener('click', e => {
+  let b;
+  if ((b = e.target.closest('[data-pvreal]'))) return pvMakeReal([itemOf(b.dataset.pvreal)].filter(Boolean));
+  if ((b = e.target.closest('[data-pvreall]'))) return pvMakeReal(medItems(R[+b.dataset.pvreall]));
+  if ((b = e.target.closest('[data-pvrm]'))) return pvRemove([itemOf(b.dataset.pvrm)].filter(Boolean));
+  if ((b = e.target.closest('[data-pvrml]'))) { const x = R[+b.dataset.pvrml]; if (confirm(`Tirar a linha ${x.line} da previsão da ${perLabel(pvSel)}?`)) pvRemove(medItems(x)); return; }
+  if (e.target.closest('input, .lname, button:not(.spt)')) return;
+  const t = e.target.closest('[data-pvt], tr[data-pvo]'); if (!t) return;
+  const i = +(t.dataset.pvt ?? t.dataset.pvo); pvOpen.has(i) ? pvOpen.delete(i) : pvOpen.add(i); pvRefresh();
+});
+$('#pvAdd').onclick = () => { const v = clampPct($('#pvPct').value); if (v == null || v <= 0) return toast('Informe até quantos % medir (1 a 100).', true); pvSetTarget(pvSelItems(), () => v, `${f0(v)}%`); };
+$('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual');
+$('#pvReal').onclick = () => pvMakeReal(pvSelItems());
+$('#pvRmSel').onclick = () => pvRemove(pvSelItems());
+$('#pvClear').onclick = () => { pvSelL.clear(); pvSelS.clear(); renderPv(); };
+$('#pvWeeks').onclick = () => {
+  const weeks = Object.keys(prog).map(Number).filter(n => monthKey(weekStart(n)) === pvSel).sort((a, b) => a - b);
+  const kt = new Map();
+  for (const n of weeks) for (const [k, v] of Object.entries(prog[String(n)] || {})) {
+    const x = byLine.get(k), keys = x && x.sps.length ? x.sps.map(sp => sp.key) : [k];   // meta antiga na linha inteira vale para cada spool
+    for (const kk of keys) kt.set(kk, Math.max(kt.get(kk) ?? 0, Number(v)));
+  }
+  if (!kt.size) return toast(`Nenhum item programado nas semanas que começam em ${pvSel.slice(5)}/${pvSel.slice(0, 4)}.`, true);
+  const its = [...kt.keys()].map(itemOf).filter(Boolean);
+  pvSetTarget(its, it => kt.get(itKey(it)), 'a meta semanal');
+};
+$('#pvCsv').onclick = () => {
+  buildMedIdx(); const adm = isAdmin();
+  const head = ['Medição', 'LINHA', 'SPOOL', 'SOP', 'Item PPU', 'Metros', 'Medido antes (%)', 'Físico atual (%)', 'Previsto até (%)', 'Previsto (m)', ...(adm ? ['R$/m', 'Valor previsto (R$)'] : []), 'Situação'];
+  const out = [];
+  for (const x of R) { const L = medLine(x, pvSel); for (const o of L.fcs) out.push([perLabel(pvSel), x.line, o.it.isSp ? o.it.code : '(linha inteira)', x.sop, 'B-' + ppuCode(x), f2(o.it.m), f2(o.s), f2(o.phys), f2(o.t), f2(o.prevM), ...(adm ? [f2(L.pr), f2(o.prevM * L.pr)] : []), o.isReal ? 'Real' : 'Previsto']); }
+  downloadCsv(head, out, `previsao_medicao_${pvSel}.csv`);
+};
+
+/* ---------- aba Medição realizada ---------- */
+let rzSel = null, rzPage = 0; const rzOpen = new Set();
+function renderRz() {
+  if (!BASE) return;
+  buildHIdx(); buildMedIdx(); fillSop('#rzSop');
+  const adm = isAdmin() && medApi === true;
+  if (!rzSel) { const ks = Object.keys(med.reals || {}).filter(k => Object.keys(med.reals[k] || {}).length).sort(); rzSel = ks.filter(k => k <= openPeriod()).pop() || ks.pop() || openPeriod(); }
+  $('#rzMes').innerHTML = perOpts(rzSel, med.reals, 'com medição');
+  $('#rzRange').textContent = perRangeTxt(rzSel); medNote($('#rzNote'));
+  const q = $('#rzQ').value.trim().toLowerCase(), sop = $('#rzSop').value;
+  const all = R.map(x => medLine(x, rzSel)), done = all.filter(L => L.rzs.length);
+  const ns = done.reduce((t, L) => t + L.rzs.filter(o => o.it.isSp).length, 0), mM = done.reduce((t, L) => t + L.realM, 0), val = done.reduce((t, L) => t + L.realM * L.pr, 0);
+  let accM = 0, accV = 0, totV = 0;
+  for (const L of all) { const em = L.x.m * L.e / 100; accM += em; accV += em * L.pr; totV += L.x.m * L.pr; }
+  const cards = [
+    { l: 'Itens medidos', v: f0(done.length) + (done.length === 1 ? ' linha' : ' linhas'), s: `${f0(ns)} ${ns === 1 ? 'spool' : 'spools'} na ${perLabel(rzSel).toLowerCase()}`, ic: 'layers', c: 'navy' },
+    { l: 'Metros medidos', v: f2(mM) + ' m', s: 'nesta medição', ic: 'ruler', c: 'blue', hl: !isAdmin() },
+    ...(isAdmin() ? [{ l: 'Valor medido', v: brl(val), s: 'nesta medição', ic: 'money', c: 'green', hl: true }] : []),
+    isAdmin() ? { l: 'Medido acumulado', v: brl(accV), s: `${pctTxt(totV ? accV / totV * 100 : 0)} do valor do escopo, até esta medição`, ic: 'chart', c: 'teal', frac: totV ? accV / totV : 0 }
+      : { l: 'Medido acumulado', v: f2(accM) + ' m', s: `${pctTxt(TOTAL_M ? accM / TOTAL_M * 100 : 0)} do escopo, até esta medição`, ic: 'chart', c: 'teal', frac: TOTAL_M ? accM / TOTAL_M : 0 }
+  ];
+  $('#rzKpis').style.gridTemplateColumns = `repeat(${cards.length},minmax(0,1fr))`;
+  $('#rzKpis').innerHTML = cards.map(scard).join('');
+  const list = done.filter(L => (matchQ(L, q) || matchSpQ(L, q)) && (!sop || L.x.sop === sop)).sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
+  const pages = Math.max(1, Math.ceil(list.length / PAGE)); rzPage = Math.min(rzPage, pages - 1);
+  const page = list.slice(rzPage * PAGE, rzPage * PAGE + PAGE), cols = 8 + (isAdmin() ? 2 : 0) + (adm ? 1 : 0);
+  $('#rzHead').innerHTML = `<tr><th>Linha</th><th>SOP</th><th>Item PPU</th><th class="num">Spools</th><th class="num">Metros medidos</th><th class="num">% antes</th><th class="num">% depois</th>${isAdmin() ? '<th class="money">R$/m</th><th class="money">Valor medido</th>' : ''}<th>Registrado</th>${adm ? '<th></th>' : ''}</tr>`;
+  const reg = r => r ? `${when(r.at)}<br><small class="muted">${esc(r.by || '')}</small>` : '<span class="muted">—</span>';
+  const lastR = L => L.rzs.map(o => o.r).sort((a, b) => String(b.at).localeCompare(String(a.at)))[0];
+  const spTr = (L, o) => `<tr class="sp-row"><td class="sp-name">↳ ${esc(o.it.code)}</td><td></td><td></td><td></td><td class="num">${f2(o.realM)}</td><td class="num">${f1(o.s)}%</td><td class="num">${f1(o.e)}%</td>
+    ${isAdmin() ? `<td class="money">${nf2.format(L.pr)}</td><td class="money">${brl(o.realM * L.pr)}</td>` : ''}<td>${reg(o.r)}</td>${adm ? `<td><button class="btn sm ghost" data-rzun="${esc(o.key)}">Desfazer</button></td>` : ''}</tr>`;
+  $('#rzBody').innerHTML = page.length ? page.map(L => {
+    const x = L.x, hasSp = x.sps.length > 0, op = hasSp && (rzOpen.has(x.i) || (matchSpQ(L, q) && !matchQ(L, q)));
+    return `<tr class="${hasSp ? 'pg-grp' : ''}${op ? ' sp-open' : ''}" ${hasSp ? `data-rzo="${x.i}"` : ''}>
+      <td><span class="lcell">${hasSp ? `<button class="spt${op ? ' open' : ''}" data-rzt="${x.i}" aria-expanded="${op}">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button></span></td>
+      <td>${esc(x.sop)}</td><td>B-${esc(ppuCode(x))}</td><td class="num">${hasSp ? `${f0(L.rzs.length)} de ${f0(x.sps.length)}` : '—'}</td><td class="num"><b>${f2(L.realM)}</b></td><td class="num">${f1(L.s)}%</td><td class="num">${f1(L.e)}%</td>
+      ${isAdmin() ? `<td class="money">${L.pr ? nf2.format(L.pr) : '<span class="neg">sem preço</span>'}</td><td class="money"><b>${brl(L.realM * L.pr)}</b></td>` : ''}<td>${reg(lastR(L))}</td>
+      ${adm ? `<td><button class="btn sm ghost" ${hasSp ? `data-rzunl="${x.i}"` : `data-rzun="${esc(L.rzs[0].key)}"`}>Desfazer</button></td>` : ''}</tr>${op ? L.rzs.map(o => spTr(L, o)).join('') : ''}`;
+  }).join('') : `<tr><td colspan="${cols}"><div class="empty"><b>Nenhuma medição realizada em ${esc(perLabel(rzSel))}</b>Na aba Previsão de medição, use "Tornar real" nos itens previstos.</div></td></tr>`;
+  const multi = page.filter(L => L.x.sps.length), allOpen = multi.length && multi.every(L => rzOpen.has(L.x.i));
+  $('#rzPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f2(list.reduce((t, L) => t + L.realM, 0))} m${isAdmin() ? ' · ' + brl(list.reduce((t, L) => t + L.realM * L.pr, 0)) : ''}</span><span class="spacer"></span>
+    ${multi.length ? `<button class="btn sm" id="rzAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
+    <button class="btn sm" id="rzPrev" ${rzPage ? '' : 'disabled'}>Anterior</button><span>Página ${rzPage + 1} de ${pages}</span><button class="btn sm" id="rzNext" ${rzPage < pages - 1 ? '' : 'disabled'}>Próxima</button>`;
+  $('#rzPrev').onclick = () => { rzPage--; renderRz(); };
+  $('#rzNext').onclick = () => { rzPage++; renderRz(); };
+  if ($('#rzAll')) $('#rzAll').onclick = () => { multi.forEach(L => allOpen ? rzOpen.delete(L.x.i) : rzOpen.add(L.x.i)); renderRz(); };
+}
+$('#rzMes').onchange = e => { rzSel = e.target.value; rzPage = 0; renderRz(); };
+['#rzQ', '#rzSop'].forEach(s => $(s).addEventListener(s === '#rzQ' ? 'input' : 'change', () => { rzPage = 0; renderRz(); }));
+async function rzUndo(keys, label) {
+  if (!keys.length || !confirm(`Desfazer a medição realizada de ${label} na ${perLabel(rzSel)}? A previsão continua cadastrada.`)) return;
+  try { await saveReal(rzSel, new Map(keys.map(k => [k, null]))); toast('Medição desfeita.'); } catch (err) { toast('Não foi possível desfazer: ' + err.message, true); }
+}
+$('#rzBody').addEventListener('click', e => {
+  let b;
+  if ((b = e.target.closest('[data-rzun]'))) return rzUndo([b.dataset.rzun], keyLabel(b.dataset.rzun));
+  if ((b = e.target.closest('[data-rzunl]'))) { const x = R[+b.dataset.rzunl]; return rzUndo(medItems(x).filter(it => rzOfIt(it, rzSel)).map(itKey), `todos os spools da linha ${x.line}`); }
+  if (e.target.closest('input, .lname, button:not(.spt)')) return;
+  const t = e.target.closest('[data-rzt], tr[data-rzo]'); if (!t) return;
+  const i = +(t.dataset.rzt ?? t.dataset.rzo); rzOpen.has(i) ? rzOpen.delete(i) : rzOpen.add(i);
+  const y = window.scrollY; renderRz(); window.scrollTo(0, y);
+});
+$('#rzCsv').onclick = () => {
+  buildMedIdx(); const adm = isAdmin();
+  const head = ['Medição', 'LINHA', 'SPOOL', 'SOP', 'SUBSOP', 'STH', 'Item PPU', 'Metros do item', '% antes', '% depois', 'Metros medidos', ...(adm ? ['R$/m', 'Valor medido (R$)'] : []), 'Registrado em', 'Por'];
+  const out = []; let tm = 0, tv = 0;
+  for (const x of R) { const L = medLine(x, rzSel); for (const o of L.rzs) { tm += o.realM; tv += o.realM * L.pr;
+    out.push([perLabel(rzSel), x.line, o.it.isSp ? o.it.code : '(linha inteira)', x.sop, x.sub, x.sth, 'B-' + ppuCode(x), f2(o.it.m), f2(o.s), f2(o.e), f2(o.realM), ...(adm ? [f2(L.pr), f2(o.realM * L.pr)] : []), when(o.r.at), o.r.by || '']); } }
+  out.push(['TOTAL', '', '', '', '', '', '', '', '', '', f2(tm), ...(adm ? ['', f2(tv)] : []), '', '']);
+  downloadCsv(head, out, `medicao_realizada_${rzSel}.csv`);
+};
+function downloadCsv(head, rows, name) {
+  const csv = '\ufeff' + [head, ...rows].map(r => r.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(';')).join('\r\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+
+
 /* ============ exportação ============ */
 $('#exportCsv').onclick = () => {
   const head = ['LINHA', 'm', 'Espessura', 'Espessura Pyrogel', 'Diâmetro', 'ITEM PPU', 'SOP', 'SUBSOP', 'STH', '% Avanço', 'm executado', 'Atualizado em', 'Responsável'];
@@ -2585,7 +3074,7 @@ $('#exportCsv').onclick = () => {
 /* ============ geral ============ */
 let toastT;
 function toast(msg, bad) { const t = $('#toast'); t.textContent = msg; t.className = 'toast on' + (bad ? ' bad' : ''); clearTimeout(toastT); toastT = setTimeout(() => t.className = 'toast', bad ? 5200 : 3200); }
-function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); renderSite(); renderProg(); if (isAdmin()) renderFin(); if (!isAdmin() && (location.hash === '#usuarios' || location.hash === '#financeiro')) go('painel'); }
+function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPainel(); renderEstrutura(); renderLinhas(); renderVisual(); renderHist(); renderUsers(); renderBaseInfo(); renderSite(); renderProg(); renderLen(); renderPv(); renderRz(); if (isAdmin()) renderFin(); if ((!isAdmin() && (location.hash === '#usuarios' || location.hash === '#financeiro')) || (!canEdit() && location.hash === '#comprimentos')) go('painel'); }
 
 document.body.classList.add('locked');
 boot();
