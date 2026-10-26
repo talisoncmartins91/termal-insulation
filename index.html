@@ -1117,7 +1117,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 21:30'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 22:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2458,7 +2458,11 @@ function buildHIdx() {
   if (hIdxSrc === logH) return; hIdxSrc = logH; hIdx = new Map();
   for (const h of [...logH].sort((a, b) => a.id - b.id)) { h._t = Date.parse(h.ts); if (!hIdx.has(h.line)) hIdx.set(h.line, []); hIdx.get(h.line).push(h); }
 }
-function baseline(x) { const a = hIdx.get(x.line); return a && a.length ? Number(a[0].old_pct) : x.seed; }
+// Medições anteriores = executado na base quando o controle começou.
+// Se depois o avanço foi corrigido para baixo, o executado inicial estava errado: vale o menor valor registrado.
+const minHist = a => a && a.length ? a.reduce((m, h) => Math.min(m, Number(h.new_pct)), Infinity) : Infinity;
+function baseline(x) { const a = hIdx.get(x.line); const b = a && a.length ? Number(a[0].old_pct) : x.seed; return Math.max(0, Math.min(b, minHist(a))); }
+function baseIt(it) { return it.isSp ? Math.max(0, Math.min(baseline(it.parent), minHist(hIdx.get(it.key)))) : baseline(it); }
 function pctAt(x, t) {
   const a = hIdx.get(x.line);
   if (x.isSp) { if (!a || !a.length || t <= a[0]._t) return pctAt(x.parent, t); }   // antes do 1º registro do spool, vale o % da linha
@@ -2474,7 +2478,7 @@ function finRows(per) {
   return R.map(x => {
     const pr = priceOf(x) ?? 0, vp = x.m * pr;
     let pS, pE, pPlan, tgt = null, fcM = 0;
-    if (per === 'prev') { pS = 0; pE = baseline(x); pPlan = pE; }
+    if (per === 'prev') { pS = 0; pE = medLine(x, '0000-00').s; pPlan = pE; }
     else if (per === 'all') { pS = 0; pE = medLine(x, '9999-12').e; pPlan = pE; }
     else { const L = medLine(x, per); pS = L.s; pE = L.e; pPlan = L.ps; tgt = L.tgt; fcM = L.prevM; }
     const fc = fcM * pr, accS = x.m * pS / 100 * pr, accE = x.m * pE / 100 * pr;
@@ -2750,7 +2754,7 @@ const fcOfIt = (it, per) => { const a = medIdx.fc.get(itKey(it)), e = a && a.fin
 const rzOfIt = (it, per) => { const a = medIdx.rz.get(itKey(it)), e = a && a.find(([p]) => p === per); return e ? e[1] : null; };
 // % acumulado medido até a medição (antes dela ou incluindo ela); parte do executado na base (medições anteriores)
 function realCum(it, per, incl) {
-  let v = baseline(itLine(it));
+  let v = baseIt(it);
   for (const [p, r] of medIdx.rz.get(itKey(it)) || []) { if (incl ? p <= per : p < per) { if (Number(r.pct) > v) v = Number(r.pct); } else break; }
   return v;
 }
