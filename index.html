@@ -176,6 +176,9 @@ tr.sp-row.changed td{background:#FFFBEA}
 tr.len-sub>td{background:#F6FAFD;padding:0 10px 12px 44px;white-space:normal}
 .len-sp{border:1px solid var(--line2);border-radius:6px;overflow:auto;background:var(--surface)}
 .len-sp td{padding:5px 10px;font-size:12.5px}
+tr.len-sub .len-sp{display:inline-block;max-width:100%}
+tr.len-sub .len-sp table{width:auto;min-width:460px}
+tr.len-sub .len-sp .acts{justify-content:flex-start}
 .len-sp tr.tot td{font-weight:600;background:var(--surface2)}
 .len-in{width:92px;text-align:right;padding:5px 8px}
 .len-in.bad{border-color:var(--danger)}
@@ -729,26 +732,18 @@ body.locked .app,body.locked .pending{display:none!important}
       <section class="view" id="v-comprimentos">
         <div class="panel">
           <div class="panel-h">
-            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸ e corrija o comprimento de cada spool. O spool editado fica com o valor informado e a diferença para o metro da linha na ESCOPO é rateada entre os spools não editados. Em Detalhes fica o histórico de cada alteração.</p></div>
+            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸, digite o novo comprimento do spool e clique em Salvar. O valor salvo é o que vale: os outros spools não mudam e o metro da linha passa a ser a soma dos spools. Em Detalhes fica o histórico.</p></div>
             <div class="tools"><button class="btn" id="lenCsv">Exportar CSV</button></div>
           </div>
           <div class="len-note" id="lenNote" hidden></div>
           <div class="filters">
             <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
             <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
-            <select class="input" id="lenF"><option value="">Todas as linhas com spool</option><option value="ed">Com spool editado</option><option value="pend">Com alteração não salva</option><option value="dif">Soma dos spools diferente da ESCOPO</option></select>
-          </div>
-          <div class="bulk" id="lenBar">
-            <b id="lenBarN"></b>
-            <span class="muted" id="lenBarI"></span>
-            <span class="spacer" style="flex:1"></span>
-            <input class="input" id="lenNoteIn" placeholder="Motivo da alteração (opcional)" style="min-width:220px;height:30px">
-            <button class="btn sm" id="lenDiscard">Descartar</button>
-            <button class="btn primary sm" id="lenSave">Salvar comprimentos</button>
+            <select class="input" id="lenF"><option value="">Todas as linhas com spool</option><option value="ed">Com spool editado</option></select>
           </div>
           <div class="tbl-wrap">
             <table>
-              <thead><tr><th>Linha</th><th>SOP</th><th class="num">Spools</th><th class="num">ESCOPO (m)</th><th class="num">Soma Mapa (m)</th><th class="num">Soma atual (m)</th><th class="num">Diferença (m)</th><th>Última alteração</th><th></th></tr></thead>
+              <thead><tr><th>Linha</th><th>SOP</th><th class="num">Spools</th><th class="num">Comprimento atual (m)</th><th>Última alteração</th></tr></thead>
               <tbody id="lenBody"></tbody>
             </table>
           </div>
@@ -1122,7 +1117,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 19:00'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 20:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1543,7 +1538,7 @@ function spRow(sp) {
   return `<tr class="sp-row${pendingSp.has(sp.key) ? ' changed' : ''}">
     <td><input type="checkbox" data-ssel="${esc(sp.key)}" ${selSp.has(sp.key) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar spool ${esc(sp.code)}"></td>
     <td class="sp-name">↳ ${esc(sp.code)}</td>
-    <td class="muted" colspan="4">${isAdmin() ? `${f2(sp.len)} m ${sp.edited ? 'editado' : 'no Mapa'} ${Math.abs(sp.m - sp.len) < 0.005 ? '' : `${sp.m > sp.len ? '+' : '−'} ${f2(Math.abs(sp.m - sp.len))} m de ajuste`}` : ''}</td>
+    <td class="muted" colspan="4">${sp.edited ? `comprimento editado (original ${f2(sp.mBase)} m)` : ''}</td>
     <td class="num">${f2(sp.m)}</td><td>${pctCell(sp)}</td><td class="num">${f2(sp.m * p / 100)}</td>
     <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChipsKey(sp)}</td></tr>`;
 }
@@ -1666,7 +1661,7 @@ $('#pendSave').onclick = async () => {
   }
   btn.disabled = false; btn.textContent = 'Salvar avanço';
 };
-window.addEventListener('beforeunload', e => { if (pending.size || pendingSp.size || lenPend.size) { e.preventDefault(); e.returnValue = ''; } });
+window.addEventListener('beforeunload', e => { if (pending.size || pendingSp.size) { e.preventDefault(); e.returnValue = ''; } });
 
 /* ============ gaveta da linha ============ */
 document.addEventListener('click', e => { const b = e.target.closest('.lname'); if (b) openLine(+b.dataset.line); });
@@ -1689,7 +1684,7 @@ function openLine(i) {
       <dt>Traço de vapor</dt><dd>${x.traco ? 'Sim' : 'Não'}</dd><dt>TH realizado</dt><dd>${x.th ? 'OK' : 'Não'}</dd>
     </dl>
     <div class="h4">Spools (${x.sps.length}) <span class="muted" style="font-weight:400">${!isAdmin() ? '' : `· ${spRuleTxt(x)}`}</span></div>
-    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th>${isAdmin() ? '<th class="num">Comprimento (m)</th><th class="num">Ajuste (m)</th>' : ''}<th class="num">${isAdmin() ? 'Considerado (m)' : 'Metros'}</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s), aj = s.m - s.len; return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}</td>${isAdmin() ? `<td class="num" title="${s.edited ? `Editado · Mapa ${f2(s.comp)} m` : 'Comprimento do Mapa'}">${f2(s.len)}${s.edited ? ' ✎' : ''}</td><td class="num ${aj < -0.004 ? 'neg' : ''}">${Math.abs(aj) < 0.005 ? '—' : (aj > 0 ? '+' : '') + f2(aj)}</td>` : ''}<td class="num"><b>${f2(s.m)}</b></td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
+    ${x.sps.length ? `<div class="tbl-wrap" style="max-height:300px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th>${isAdmin() ? '<th class="num">Mapa (m)</th><th class="num">Ajuste (m)</th>' : ''}<th class="num">${isAdmin() ? 'Considerado (m)' : 'Metros'}</th><th class="num">Avanço</th><th class="num">Exec. (m)</th></tr></thead><tbody>${x.sps.map(s => { const q = spPct(s), aj = s.m - s.comp; return `<tr${pendingSp.has(s.key) ? ' class="changed"' : ''}><td>${esc(s.code)}${s.edited ? ' ✎' : ''}</td>${isAdmin() ? `<td class="num">${f2(s.comp)}</td><td class="num ${aj < -0.004 ? 'neg' : ''}">${Math.abs(aj) < 0.005 ? '—' : (aj > 0 ? '+' : '') + f2(aj)}</td>` : ''}<td class="num"><b>${f2(s.m)}</b></td><td class="num">${f1(q)}%</td><td class="num">${f2(s.m * q / 100)}</td></tr>`; }).join('')}</tbody></table></div><p class="muted" style="font-size:12px;margin:6px 0 0">Para lançar por spool, abra a linha na aba Linhas (▸).</p>` : `<p class="muted">Linha sem spools no Mapa de Spools: o avanço é lançado na linha inteira.</p>`}
     <div class="h4">Programação semanal</div>
     ${progMapLine(x).size ? `<p style="margin:0">${progChips(x)}</p>` : '<p class="muted">Linha sem programação semanal.</p>'}
     <div class="h4">Histórico</div>
@@ -2062,78 +2057,62 @@ function renderBaseInfo() {
 
 
 /* ============ comprimento dos spools (edição manual + histórico) ============ */
+// O comprimento editado é o que vale: não é rateado e não mexe nos outros spools.
+// O metro da linha passa a ser a soma dos seus spools quando algum spool foi editado.
 let SPLEN = {}, SPLAST = {}, lenApi = null;   // spool -> {comp, updated_at, updated_by}; linha -> última alteração
-const lenPend = new Map();                     // spool -> comprimento digitado (null = voltar ao Mapa)
 const lenOpen = new Set(); let lenPage = 0;
 function spLenSaved(sp) { const o = SPLEN[sp.key]; return o && o.comp != null ? Number(o.comp) : null; }
-function spLenNow(sp) { return lenPend.has(sp.key) ? lenPend.get(sp.key) : spLenSaved(sp); }   // null = comprimento do Mapa
-// Rateio dos spools para fechar no metro da linha na ESCOPO.
-//  - sem spool editado: regra original (diferença dividida igualmente, ou redução proporcional)
-//  - com spool editado: o editado fica com o valor informado e o restante é rateado entre os não editados
-//  - se os editados passam da ESCOPO (ou todos foram editados e não fecham): todos são ajustados para fechar
-function spoolFit(x, lenOf) {
-  const sps = x.sps, ms = new Map();
-  const L = sp => { const v = lenOf(sp); return v == null ? sp.comp : v; };
-  const sum = sps.reduce((t, sp) => t + L(sp), 0);
-  if (!sps.length) return { ms, rule: null, sum };
-  const fit = (list, target) => {
-    const tot = list.reduce((t, sp) => t + L(sp), 0), dif = target - tot;
-    const rule = Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
-    let acc = 0;
-    list.forEach((sp, k) => {
-      const c = L(sp);
-      let mm = rule === 'menor' ? c + dif / list.length : rule === 'maior' ? (tot > 0 ? c * target / tot : target / list.length) : c;
-      if (k === list.length - 1) mm = Math.max(0, target - acc);
-      acc += mm; ms.set(sp.key, mm);
-    });
-    return rule;
-  };
-  const fixed = sps.filter(sp => lenOf(sp) != null), free = sps.filter(sp => lenOf(sp) == null);
-  if (!fixed.length) return { ms, rule: fit(sps, x.m), sum };
-  const fixT = fixed.reduce((t, sp) => t + L(sp), 0);
-  if (free.length && fixT <= x.m + 0.005) { fixed.forEach(sp => ms.set(sp.key, L(sp))); return { ms, rule: 'edit-' + fit(free, Math.max(0, x.m - fixT)), sum }; }
-  const r = fit(sps, x.m);
-  return { ms, rule: r === 'igual' ? 'edit-igual' : 'forcado', sum };
+// rateio original da base (Mapa fechando na ESCOPO), usado só para os spools nunca editados
+function spoolFit(x) {
+  const sps = x.sps, ms = new Map(), target = x.mEsc;
+  const tot = sps.reduce((t, sp) => t + sp.comp, 0), dif = target - tot;
+  const rule = !sps.length ? null : Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
+  let acc = 0;
+  sps.forEach((sp, k) => {
+    const c = sp.comp;
+    let mm = rule === 'menor' ? c + dif / sps.length : rule === 'maior' ? (tot > 0 ? c * target / tot : target / sps.length) : c;
+    if (k === sps.length - 1) mm = Math.max(0, target - acc);
+    acc += mm; ms.set(sp.key, mm);
+  });
+  return { ms, rule, sum: tot };
 }
 function applySpoolLens() {
+  let total = 0;
   for (const x of R) {
-    const f = spoolFit(x, spLenSaved);
-    x.spMapa = f.sum; x.spRule = x.sps.length ? f.rule : null;
-    for (const sp of x.sps) { const v = spLenSaved(sp); sp.edited = v != null; sp.len = sp.edited ? v : sp.comp; sp.m = f.ms.get(sp.key) || 0; }
+    if (x.mEsc == null) x.mEsc = x.m;
+    if (x.sps.length) {
+      const f = spoolFit(x); x.spMapa = f.sum; x.spRule = f.rule;
+      for (const sp of x.sps) { const v = spLenSaved(sp); sp.mBase = f.ms.get(sp.key) || 0; sp.edited = v != null; sp.m = sp.edited ? v : sp.mBase; sp.len = sp.m; }
+      x.nEd = x.sps.filter(sp => sp.edited).length;
+      x.m = x.nEd ? x.sps.reduce((t, sp) => t + sp.m, 0) : x.mEsc;
+    } else { x.nEd = 0; x.m = x.mEsc; }
+    total += x.m;
   }
+  TOTAL_M = total;
 }
 function spRuleTxt(x) {
-  const ne = x.sps.filter(s => s.edited).length;
-  if (x.spRule === 'forcado') return `spools somam ${f2(x.spMapa)} m (${ne} ${ne === 1 ? 'editado' : 'editados'}) e não fecham com os ${f2(x.m)} m da ESCOPO; todos foram ajustados para fechar`;
-  if (/^edit-/.test(x.spRule)) return x.spRule === 'edit-igual' ? `${ne} ${ne === 1 ? 'spool editado' : 'spools editados'}; comprimentos fecham com a ESCOPO` : `${ne} ${ne === 1 ? 'spool editado' : 'spools editados'}; a diferença para a ESCOPO foi rateada entre os spools não editados`;
-  return x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.m - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.m)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO';
+  if (x.nEd) return `${x.nEd} ${x.nEd === 1 ? 'spool com comprimento editado' : 'spools com comprimento editado'}; a linha passa a ter ${f2(x.m)} m (ESCOPO ${f2(x.mEsc)} m)`;
+  return x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.mEsc - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.mEsc)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO';
 }
-const lenSumMapa = x => x.sps.reduce((t, s) => t + s.comp, 0);
-const lenSumNow = x => x.sps.reduce((t, s) => { const v = spLenNow(s); return t + (v == null ? s.comp : v); }, 0);
 const lenLast = x => SPLAST[x.line] || null;
 function lenLines() {
   const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value;
   return R.filter(x => x.sps.length && (!sop || x.sop === sop)
     && (!q || (x.line + ' ' + x.sth + ' ' + x.sps.map(s => s.code).join(' ')).toLowerCase().includes(q))
-    && (!f || (f === 'ed' ? x.sps.some(s => spLenNow(s) != null) : f === 'pend' ? x.sps.some(s => lenPend.has(s.key)) : Math.abs(lenSumNow(x) - x.m) >= 0.005)))
+    && (!f || (f === 'ed' && x.nEd)))
     .sort((a, b) => a.sop.localeCompare(b.sop) || a.line.localeCompare(b.line));
 }
 function lenSubRow(x) {
-  const f = spoolFit(x, spLenNow), ed = canEdit() && lenApi === true;
+  const ed = canEdit() && lenApi === true;
   const rows = x.sps.map(sp => {
-    const now = spLenNow(sp), sv = SPLEN[sp.key], pend = lenPend.has(sp.key);
-    const origem = pend ? '<span class="tag s1">Não salvo</span>' : sv ? `<span class="tag s2" title="Editado por ${esc(sv.updated_by)} em ${when(sv.updated_at)}">Editado</span>` : '<span class="muted">Mapa</span>';
-    const val = now == null ? sp.comp : now;
-    return `<tr${pend ? ' class="changed"' : ''}><td><b>${esc(sp.code)}</b></td><td class="num">${f2(sp.comp)}</td>
-      <td class="num">${ed ? `<input class="input len-in" type="text" inputmode="decimal" autocomplete="off" data-len="${esc(sp.key)}" value="${fmtIn(+val.toFixed(2))}" aria-label="Comprimento do spool ${esc(sp.code)}">` : f2(val)}</td>
-      <td class="num">${f2(f.ms.get(sp.key) || 0)}</td><td class="num">${f1(spPct(sp))}%</td><td>${origem}</td>
-      <td>${ed && now != null ? `<button class="btn sm ghost" data-lreset="${esc(sp.key)}" title="Voltar ao comprimento do Mapa (${f2(sp.comp)} m)">Usar Mapa</button>` : ''}</td></tr>`;
+    const sv = SPLEN[sp.key];
+    return `<tr><td><b>${esc(sp.code)}</b></td>
+      <td class="num"><b>${f2(sp.m)}</b>${sv ? ` <span class="tag s2" title="Editado por ${esc(sv.updated_by)} em ${when(sv.updated_at)}">editado</span>` : ''}</td>
+      ${ed ? `<td><span class="acts"><input class="input len-in" type="text" inputmode="decimal" autocomplete="off" data-len="${esc(sp.key)}" placeholder="${fmtIn(+sp.m.toFixed(2))}" aria-label="Novo comprimento do spool ${esc(sp.code)}"><button class="btn sm primary" data-lsave="${esc(sp.key)}">Salvar</button></span></td>` : ''}</tr>`;
   }).join('');
-  const sNow = lenSumNow(x);
-  return `<tr class="len-sub"><td colspan="9"><div class="len-sp"><table>
-    <thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Comprimento (m)</th><th class="num" title="Comprimento usado no avanço, já rateado para fechar com a ESCOPO">Considerado (m)</th><th class="num">Avanço</th><th>Origem</th><th></th></tr></thead>
-    <tbody>${rows}<tr class="tot"><td>Total</td><td class="num">${f2(lenSumMapa(x))}</td><td class="num">${f2(sNow)}</td><td class="num">${f2(x.m)}</td><td></td><td></td><td></td></tr></tbody></table></div>
-    ${f.rule === 'forcado' ? `<p class="len-warn">Os spools editados somam ${f2(x.sps.filter(s => spLenNow(s) != null).reduce((t, s) => t + spLenNow(s), 0))} m e ${x.sps.every(s => spLenNow(s) != null) ? 'todos os spools foram editados, mas a soma' : 'isso'} não fecha com os ${f2(x.m)} m da ESCOPO. Para o avanço, todos os spools são ajustados na mesma proporção até fechar.</p>` : ''}</td></tr>`;
+  return `<tr class="len-sub"><td colspan="5"><div class="len-sp"><table>
+    <thead><tr><th>Spool</th><th class="num">Comprimento atual (m)</th>${ed ? '<th>Novo comprimento (m)</th>' : ''}</tr></thead>
+    <tbody>${rows}<tr class="tot"><td>Total da linha</td><td class="num">${f2(x.m)}</td>${ed ? '<td></td>' : ''}</tr></tbody></table></div></td></tr>`;
 }
 function renderLen() {
   if (!BASE) return;
@@ -2142,18 +2121,16 @@ function renderLen() {
   const nEd = Object.keys(SPLEN).length; $('#nLenEd').textContent = nEd ? f0(nEd) : '';
   const note = $('#lenNote');
   note.hidden = lenApi === true; note.classList.toggle('err', lenApi !== true);
-  if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker ainda não tem a rota de comprimento dos spools. Publique o worker.js novo no Cloudflare para poder editar e guardar o histórico.' : 'Não foi possível carregar os comprimentos editados do servidor. Os valores abaixo são os do Mapa.';
+  if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker ainda não tem a rota de comprimento dos spools. Publique o worker.js novo no Cloudflare para poder editar.' : 'Não foi possível carregar os comprimentos editados do servidor.';
   const list = lenLines(), pages = Math.max(1, Math.ceil(list.length / PAGE)); lenPage = Math.min(lenPage, pages - 1);
   const rows = list.slice(lenPage * PAGE, lenPage * PAGE + PAGE);
   $('#lenBody').innerHTML = rows.length ? rows.map(x => {
-    const op = lenOpen.has(x.i), mapa = lenSumMapa(x), now = lenSumNow(x), dif = now - x.m, ne = x.sps.filter(s => spLenNow(s) != null).length, pend = x.sps.some(s => lenPend.has(s.key)), l = lenLast(x);
-    return `<tr class="pg-grp${op ? ' sp-open' : ''}${pend ? ' changed' : ''}" data-lrow="${x.i}">
-      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${ne ? `<small class="nsp">${ne} ${ne === 1 ? 'editado' : 'editados'}</small>` : ''}</span></td>
-      <td>${esc(x.sop)}</td><td class="num">${f0(x.sps.length)}</td><td class="num">${f2(x.m)}</td><td class="num">${f2(mapa)}</td><td class="num"><b>${f2(now)}</b></td>
-      <td class="num ${Math.abs(dif) >= 0.005 ? 'neg' : ''}">${Math.abs(dif) < 0.005 ? '—' : (dif > 0 ? '+' : '') + f2(dif)}</td>
-      <td>${l ? `${when(l.ts)}<br><small class="muted">${esc(l.user || '')}</small>` : '<span class="muted">—</span>'}</td>
-      <td><button class="btn sm" data-ldet="${x.i}">Detalhes</button></td></tr>${op ? lenSubRow(x) : ''}`;
-  }).join('') : `<tr><td colspan="9"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. Linhas sem spool no Mapa não aparecem aqui.</div></td></tr>`;
+    const op = lenOpen.has(x.i), l = lenLast(x);
+    return `<tr class="pg-grp${op ? ' sp-open' : ''}" data-lrow="${x.i}">
+      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${x.nEd ? `<small class="nsp">${x.nEd} ${x.nEd === 1 ? 'editado' : 'editados'}</small>` : ''}</span></td>
+      <td>${esc(x.sop)}</td><td class="num">${f0(x.sps.length)}</td><td class="num"><b>${f2(x.m)}</b></td>
+      <td><span class="acts">${l ? `<span>${when(l.ts)}<br><small class="muted">${esc(l.user || '')}</small></span>` : ''}<button class="btn sm" data-ldet="${x.i}">Detalhes</button></span></td></tr>${op ? lenSubRow(x) : ''}`;
+  }).join('') : `<tr><td colspan="5"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. Linhas sem spool não aparecem aqui.</div></td></tr>`;
   const allOpen = rows.length && rows.every(x => lenOpen.has(x.i));
   $('#lenPager').innerHTML = `<span>${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f0(list.reduce((t, x) => t + x.sps.length, 0))} spools</span><span class="spacer"></span>
     ${rows.length ? `<button class="btn sm" id="lenAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
@@ -2161,72 +2138,51 @@ function renderLen() {
   $('#lenPrev').onclick = () => { lenPage--; renderLen(); };
   $('#lenNext').onclick = () => { lenPage++; renderLen(); };
   if ($('#lenAll')) $('#lenAll').onclick = () => { rows.forEach(x => allOpen ? lenOpen.delete(x.i) : lenOpen.add(x.i)); renderLen(); };
-  const n = lenPend.size;
-  $('#lenBar').classList.toggle('on', n > 0);
-  if (n) {
-    const nl = new Set([...lenPend.keys()].map(k => SP.get(k)?.i)).size;
-    $('#lenBarN').textContent = `${n} ${n === 1 ? 'spool alterado' : 'spools alterados'} em ${nl} ${nl === 1 ? 'linha' : 'linhas'}`;
-    $('#lenBarI').textContent = 'O avanço em metros das linhas é recalculado ao salvar.';
-  }
 }
 ['#lenQ', '#lenSop', '#lenF'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
+async function lenSaveOne(key) {
+  if (!canEdit()) return openLogin();
+  if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
+  const sp = SP.get(key), inp = document.querySelector(`[data-len="${CSS.escape(key)}"]`); if (!sp || !inp) return;
+  const n = parseNum(inp.value);
+  if (inp.value.trim() === '') return toast(`Digite o novo comprimento do spool ${sp.code}.`, true);
+  if (n == null || n < 0 || n > 10000) { inp.classList.add('bad'); setTimeout(() => inp.classList.remove('bad'), 2500); return toast(`Comprimento inválido para o spool ${sp.code}. Use metros, ex.: 12,50.`, true); }
+  const v = Math.round(n * 100) / 100;
+  if (Math.abs(v - sp.m) < 0.005) return toast(`O spool ${sp.code} já está com ${f2(v)} m.`);
+  const btn = document.querySelector(`[data-lsave="${CSS.escape(key)}"]`); if (btn) { btn.disabled = true; btn.textContent = 'Salvando…'; }
+  try {
+    const r = await api('/spool-len', { method: 'POST', body: { items: [{ key, line: sp.parent.line, spool: sp.code, comp: v, mapa: Math.round((sp.edited ? spLenSaved(sp) : sp.m) * 100) / 100 }], note: '' } });
+    const y = window.scrollY; await loadData(); renderAll(); setSync(); window.scrollTo(0, y);
+    toast(`Spool ${sp.code}: ${f2(v)} m salvo em ${when(r.ts)}.`);
+  } catch (e) {
+    toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : 'Não foi possível salvar: ' + e.message, true);
+    if (e.status === 401) openLogin();
+    if (btn) { btn.disabled = false; btn.textContent = 'Salvar'; }
+  }
+}
 $('#lenBody').addEventListener('click', e => {
   const d = e.target.closest('[data-ldet]'); if (d) return openLenDet(+d.dataset.ldet);
-  const r = e.target.closest('[data-lreset]'); if (r) { const sp = SP.get(r.dataset.lreset); if (sp) setLen(sp, null); return; }
-  if (e.target.closest('input, .lname, a') ) return;
+  const s = e.target.closest('[data-lsave]'); if (s) return lenSaveOne(s.dataset.lsave);
+  if (e.target.closest('input, .lname, a, .len-sub')) return;
   const t = e.target.closest('[data-lt], tr[data-lrow]'); if (!t) return;
   const i = +(t.dataset.lt ?? t.dataset.lrow); lenOpen.has(i) ? lenOpen.delete(i) : lenOpen.add(i); renderLen();
 });
-function setLen(sp, v) {
-  if (v != null && Math.abs(v - sp.comp) < 0.005) v = null;          // igual ao Mapa = sem edição
-  const sv = spLenSaved(sp);
-  const same = (v == null && sv == null) || (v != null && sv != null && Math.abs(v - sv) < 0.005);
-  same ? lenPend.delete(sp.key) : lenPend.set(sp.key, v);
-  const y = window.scrollY; renderLen(); window.scrollTo(0, y);
-}
-$('#lenBody').addEventListener('change', e => {
-  const inp = e.target.closest('[data-len]'); if (!inp) return;
-  const sp = SP.get(inp.dataset.len); if (!sp) return;
-  const n = parseNum(inp.value);
-  if (n == null || n < 0 || n > 10000) {
-    toast(`Informe o comprimento do spool ${sp.code} em metros (número maior ou igual a zero).`, true);
-    const v = spLenNow(sp); inp.value = fmtIn(+(v == null ? sp.comp : v).toFixed(2)); inp.classList.add('bad'); setTimeout(() => inp.classList.remove('bad'), 2500); return;
-  }
-  setLen(sp, Math.round(n * 100) / 100);
-});
-$('#lenBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-len]')) e.target.blur(); });
-$('#lenDiscard').onclick = () => { lenPend.clear(); $('#lenNoteIn').value = ''; renderLen(); };
-$('#lenSave').onclick = async () => {
-  if (!canEdit()) return openLogin();
-  if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
-  const btn = $('#lenSave'); btn.disabled = true; btn.textContent = 'Salvando…';
-  const items = [...lenPend.entries()].map(([k, v]) => { const sp = SP.get(k); return { key: k, line: sp.parent.line, spool: sp.code, comp: v, mapa: sp.comp }; });
-  try {
-    const r = await api('/spool-len', { method: 'POST', body: { items, note: $('#lenNoteIn').value.trim() } });
-    lenPend.clear(); $('#lenNoteIn').value = '';
-    await loadData(); renderAll(); setSync();
-    toast(`${r.saved} ${r.saved === 1 ? 'comprimento salvo' : 'comprimentos salvos'} em ${when(r.ts)}.`);
-  } catch (e) {
-    toast(e.status === 401 ? 'Sua sessão expirou. Entre novamente para salvar.' : 'Não foi possível salvar os comprimentos: ' + e.message, true);
-    if (e.status === 401) openLogin();
-  }
-  btn.disabled = false; btn.textContent = 'Salvar comprimentos';
-};
+$('#lenBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-len]')) { e.preventDefault(); lenSaveOne(e.target.dataset.len); } });
 async function openLenDet(i) {
   const x = R[i];
   $('#lmT').textContent = x.line;
-  $('#lmSub').textContent = `${x.sop} · ${x.sps.length} spools · ESCOPO ${f2(x.m)} m · soma atual ${f2(x.sps.reduce((t, s) => t + s.len, 0))} m`;
-  const cur = `<div class="h4" style="margin-top:0">Comprimentos atuais</div><div class="len-sp"><table><thead><tr><th>Spool</th><th class="num">Mapa (m)</th><th class="num">Atual (m)</th><th class="num">Considerado (m)</th><th>Alterado por</th></tr></thead><tbody>${
-    x.sps.map(s => { const sv = SPLEN[s.key]; return `<tr><td>${esc(s.code)}</td><td class="num">${f2(s.comp)}</td><td class="num"><b>${f2(s.len)}</b>${s.edited ? ' ✎' : ''}</td><td class="num">${f2(s.m)}</td><td>${sv ? `${esc(sv.updated_by)} <small class="muted">· ${when(sv.updated_at)}</small>` : '<span class="muted">Mapa</span>'}</td></tr>`; }).join('')
+  $('#lmSub').textContent = `${x.sop} · ${x.sps.length} spools · comprimento atual da linha ${f2(x.m)} m`;
+  const cur = `<div class="h4" style="margin-top:0">Comprimentos atuais</div><div class="len-sp"><table><thead><tr><th>Spool</th><th class="num">Comprimento (m)</th><th>Alterado por</th></tr></thead><tbody>${
+    x.sps.map(s => { const sv = SPLEN[s.key]; return `<tr><td>${esc(s.code)}</td><td class="num"><b>${f2(s.m)}</b></td><td>${sv ? `${esc(sv.updated_by)} <small class="muted">· ${when(sv.updated_at)}</small>` : '<span class="muted">valor original</span>'}</td></tr>`; }).join('')
   }</tbody></table></div>`;
   $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div><p class="muted">Carregando…</p>';
   $('#lenModal').classList.add('on');
   try {
     const h = (await api('/spool-len/history?line=' + encodeURIComponent(x.line))).items || [];
-    const v = (n, mapa) => n == null ? `${f2(mapa)} <small class="muted">(Mapa)</small>` : f2(n);
-    $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div>' + (h.length ? `<div class="len-sp"><table><thead><tr><th>Data e hora</th><th>Spool</th><th class="num">De (m)</th><th class="num">Para (m)</th><th>Responsável</th><th>Motivo</th></tr></thead><tbody>${
-      h.map(r => `<tr><td>${when(r.ts)}</td><td>${esc(r.spool)}</td><td class="num">${v(r.old_comp, r.mapa)}</td><td class="num"><b>${v(r.new_comp, r.mapa)}</b></td><td>${esc(r.user || '')}</td><td style="white-space:normal">${esc(r.note || '') || '<span class="muted">—</span>'}</td></tr>`).join('')
-    }</tbody></table></div>` : '<p class="muted">Nenhuma alteração de comprimento registrada para esta linha. Os valores são os do Mapa de Spools.</p>');
+    const v = (n, orig) => n == null ? `${f2(orig)} <small class="muted">(original)</small>` : f2(n);
+    $('#lmBody').innerHTML = cur + '<div class="h4">Histórico de alterações</div>' + (h.length ? `<div class="len-sp"><table><thead><tr><th>Data e hora</th><th>Spool</th><th class="num">De (m)</th><th class="num">Para (m)</th><th>Responsável</th></tr></thead><tbody>${
+      h.map(r => `<tr><td>${when(r.ts)}</td><td>${esc(r.spool)}</td><td class="num">${v(r.old_comp, r.mapa)}</td><td class="num"><b>${v(r.new_comp, r.mapa)}</b></td><td>${esc(r.user || '')}</td></tr>`).join('')
+    }</tbody></table></div>` : '<p class="muted">Nenhuma alteração de comprimento registrada para esta linha.</p>');
   } catch (e) {
     $('#lmBody').innerHTML = cur + `<div class="h4">Histórico de alterações</div><p class="err">${esc(e.status === 404 ? 'O Worker ainda não tem a rota do histórico. Publique o worker.js novo.' : 'Não foi possível carregar o histórico: ' + e.message)}</p>`;
   }
@@ -2234,14 +2190,11 @@ async function openLenDet(i) {
 $('#lmClose').onclick = () => $('#lenModal').classList.remove('on');
 $('#lenModal').addEventListener('click', e => { if (e.target.id === 'lenModal') $('#lenModal').classList.remove('on'); });
 $('#lenCsv').onclick = () => {
-  const head = ['LINHA', 'SOP', 'SPOOL', 'ESCOPO linha (m)', 'Mapa (m)', 'Comprimento atual (m)', 'Considerado (m)', 'Editado', 'Alterado por', 'Alterado em'];
+  const head = ['LINHA', 'SOP', 'SPOOL', 'Comprimento atual (m)', 'Editado', 'Alterado por', 'Alterado em'];
   const out = [];
-  for (const x of lenLines()) for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(x.m), f2(s.comp), f2(s.len), f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); }
-  const csv = '\ufeff' + [head, ...out].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-  a.download = 'comprimento_spools.csv'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  for (const x of lenLines()) for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); }
+  downloadCsv(head, out, 'comprimento_spools.csv');
 };
-
 
 /* ============ programação semanal (avanço físico) ============ */
 const W70 = Date.parse('2026-10-26T03:00:00Z'); // segunda 26/10/2026 00:00 (Recife) = início da Semana 70
