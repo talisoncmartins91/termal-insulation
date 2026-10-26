@@ -794,7 +794,8 @@ body.locked .app,body.locked .pending{display:none!important}
           <div class="muted" id="pvRange" style="font-size:13px;align-self:flex-end;padding-bottom:9px"></div>
           <div class="spacer"></div>
           <button class="btn" id="pvWeeks" hidden>Trazer da programação semanal</button>
-          <button class="btn" id="pvCsv">Exportar previsão (CSV)</button>
+          <button class="btn primary" id="pvXlsx">Exportar Excel</button>
+          <button class="btn" id="pvCsv">CSV</button>
         </div>
         <div class="len-note err" id="pvNote" hidden style="margin-bottom:12px;border-radius:8px"></div>
         <div class="kpis" id="pvKpis"></div>
@@ -1117,7 +1118,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 22:00'; // versão deste arquivo
+const APP_BUILD = '26/10/2026 23:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2968,6 +2969,83 @@ $('#pvCsv').onclick = () => {
   const out = [];
   for (const x of R) { const L = medLine(x, pvSel); for (const o of L.fcs) out.push([perLabel(pvSel), x.line, o.it.isSp ? o.it.code : '(linha inteira)', x.sop, 'B-' + ppuCode(x), f2(o.it.m), f2(o.s), f2(o.phys), f2(o.t), f2(o.prevM), ...(adm ? [f2(L.pr), f2(o.prevM * L.pr)] : []), o.isReal ? 'Real' : 'Previsto']); }
   downloadCsv(head, out, `previsao_medicao_${pvSel}.csv`);
+};
+
+/* ============ exportação Excel da previsão (modelo TEMPLATE_ISOLAMENTO) ============ */
+// gerador .xlsx mínimo (zip sem compressão), sem bibliotecas externas
+const XL = (() => {
+  const crcT = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+  const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  function zip(files) {
+    const enc = new TextEncoder(), parts = [], cd = []; let off = 0;
+    const d = new Date(), dt = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(), tm = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+    for (const [name, text] of files) {
+      const nb = enc.encode(name), data = enc.encode(text), crc = crc32(data);
+      const h = new DataView(new ArrayBuffer(30));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+      h.setUint16(10, tm, true); h.setUint16(12, dt, true); h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true);
+      h.setUint16(26, nb.length, true); h.setUint16(28, 0, true);
+      parts.push(new Uint8Array(h.buffer), nb, data);
+      const c = new DataView(new ArrayBuffer(46));
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(10, 0, true);
+      c.setUint16(12, tm, true); c.setUint16(14, dt, true); c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true);
+      c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+      cd.push(new Uint8Array(c.buffer), nb);
+      off += 30 + nb.length + data.length;
+    }
+    const cdSize = cd.reduce((t, a) => t + a.length, 0), e = new DataView(new ArrayBuffer(22));
+    e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+    return new Blob([...parts, ...cd, new Uint8Array(e.buffer)], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+  }
+  const x = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const col = i => String.fromCharCode(65 + i);
+  // rows: array de arrays; célula = string | number | null; style: 0 cabeçalho, 1 texto com borda, 2 número 0,000, 3 moeda
+  function book(sheet, cols, head, rows, numStyle) {
+    const cell = (v, r, c, s) => v == null || v === '' ? `<c r="${col(c)}${r}" s="${s}"/>`
+      : typeof v === 'number' ? `<c r="${col(c)}${r}" s="${s}"><v>${v}</v></c>` : `<c r="${col(c)}${r}" s="${s}" t="inlineStr"><is><t xml:space="preserve">${x(v)}</t></is></c>`;
+    const data = [`<row r="1">${head.map((h, c) => cell(h, 1, c, 0)).join('')}</row>`,
+      ...rows.map((row, i) => `<row r="${i + 2}">${row.map((v, c) => cell(v, i + 2, c, numStyle[c] || 1)).join('')}</row>`)].join('');
+    const ws = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><dimension ref="A1:${col(head.length - 1)}${rows.length + 1}"/><sheetViews><sheetView tabSelected="1" workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15.5"/><cols>${cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols><sheetData>${data}</sheetData><autoFilter ref="A1:${col(head.length - 1)}${rows.length + 1}"/></worksheet>`;
+    const border = '<border><left style="medium"><color indexed="64"/></left><right style="medium"><color indexed="64"/></right><top style="medium"><color indexed="64"/></top><bottom style="medium"><color indexed="64"/></bottom><diagonal/></border>';
+    const xf = (fmt, extra = '') => `<xf numFmtId="${fmt}" fontId="1" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"${fmt ? ' applyNumberFormat="1"' : ''}><alignment horizontal="center" vertical="center"/></xf>`;
+    const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.000"/><numFmt numFmtId="165" formatCode="&quot;R$&quot; #,##0.00"/></numFmts><fonts count="2"><font><sz val="12"/><color theme="1"/><name val="Calibri"/><family val="2"/><scheme val="minor"/></font><font><sz val="11"/><color rgb="FF000000"/><name val="Calibri"/><family val="2"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border>${border}</borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>${xf(0)}${xf(164)}${xf(165)}</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`;
+    return zip([
+      ['[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+      ['_rels/.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+      ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="${x(sheet)}" sheetId="1" r:id="rId1"/></sheets><definedNames><definedName name="_xlnm._FilterDatabase" localSheetId="0" hidden="1">'${x(sheet)}'!$A$1:$${col(head.length - 1)}$${rows.length + 1}</definedName></definedNames></workbook>`],
+      ['xl/_rels/workbook.xml.rels', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>'],
+      ['xl/styles.xml', styles],
+      ['xl/worksheets/sheet1.xml', ws]
+    ]);
+  }
+  return { book };
+})();
+// TAG no padrão U12-HC-00147-001, montada a partir da linha (10"-HC-12-00147-...) e do spool
+function medTag(it) {
+  const x = itLine(it), p = x.line.split('-');
+  const base = p.length >= 4 && /^\d+$/.test(p[2]) && /^\d+$/.test(p[3]) ? `U${p[2]}-${p[1]}-${p[3]}` : x.line;
+  if (!it.isSp) return base;
+  if (/^U\d+-/i.test(it.code)) return it.code;                   // spool já vem no padrão
+  const n = (it.code.match(/(\d+)\D*$/) || [])[1];
+  return n ? `${base}-${n.padStart(3, '0').slice(-3)}` : `${base}-${it.code}`;
+}
+// Etapa do critério de medição: B-4.3.5.12.1 → 6.13.21 … B-4.3.5.14.4 → 6.13.32 (4 itens por grupo)
+function medEtapa(x) {
+  const m = ppuCode(x).match(/^4\.3\.5\.(\d+)\.(\d+)$/); if (!m) return 'A DEFINIR';
+  const g = +m[1], k = +m[2];
+  return g >= 12 && g <= 14 && k >= 1 && k <= 4 ? `6.13.${20 + (g - 12) * 4 + k}` : 'A DEFINIR';
+}
+$('#pvXlsx').onclick = () => {
+  buildHIdx(); buildMedIdx();
+  const adm = isAdmin(), rows = [];
+  for (const x of R) { const L = medLine(x, pvSel); for (const o of L.fcs) { if (!(o.prevM > 0.0005)) continue;
+    rows.push([medTag(o.it), 'B-' + ppuCode(x), medEtapa(x), Math.round(o.prevM * 1000) / 1000, adm && L.pr ? Math.round(o.prevM * L.pr * 100) / 100 : null, 'A DEFINIR', 'Serviço', null, null]); } }
+  if (!rows.length) return toast(`Nenhum item com metros previstos na ${perLabel(pvSel)}.`, true);
+  rows.sort((a, b) => a[0].localeCompare(b[0]));
+  const blob = XL.book('Medição', [31.25, 16.83, 14.83, 12.83, 14.83, 24.83, 12.83, 9.83, 28.83],
+    ['TAG', 'Item PPU', 'Etapa Critério', 'Quantidade', 'Valor (R$)', 'Taxonomia do Relatório', 'Categoria', 'Semana', 'Observação'], rows, { 3: 2, 4: 3 });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Previsao_Medicao_${pvSel}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Planilha da ${perLabel(pvSel)} exportada: ${rows.length} ${rows.length === 1 ? 'item' : 'itens'}.`);
 };
 
 /* ---------- aba Medição realizada ---------- */
