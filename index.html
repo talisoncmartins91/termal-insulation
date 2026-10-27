@@ -185,6 +185,8 @@ tr.len-sub .len-sp .acts{justify-content:flex-start}
 .len-warn{font-size:12px;color:#7A5C00;background:#FFF6CC;border-radius:6px;padding:6px 10px;margin:8px 0 0}
 #pvBody td:last-child .acts{flex-wrap:wrap;justify-content:flex-end;gap:4px;width:150px}
 #pvBody td:last-child{white-space:normal}
+.fld{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}.fld span{font-size:12.5px;color:var(--muted)}
+.ppt-bar{margin-bottom:16px}
 .len-imp{border-bottom:3px solid var(--line2);background:#FBFCFE}
 tr.imp-bad td{background:var(--danger-soft)}
 .len-note{font-size:12.5px;color:var(--muted);padding:10px 20px;border-bottom:1px solid var(--line2)}
@@ -785,7 +787,7 @@ body.locked .app,body.locked .pending{display:none!important}
             <select class="input" id="pgSt"><option value="">Todas as situações</option><option value="hit">Meta atingida</option><option value="part">Parcial</option><option value="todo">Programada / não executada</option></select>
           </div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Spools</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th></th></tr></thead>
+            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Spools</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th class="num" title="Avanço físico: digite o % ou use Meta. Depois clique em Salvar avanço na barra de baixo.">Lançar avanço (%)</th><th></th></tr></thead>
             <tbody id="pgBody"></tbody>
           </table></div>
           <div class="pager" id="pgPager"></div>
@@ -852,6 +854,10 @@ body.locked .app,body.locked .pending{display:none!important}
 
       <!-- ACOMPANHAMENTO VISUAL -->
       <section class="view" id="v-visual">
+        <div class="panel ppt-bar">
+          <div class="panel-h"><div><h2>Apresentação semanal (Mapa Visual)</h2><p id="pptInfo">—</p></div>
+            <div class="tools"><button class="btn" id="pptTplBtn" hidden>Enviar modelo (.pptx)</button><input type="file" id="pptTplFile" accept=".pptx" hidden><button class="btn primary" id="pptOpen" disabled>Exportar apresentação</button></div></div>
+        </div>
         <div class="panel" id="upPanel">
           <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>Os arquivos vão para o repositório no GitHub e aparecem aqui com a data e a hora do envio.</p></div><div class="tools"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div></div></div>
           <div class="panel-b upload">
@@ -1094,6 +1100,18 @@ body.locked .app,body.locked .pending{display:none!important}
   </div>
 </div>
 
+<div class="modal" id="pptModal" role="dialog" aria-modal="true" aria-labelledby="pptT">
+  <div class="box" style="width:min(560px,100%)">
+    <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
+    <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
+    <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
+    <label class="fld"><span>Imagem da programação</span><select class="input" id="pptImg"></select></label>
+    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana na aba Acompanhamento visual (categoria Programação semanal). Envie a imagem antes, ou a apresentação sai com a imagem do modelo.</p>
+    <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
+  </div>
+</div>
+
 <div class="modal" id="lenModal" role="dialog" aria-modal="true" aria-labelledby="lmT">
   <div class="box wide">
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><div class="muted" style="font-size:12.5px">Comprimento dos spools · detalhes</div><h3 id="lmT" style="word-break:break-all"></h3><p id="lmSub" style="margin:2px 0 12px"></p></div><button class="btn ghost" id="lmClose" aria-label="Fechar">✕</button></div>
@@ -1124,7 +1142,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '27/10/2026 09:00'; // versão deste arquivo
+const APP_BUILD = '27/10/2026 16:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1275,6 +1293,7 @@ async function loadData() {
   server = {}; for (const it of p.items) server[it.line] = it;
   try { setProg((await api('/prog')).weeks || {}); } catch (e) {}
   try { const md = await api('/med'); med = { forecasts: md.forecasts || {}, reals: md.reals || {} }; medIdx = null; medApi = true; } catch (e) { medApi = e.status === 404 ? 'old' : false; }
+  pptLoadInfo();
   try { const L = await api('/spool-len'); SPLEN = L.items || {}; SPLAST = L.last || {}; lenApi = true; lenErr = ''; } catch (e) { lenApi = e.status === 404 ? 'old' : false; lenErr = `${e.status || 'sem resposta'} · ${e.message}`; }
   applySpoolLens();
   lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
@@ -1349,13 +1368,30 @@ function gaugeSvg(t) {
     <circle class="arc" cx="60" cy="60" r="48" fill="none" stroke="url(#gP)" stroke-width="13" stroke-linecap="round" pathLength="100" stroke-dasharray="${Math.max(p, .01)} 100" stroke-dashoffset="${-d}"/>
   </svg><div class="gc"><div><b>${f1(t.pct)}%</b><small>executado</small></div></div>`;
 }
-function renderHero(t) {
-  // trecho isolado do tubo proporcional ao avanço real
-  const L = 670, x0 = 330, cov = Math.max(26, L * Math.min(1, t.pct / 100)), cx = Math.max(x0 + 14, x0 + L - cov);
+// tubo do cabeçalho: o trecho isolado cresce (com animação) conforme o avanço real
+let heroAnim = { cx: null, p: 0, raf: 0 };
+function heroDraw(cx, p) {
   const r = document.getElementById('hCladClipR'); if (r) { r.setAttribute('x', cx); r.setAttribute('width', 1200 - cx); }
   const cap = document.getElementById('hCap'); if (cap) cap.setAttribute('transform', `translate(${cx} 0)`);
-  const pin = document.getElementById('hPinT'); if (pin) pin.textContent = `${f1(t.pct)}% isolado`;
+  const pin = document.getElementById('hPinT'); if (pin) pin.textContent = `${f1(p)}% isolado`;
   document.querySelectorAll('#hWaves .hw').forEach(w => { const x = Number(w.getAttribute('d').slice(1).split(' ')[0]); w.style.display = x < cx - 24 ? '' : 'none'; });
+}
+function renderHero(t) {
+  const L = 670, x0 = 330, pctNow = Math.max(0, Math.min(100, t.pct));
+  const cxOf = p => Math.max(x0 + 14, x0 + L - Math.max(26, L * p / 100));
+  const to = cxOf(pctNow), from = heroAnim.cx == null ? cxOf(0) : heroAnim.cx, p0 = heroAnim.cx == null ? 0 : heroAnim.p;
+  cancelAnimationFrame(heroAnim.raf);
+  const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (reduce || Math.abs(to - from) < 0.5) { heroAnim = { cx: to, p: pctNow, raf: 0 }; heroDraw(to, pctNow); }
+  else {
+    const t0 = performance.now(), dur = heroAnim.cx == null ? 1600 : 900, ease = k => 1 - Math.pow(1 - k, 3);
+    const step = now => {
+      const k = Math.min(1, (now - t0) / dur), e = ease(k), cx = from + (to - from) * e, p = p0 + (pctNow - p0) * e;
+      heroAnim.cx = cx; heroAnim.p = p; heroDraw(cx, p);
+      if (k < 1) heroAnim.raf = requestAnimationFrame(step); else { heroAnim.cx = to; heroAnim.p = pctNow; }
+    };
+    heroAnim.raf = requestAnimationFrame(step);
+  }
   const ch = (c, ic, b, sm) => { const p = PAL[c]; return `<div class="hchip" style="--c1:${p[0]};--c2:${p[1]}"><span class="hi"><svg viewBox="0 0 24 24">${IC[ic]}</svg></span><div><b>${b}</b><small>${sm}</small></div></div>`; };
   $('#heroChips').innerHTML = ch('green', 'gauge', pctTxt(t.pct), 'avanço geral') + ch('blue', 'ruler', f2(t.ex) + ' m', `de ${f2(t.m)} m`) +
     ch('teal', 'check', f0(t.n[2]), 'linhas concluídas') + ch('gold', 'flame', f0(t.n[1]), 'em andamento');
@@ -1627,7 +1663,7 @@ document.addEventListener('change', e => {
 document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('.pct-in[data-i], .pct-in[data-sp]')) e.target.blur(); });
 function afterChange() {
   const scrollY = window.scrollY;
-  renderPending(); renderPainel(); renderLinhas(); renderEstrutura();
+  renderPending(); renderPainel(); renderLinhas(); renderEstrutura(); if (BASE) renderProg();
   if (dLine != null) openLine(dLine);
   window.scrollTo(0, scrollY);
 }
@@ -1702,7 +1738,7 @@ function openLine(i) {
 $('#dBody').addEventListener('click', e => { const q = e.target.closest('[data-quick]'); if (!q) return; const inp = $('#dBody .pct-in'); inp.value = fmtIn(unitVal(R[dLine], Number(q.dataset.quick))); inp.dispatchEvent(new Event('change', { bubbles: true })); });
 function closeDrawer() { dLine = null; $('#drawer').classList.remove('on'); $('#scrim').classList.remove('on'); }
 $('#dClose').onclick = closeDrawer; $('#scrim').onclick = closeDrawer;
-document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeLight(); $('#pwModal').classList.remove('on'); $('#lenModal').classList.remove('on'); } });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { closeDrawer(); closeLight(); $('#pwModal').classList.remove('on'); $('#lenModal').classList.remove('on'); $('#pptModal').classList.remove('on'); } });
 
 /* ============ acompanhamento visual ============ */
 let upFiles = [];
@@ -2219,13 +2255,14 @@ async function readZip(buf) {
     files[td.decode(u8.subarray(p + 46, p + 46 + nl))] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), lo: dv.getUint32(p + 42, true) };
     p += 46 + nl + xl + cl;
   }
-  const get = async name => {
+  const raw = async name => {
     const f = files[name]; if (!f) return null;
     const st = f.lo + 30 + dv.getUint16(f.lo + 26, true) + dv.getUint16(f.lo + 28, true), data = u8.subarray(st, st + f.size);
-    if (f.method === 0) return td.decode(data);
-    return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+    if (f.method === 0) return data.slice();
+    return new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
   };
-  return { get, names: Object.keys(files) };
+  const get = async name => { const b = await raw(name); return b == null ? null : td.decode(b); };
+  return { get, raw, names: Object.keys(files) };
 }
 async function readXlsxRows(buf) {
   const z = await readZip(buf), P = new DOMParser(), tags = (doc, t) => [...doc.getElementsByTagNameNS('*', t)];
@@ -2364,6 +2401,199 @@ async function lenImpApply() {
     btn.disabled = false; btn.textContent = 'Tentar de novo';
   }
 }
+
+/* ============ apresentação semanal (Mapa Visual .pptx) ============ */
+// O modelo é o .pptx enviado pelo administrador. Na exportação o painel troca: semana da capa, data,
+// linhas e imagem da programação, resumo geral e o gráfico "Avanço por SOP". O restante fica como no modelo.
+let pptInfo = null;
+async function pptLoadInfo() { try { pptInfo = (await api('/ppt/template/info')).info || false; } catch (e) { pptInfo = e.status === 404 ? 'old' : false; } renderPptBar(); }
+function renderPptBar() {
+  const el = $('#pptInfo'); if (!el) return;
+  $('#pptTplBtn').hidden = !isAdmin();
+  el.textContent = pptInfo === 'old' ? 'Publique o worker.js novo para usar a apresentação.' : pptInfo ? `Modelo: ${pptInfo.filename} · enviado por ${pptInfo.by} em ${when(pptInfo.at)}` : (isAdmin() ? 'Envie o modelo da apresentação (.pptx) uma vez para liberar a exportação.' : 'O administrador ainda não enviou o modelo da apresentação.');
+  $('#pptOpen').disabled = !pptInfo || pptInfo === 'old';
+}
+// zip com arquivos binários (sem compressão)
+function zipBytes(files) {
+  const crcT = zipBytes.t || (zipBytes.t = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })());
+  const crc32 = b => { let c = 0xFFFFFFFF; for (let i = 0; i < b.length; i++) c = crcT[(c ^ b[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+  const enc = new TextEncoder(), parts = [], cd = []; let off = 0;
+  const d = new Date(), dt = ((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate(), tm = (d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1);
+  for (const [name, val] of files) {
+    const nb = enc.encode(name), data = typeof val === 'string' ? enc.encode(val) : val, crc = crc32(data);
+    const h = new DataView(new ArrayBuffer(30));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(10, tm, true); h.setUint16(12, dt, true);
+    h.setUint32(14, crc, true); h.setUint32(18, data.length, true); h.setUint32(22, data.length, true); h.setUint16(26, nb.length, true);
+    parts.push(new Uint8Array(h.buffer), nb, data);
+    const c = new DataView(new ArrayBuffer(46));
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(12, tm, true); c.setUint16(14, dt, true);
+    c.setUint32(16, crc, true); c.setUint32(20, data.length, true); c.setUint32(24, data.length, true); c.setUint16(28, nb.length, true); c.setUint32(42, off, true);
+    cd.push(new Uint8Array(c.buffer), nb);
+    off += 30 + nb.length + data.length;
+  }
+  const cdSize = cd.reduce((t, a) => t + a.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cd, new Uint8Array(e.buffer)], { type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation' });
+}
+const xmlEsc = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+const nfBR = (v, d) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v);
+// metros executados gravados (físico), sem alterações pendentes
+const exSaved = x => x.sps.length ? x.sps.reduce((t, sp) => t + sp.m * spSaved(sp) / 100, 0) : x.m * savedPct(x) / 100;
+function pptWeekLines(P) {
+  const names = new Set();
+  for (const k of Object.keys(prog[String(P)] || {})) { const it = itemOf(k); if (it) names.add(itLine(it).line); }
+  return [...names].sort((a, b) => a.localeCompare(b));
+}
+const pptImages = P => visuals.filter(v => v.category === 'programacao' && Number(v.week) === Number(P) && /^image\//.test(v.mime || ''));
+function pptWeekOpts(sel) {
+  const cur = weekOf(Date.now()), ws = new Set();
+  for (let w = cur - 12; w <= cur + 4; w++) ws.add(w);
+  Object.keys(prog).forEach(k => ws.add(Number(k))); visuals.forEach(v => v.week && ws.add(Number(v.week)));
+  return [...ws].filter(w => w > 0).sort((a, b) => b - a).map(w => `<option value="${w}"${w === sel ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}${w === cur ? ' (atual)' : ''}</option>`).join('');
+}
+function pptRenderModal() {
+  const P = +$('#pptProg').value, imgs = pptImages(P), lines = pptWeekLines(P);
+  $('#pptImg').innerHTML = imgs.length ? imgs.map((v, i) => `<option value="${v.id}"${i === 0 ? ' selected' : ''}>${esc(v.filename)} · ${when(v.uploaded_at)}</option>`).join('') + '<option value="">Manter a imagem do modelo</option>'
+    : '<option value="">Sem imagem da programação desta semana (fica a do modelo)</option>';
+  $('#pptImgWarn').hidden = imgs.length > 0;
+  $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
+    : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
+}
+$('#pptOpen').onclick = () => {
+  const cur = weekOf(Date.now());
+  $('#pptProg').innerHTML = pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
+  pptRenderModal(); $('#pptModal').classList.add('on');
+};
+$('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
+$('#pptClose').onclick = () => $('#pptModal').classList.remove('on');
+$('#pptModal').addEventListener('click', e => { if (e.target.id === 'pptModal') $('#pptModal').classList.remove('on'); });
+$('#pptTplBtn').onclick = () => { $('#pptTplFile').value = ''; $('#pptTplFile').click(); };
+$('#pptTplFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  if (!/\.pptx$/i.test(f.name)) return toast('Envie o arquivo .pptx da apresentação.', true);
+  const btn = $('#pptTplBtn'); btn.disabled = true; btn.textContent = 'Enviando modelo…';
+  try {
+    const content = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('não consegui ler o arquivo')); r.readAsDataURL(f); });
+    const r = await api('/ppt/template', { method: 'POST', body: { content, filename: f.name } });
+    pptInfo = r.info; renderPptBar(); toast('Modelo da apresentação atualizado.');
+  } catch (err) { toast('Não foi possível enviar o modelo: ' + err.message, true); }
+  btn.disabled = false; btn.textContent = 'Enviar modelo (.pptx)';
+};
+async function pptImageBytes(id) {
+  const r = await fetch(`${API_URL}/visual/file/${id}`, { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+  if (!r.ok) throw new Error(`não consegui baixar a imagem da programação (${r.status})`);
+  let blob = await r.blob(); const bmp = await createImageBitmap(blob);
+  let ext = /png/.test(blob.type) ? 'png' : 'jpg';
+  if (!/jpe?g|png/.test(blob.type)) {   // webp/gif: converte para JPG
+    const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height; c.getContext('2d').drawImage(bmp, 0, 0);
+    blob = await new Promise(res => c.toBlob(res, 'image/jpeg', 0.9)); ext = 'jpg';
+  }
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), ext, w: bmp.width, h: bmp.height };
+}
+const relPath = (slidePath, target) => { const base = slidePath.split('/').slice(0, -1); for (const p of target.split('/')) { if (p === '..') base.pop(); else if (p !== '.') base.push(p); } return base.join('/'); };
+const relsOf = path => path.replace(/([^/]+)$/, '_rels/$1.rels');
+function sopStats() {
+  const m = new Map();
+  for (const x of R) { const o = m.get(x.sop) || { sop: x.sop, tm: 0, ex: 0 }; o.tm += x.m; o.ex += exSaved(x); m.set(x.sop, o); }
+  return [...m.values()].filter(o => o.tm > 0).map(o => ({ ...o, p: Math.max(0, Math.min(1, o.ex / o.tm)) })).sort((a, b) => a.sop.localeCompare(b.sop));
+}
+function pptChart(xml, st) {
+  const a = xml.indexOf('<c:ser>'), b = xml.lastIndexOf('</c:ser>') + 8; if (a < 0) return xml;
+  const sers = xml.slice(a, b).match(/<c:ser>[\s\S]*?<\/c:ser>/g) || [];
+  const spPr = i => ((sers[i] || '').match(/<c:spPr>[\s\S]*?<\/c:spPr>/) || ['<c:spPr><a:noFill/></c:spPr>'])[0];
+  const dl = (sers[3] || '').match(/<c:dLbls>[\s\S]*<\/c:dLbls>/);
+  let tail = dl ? dl[0].slice(dl[0].lastIndexOf('</c:dLbl>') + 9, -10) : '';
+  if (!/<c:showVal/.test(tail)) tail = '<c:dLblPos val="inBase"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/>';
+  tail = tail.replace(/<c:extLst>[\s\S]*<\/c:extLst>/, '');
+  const n = st.length, cat = `<c:cat><c:strLit><c:ptCount val="${n}"/>${st.map((o, i) => `<c:pt idx="${i}"><c:v>${xmlEsc(o.sop)}</c:v></c:pt>`).join('')}</c:strLit></c:cat>`;
+  const val = arr => `<c:val><c:numLit><c:formatCode>General</c:formatCode><c:ptCount val="${n}"/>${arr.map((v, i) => `<c:pt idx="${i}"><c:v>${+v.toFixed(6)}</c:v></c:pt>`).join('')}</c:numLit></c:val>`;
+  const ser = (i, name, arr, extra = '') => `<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:v>${name}</c:v></c:tx>${spPr(i)}<c:invertIfNegative val="0"/>${extra}${cat}${val(arr)}</c:ser>`;
+  const lbl = st.map((o, i) => `<c:dLbl><c:idx val="${i}"/><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="pt-BR"/><a:t>${nfBR(o.p * 100, 1)}%     ${nfBR(o.ex, 2)}/${nfBR(o.tm, 2)} m</a:t></a:r></a:p></c:rich></c:tx><c:dLblPos val="inBase"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbl>`).join('');
+  const done = st.map(o => o.p >= 0.99995 ? 1 : 0), prog_ = st.map(o => o.p >= 0.99995 ? 0 : o.p);
+  const out = ser(0, 'Concluído', done) + ser(1, 'Em andamento', prog_) + ser(2, 'Restante', st.map(o => 1 - o.p)) + ser(3, 'Espaço rótulo', st.map(() => 0.55), `<c:dLbls>${lbl}${tail}</c:dLbls>`);
+  return (xml.slice(0, a) + out + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
+}
+async function pptBuild(capa, P, imgId) {
+  const r = await fetch(`${API_URL}/ppt/template`, { headers: token ? { Authorization: 'Bearer ' + token } : {}, cache: 'no-store' });
+  if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch (e) {} throw new Error(m || `não consegui baixar o modelo (${r.status})`); }
+  const z = await readZip(await r.arrayBuffer());
+  const files = new Map(); for (const n of z.names) files.set(n, await z.raw(n));
+  const td = new TextDecoder(), txt = n => typeof files.get(n) === 'string' ? files.get(n) : td.decode(files.get(n));
+  const today = dFmt.format(new Date(Date.now())), slides = z.names.filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
+  const warn = [];
+  for (const sp of slides) {
+    let s = txt(sp);
+    // data do relatório (caixa "DATA")
+    s = s.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => /DATA\s*<\/a:t>/.test(blk) ? blk.replace(/\d{2}\/\d{2}\/\d{4}/g, today) : blk);
+    // capa: semana
+    s = s.replace(/>Semana\s*\d+</g, `>Semana ${capa}<`);
+    // linhas programadas + imagem da programação
+    if (/LINHAS PROGRAMADAS PARA A/.test(s)) {
+      const lines = pptWeekLines(P);
+      s = s.replace(/<p:graphicFrame>(?:(?!<\/p:graphicFrame>)[\s\S])*?LINHAS PROGRAMADAS PARA A[\s\S]*?<\/p:graphicFrame>/, gf => {
+        const rows = gf.match(/<a:tr [^>]*>[\s\S]*?<\/a:tr>/g) || []; if (!rows.length) return gf;
+        const strip = r => r.replace(/<a:extLst><a:ext uri="\{0D108BD9[\s\S]*?<\/a:extLst>/, '');
+        const head = strip(rows[0]).replace(/LINHAS PROGRAMADAS PARA A\s*S?\d*/, `LINHAS PROGRAMADAS PARA A S${P}`);
+        const tpl = strip(rows[1] || rows[0]);
+        const many = lines.length > 30, list = lines.length ? (lines.length > 60 ? [...lines.slice(0, 59), `+ ${lines.length - 59} linhas (ver painel)`] : lines) : ['Nenhuma linha programada'];
+        const rh = many ? 150000 : Number((tpl.match(/<a:tr h="(\d+)"/) || [0, 190500])[1]);
+        const fix = r => (many ? r.replace(/ sz="\d+"/g, ' sz="800"') : r).replace(/<a:tr h="\d+"/, `<a:tr h="${rh}"`);
+        const body = list.map(t => fix(tpl.replace(/<a:t>[^<]*<\/a:t>/, `<a:t>${xmlEsc(t)}</a:t>`))).join('');
+        const first = gf.indexOf(rows[0]), last = gf.lastIndexOf(rows[rows.length - 1]) + rows[rows.length - 1].length;
+        let out = gf.slice(0, first) + fix(head) + body + gf.slice(last);
+        out = out.replace(/(<p:xfrm>[\s\S]*?<a:ext cx="\d+" cy=")\d+(")/, `$1${rh * (list.length + 1)}$2`);
+        return out;
+      });
+      if (imgId) {
+        const img = await pptImageBytes(imgId);
+        const relsP = relsOf(sp), rels = txt(relsP);
+        // maior imagem do slide = mapa da programação
+        let best = null;
+        for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
+        if (best) {
+          const media = `ppt/media/programacao_S${P}.${img.ext}`; files.set(media, img.bytes);
+          const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
+          const oldT = (rels.match(relRe) || [])[2];
+          files.set(relsP, rels.replace(relRe, `$1../media/programacao_S${P}.${img.ext}$3`));
+          if (oldT) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
+          const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
+          if (o) {
+            const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
+            const np = best.pic.replace(o[0], `<a:off x="${X + Math.round((W - w) / 2)}" y="${Y + Math.round((H - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/>`).replace(/<a:srcRect[^>]*\/>/, '<a:srcRect/>');
+            s = s.replace(best.pic, np);
+          }
+        } else warn.push('não achei a imagem no slide das linhas programadas');
+      }
+    }
+    // resumo geral + gráfico por SOP
+    if (/RESUMO GERAL DE EXECU/.test(s)) {
+      const st = sopStats(), tm = st.reduce((t, o) => t + o.tm, 0), ex = st.reduce((t, o) => t + o.ex, 0);
+      const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(tm - ex, 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(BASE.sops.length)];
+      const at = s.indexOf('Total de SOPs</a:t>');
+      if (at > 0) { let pos = at + 19, k = 0; s = s.slice(0, pos) + s.slice(pos).replace(/<a:t>[^<]*<\/a:t>/g, mm => k < 6 ? `<a:t>${xmlEsc(vals[k++])}</a:t>` : mm); }
+      const relsP = relsOf(sp), rels = txt(relsP), ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []);
+      const target = ct[1] || ct[2];
+      if (target) {
+        const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
+        const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
+      } else warn.push('não achei o gráfico Avanço por SOP');
+    }
+    files.set(sp, s);
+  }
+  const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
+  return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
+}
+$('#pptGo').onclick = async () => {
+  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, btn = $('#pptGo');
+  btn.disabled = true; btn.textContent = 'Gerando…';
+  try {
+    const { blob, warn } = await pptBuild(capa, P, img);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    $('#pptModal').classList.remove('on');
+    toast(`Apresentação da Semana ${capa} gerada (programação S${P}).${warn.length ? ' Atenção: ' + warn.join('; ') + '.' : ''}`, warn.length > 0);
+  } catch (err) { toast('Não foi possível gerar a apresentação: ' + err.message, true); }
+  btn.disabled = false; btn.textContent = 'Exportar apresentação';
+};
 
 /* ============ programação semanal (avanço físico) ============ */
 const W70 = Date.parse('2026-10-26T03:00:00Z'); // segunda 26/10/2026 00:00 (Recife) = início da Semana 70
@@ -2526,6 +2756,7 @@ function renderProg() {
   const spTr = r => `<tr class="sp-row"><td class="sp-name">↳ ${r.x.isSp ? esc(r.x.code) : '<i>linha inteira</i>'}</td><td></td><td></td><td></td>
     <td class="num">${f2(r.x.m)}</td><td class="num">${f1(r.s)}%</td><td class="num"><b>${f0(r.tgt)}%</b> <small class="muted">${f2(r.x.m * r.tgt / 100)} m</small></td><td class="num">${fut ? '—' : f1(r.e) + '%'}</td>
     <td class="num">${f2(r.progM)}</td><td class="num">${fut ? '—' : f2(r.execM)}</td><td>${tag(r)}</td>
+    <td class="num">${pgAv(r.x, r.tgt)}</td>
     <td>${canEdit() ? `<button class="btn sm ghost" data-pgrm="${esc(r.key)}" title="Tirar este spool da semana">Remover</button>` : ''}</td></tr>`;
   $('#pgBody').innerHTML = page.length ? page.map(g => { const op = isOpen(g), ns = g.ln.sps.length; return `<tr class="${g.multi ? 'pg-grp' : ''}${op ? ' sp-open' : ''}" ${g.multi ? `data-pgo="${g.ln.i}"` : ''}>
     <td><span class="lcell">${g.multi ? `<button class="spt${op ? ' open' : ''}" data-pgt="${g.ln.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools programados">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${g.ln.i}">${esc(g.ln.line)}</button></span></td>
@@ -2534,8 +2765,9 @@ function renderProg() {
     <td class="num">${f2(g.m)}</td><td class="num">${f1(g.s)}%</td><td class="num"><b>${f0(g.tgt)}%</b><br><small class="muted">${f2(g.metaM)} m</small></td><td class="num">${fut ? '—' : f1(g.e) + '%'}</td>
     <td class="num">${f2(g.progM)}</td><td class="num">${fut ? '—' : f2(g.execM)}</td>
     <td>${tag(g)}${g.multi && !g.hit && g.nHit ? `<br><small class="muted">${f0(g.nHit)} de ${f0(g.rs.length)} na meta</small>` : ''}</td>
+    <td class="num">${g.multi ? (canEdit() ? `<button class="btn sm" data-pgmetal="${g.ln.i}" title="Lança o avanço de todos os spools programados até a meta da semana">Meta em todos</button>` : '') : pgAv(g.rs[0].x, g.rs[0].tgt)}</td>
     <td>${canEdit() ? (g.multi ? `<button class="btn sm ghost" data-pgrmln="${g.ln.i}" title="Tirar a linha inteira (todos os spools programados) desta semana">Remover</button>` : `<button class="btn sm ghost" data-pgrm="${esc(g.rs[0].key)}" title="Tirar desta semana">Remover</button>`) : ''}</td></tr>${op ? g.rs.map(spTr).join('') : ''}`; }).join('')
-    : `<tr><td colspan="12"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
+    : `<tr><td colspan="13"><div class="empty"><b>Nenhuma linha programada nesta visão</b>Para programar, vá na aba Linhas, selecione as linhas e use "Programar na semana".</div></td></tr>`;
   const multi = page.filter(g => g.multi), allOpen = multi.length && multi.every(g => pgOpen.has(g.ln.i));
   $('#pgPager').innerHTML = `<span>${f0(lines.length)} ${lines.length === 1 ? 'linha' : 'linhas'} · ${f0(sum(lines, g => g.nsp))} spools</span><span class="spacer"></span>
     ${multi.length ? `<button class="btn sm" id="pgAll">${allOpen ? 'Recolher' : 'Abrir'} spools da página</button>` : ''}
@@ -2545,8 +2777,31 @@ function renderProg() {
   if ($('#pgAll')) $('#pgAll').onclick = () => { multi.forEach(g => allOpen ? pgOpen.delete(g.ln.i) : pgOpen.add(g.ln.i)); renderProg(); };
 }
 const pgOpen = new Set();
+// campo de avanço físico na programação (usa a mesma barra "Salvar avanço" da aba Linhas)
+function pgAv(it, tgt) {
+  const cur = pct(it), pend = it.isSp ? pendingSp.has(it.key) : pending.has(it.i);
+  if (!canEdit()) return `${f1(cur)}%`;
+  return `<span class="acts" style="justify-content:flex-end"><input class="input pct-in${pend ? ' pend' : ''}" type="text" inputmode="decimal" data-pgav="${esc(it.isSp ? it.key : it.line)}" value="${fmtIn(+cur.toFixed(2))}" aria-label="Avanço físico em %" style="width:64px">${cur < tgt - 1e-6 ? `<button class="btn sm ghost" data-pgmeta="${esc(it.isSp ? it.key : it.line)}" data-v="${tgt}" title="Lançar até a meta (${f0(tgt)}%)">Meta</button>` : ''}</span>`;
+}
+function pgSetAv(it, v) { if (it.isSp) setSp(it, v); else setPending(it.i, v); }
+$('#pgBody').addEventListener('change', e => {
+  const inp = e.target.closest('[data-pgav]'); if (!inp) return;
+  const it = itemOf(inp.dataset.pgav), v = clampPct(inp.value);
+  if (!it) return;
+  if (v == null) { toast('Informe o avanço em % (0 a 100).', true); inp.value = fmtIn(+pct(it).toFixed(2)); return; }
+  pgSetAv(it, v);
+});
+$('#pgBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-pgav]')) e.target.blur(); });
 $('#pgBody').addEventListener('click', e => {
-  if (e.target.closest('.lname, [data-pgrm], [data-pgrmln], input, a')) return;
+  const b = e.target.closest('[data-pgmeta]'); if (b) { const it = itemOf(b.dataset.pgmeta); if (it) pgSetAv(it, Number(b.dataset.v)); return; }
+  const g = e.target.closest('[data-pgmetal]'); if (!g) return;
+  const x = R[+g.dataset.pgmetal], wk = prog[String(pgSel)] || {}; let n = 0;
+  for (const sp of x.sps) { const t = wk[sp.key]; if (t != null && pct(sp) < Number(t) - 1e-6) { setSp(sp, Number(t), false); n++; } }
+  if (wk[x.line] != null && !x.sps.length && pct(x) < Number(wk[x.line]) - 1e-6) { setPending(x.i, Number(wk[x.line]), false); n++; }
+  afterChange(); toast(n ? `${n} ${n === 1 ? 'item lançado' : 'itens lançados'} até a meta. Clique em Salvar avanço para gravar.` : 'Todos os itens desta linha já estão na meta.');
+});
+$('#pgBody').addEventListener('click', e => {
+  if (e.target.closest('.lname, [data-pgrm], [data-pgrmln], [data-pgmeta], [data-pgmetal], input, a')) return;
   const t = e.target.closest('[data-pgt], tr[data-pgo]'); if (!t) return;
   const i = +(t.dataset.pgt ?? t.dataset.pgo); pgOpen.has(i) ? pgOpen.delete(i) : pgOpen.add(i);
   const y = window.scrollY; renderProg(); window.scrollTo(0, y);
@@ -3065,9 +3320,34 @@ async function pvMakeReal(its) {
   const per = pvSel, ch = new Map(); let m = 0, v = 0;
   for (const it of its) { const o = medIt(it, per); if (!o.toReal) continue; ch.set(o.key, o.t); m += it.m * Math.max(0, o.t - o.s) / 100; v += it.m * Math.max(0, o.t - o.s) / 100 * (priceOf(itLine(it)) ?? 0); }
   if (!ch.size) return toast('Nenhum dos itens tem previsão a tornar real nesta medição.', true);
-  if (!confirm(`Tornar real ${ch.size} ${ch.size === 1 ? 'item' : 'itens'} na ${perLabel(per)}?\n\n${f2(m)} m · ${brl(v)}\n\nA medição realizada passa a contar no Financeiro. O avanço físico não é alterado.`)) return;
-  try { await saveReal(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item tornado real' : 'itens tornados reais'} na ${perLabel(per)}.`); }
+  if (!confirm(`Tornar real ${ch.size} ${ch.size === 1 ? 'item' : 'itens'} na ${perLabel(per)}?\n\n${f2(m)} m · ${brl(v)}\n\nA medição realizada passa a contar no Financeiro. Item com avanço físico abaixo do medido também avança no físico (executado).`)) return;
+  try {
+    await saveReal(per, ch); pvSelL.clear(); pvSelS.clear();
+    let nf = 0; try { nf = await medToPhys(per, ch); } catch (e) { toast('Medição salva, mas o avanço físico não foi atualizado: ' + e.message, true); }
+    if (nf) { await loadData(); renderAll(); setSync(); }
+    renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item tornado real' : 'itens tornados reais'} na ${perLabel(per)}.${nf ? ` ${nf} ${nf === 1 ? 'item também avançou' : 'itens também avançaram'} no físico.` : ''}`);
+  }
   catch (err) { toast('Não foi possível tornar real: ' + err.message, true); }
+}
+// medição realizada acima do físico: o físico avança junto (spool por spool, e a linha recalculada)
+async function medToPhys(per, ch) {
+  const r4 = v => Math.round(v * 10000) / 10000, bySp = new Map(), groups = []; let n = 0;
+  for (const [k, t] of ch) {
+    const it = itemOf(k); if (!it) continue;
+    if (it.isSp) { if (t > spSaved(it) + 1e-6) { if (!bySp.has(it.parent.i)) bySp.set(it.parent.i, new Map()); bySp.get(it.parent.i).set(it.key, t); n++; } }
+    else if (t > savedPct(it) + 1e-6) { groups.push([{ line: it.line, pct: r4(t), m: it.m, from: savedPct(it) }]); n++; }
+  }
+  for (const [i, mp] of bySp) {
+    const x = R[i], np = sp => mp.has(sp.key) ? mp.get(sp.key) : spSaved(sp);
+    groups.push([...x.sps.filter(sp => mp.has(sp.key)).map(sp => ({ line: sp.key, pct: r4(mp.get(sp.key)), m: sp.m, from: spSaved(sp), force: true })),
+      { line: x.line, pct: r4(x.m ? x.sps.reduce((t, sp) => t + sp.m * np(sp), 0) / x.m : 0), m: x.m, from: savedPct(x), auto: true }]);
+  }
+  if (!groups.length) return 0;
+  const chunks = []; let cur = [];
+  for (const g of groups) { if (cur.length && cur.length + g.length > 300) { chunks.push(cur); cur = []; } cur.push(...g); }
+  if (cur.length) chunks.push(cur);
+  for (const c of chunks) await api('/progress', { method: 'POST', body: { items: c, note: `Avanço pela medição realizada (${perLabel(per)})` } });
+  return n;
 }
 async function pvUndoReal(its) {
   const per = pvSel, keys = its.filter(it => rzOfIt(it, per)).map(itKey);
