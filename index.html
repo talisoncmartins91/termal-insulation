@@ -183,6 +183,10 @@ tr.len-sub .len-sp .acts{justify-content:flex-start}
 .len-in{width:92px;text-align:right;padding:5px 8px}
 .len-in.bad{border-color:var(--danger)}
 .len-warn{font-size:12px;color:#7A5C00;background:#FFF6CC;border-radius:6px;padding:6px 10px;margin:8px 0 0}
+#pvBody td:last-child .acts{flex-wrap:wrap;justify-content:flex-end;gap:4px;width:150px}
+#pvBody td:last-child{white-space:normal}
+.len-imp{border-bottom:3px solid var(--line2);background:#FBFCFE}
+tr.imp-bad td{background:var(--danger-soft)}
 .len-note{font-size:12.5px;color:var(--muted);padding:10px 20px;border-bottom:1px solid var(--line2)}
 .len-note.err{color:var(--danger);background:var(--danger-soft)}
 .box.wide{width:min(820px,100%);max-height:88vh;display:flex;flex-direction:column}
@@ -732,10 +736,11 @@ body.locked .app,body.locked .pending{display:none!important}
       <section class="view" id="v-comprimentos">
         <div class="panel">
           <div class="panel-h">
-            <div><h2>Comprimento dos spools por linha</h2><p>Abra a linha em ▸, digite o novo comprimento do spool (ou da linha, quando ela não tem spool) e clique em Salvar. O valor salvo é o que vale: os outros spools não mudam e o metro da linha passa a ser a soma dos spools. Em Detalhes fica o histórico.</p></div>
-            <div class="tools"><button class="btn" id="lenCsv">Exportar CSV</button></div>
+            <div><h2>Comprimento dos spools por linha</h2><p>Um a um: abra a linha em ▸, digite o novo comprimento e clique em Salvar. Em pacote: Baixar planilha, preencher a coluna NOVO COMPRIMENTO e Importar planilha para revisar antes de aplicar. O valor salvo é o que vale: os outros spools não mudam e o metro da linha passa a ser a soma dos spools. Em Detalhes fica o histórico.</p></div>
+            <div class="tools"><button class="btn" id="lenTpl" title="Planilha com todas as linhas e spools filtrados e o comprimento atual">Baixar planilha</button><button class="btn primary" id="lenImpBtn">Importar planilha</button><button class="btn" id="lenCsv">CSV</button><input type="file" id="lenFile" accept=".xlsx,.csv" hidden></div>
           </div>
           <div class="len-note" id="lenNote" hidden></div>
+          <div class="len-imp" id="lenImp" hidden></div>
           <div class="filters">
             <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
             <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
@@ -815,6 +820,7 @@ body.locked .app,body.locked .pending{display:none!important}
             <button class="btn sm" id="pvPhys" title="Prevê cada item até o % de execução já lançado na aba Linhas. Item sem avanço não entra: para ele use Prever até %.">Até o avanço físico</button>
             <span class="sep"></span>
             <button class="btn primary sm" id="pvReal">Tornar real</button>
+            <button class="btn sm" id="pvUndoSel" title="Desfaz a medição realizada; a previsão continua">Desfazer real</button>
             <button class="btn sm" id="pvRmSel">Tirar da previsão</button>
             <button class="btn ghost sm" id="pvClear">Limpar seleção</button>
           </div>
@@ -1118,7 +1124,7 @@ body.locked .app,body.locked .pending{display:none!important}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '26/10/2026 23:00'; // versão deste arquivo
+const APP_BUILD = '27/10/2026 09:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2201,6 +2207,164 @@ $('#lenCsv').onclick = () => {
   downloadCsv(head, out, 'comprimento_spools.csv');
 };
 
+/* ============ comprimentos por planilha (baixar, preencher, revisar e aplicar) ============ */
+// leitor de .xlsx sem bibliotecas: zip + DecompressionStream('deflate-raw')
+async function readZip(buf) {
+  const dv = new DataView(buf), u8 = new Uint8Array(buf), td = new TextDecoder();
+  let e = buf.byteLength - 22; while (e >= 0 && dv.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error('o arquivo não é uma planilha .xlsx válida');
+  const n = dv.getUint16(e + 10, true); let p = dv.getUint32(e + 16, true); const files = {};
+  for (let i = 0; i < n; i++) {
+    const nl = dv.getUint16(p + 28, true), xl = dv.getUint16(p + 30, true), cl = dv.getUint16(p + 32, true);
+    files[td.decode(u8.subarray(p + 46, p + 46 + nl))] = { method: dv.getUint16(p + 10, true), size: dv.getUint32(p + 20, true), lo: dv.getUint32(p + 42, true) };
+    p += 46 + nl + xl + cl;
+  }
+  const get = async name => {
+    const f = files[name]; if (!f) return null;
+    const st = f.lo + 30 + dv.getUint16(f.lo + 26, true) + dv.getUint16(f.lo + 28, true), data = u8.subarray(st, st + f.size);
+    if (f.method === 0) return td.decode(data);
+    return new Response(new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text();
+  };
+  return { get, names: Object.keys(files) };
+}
+async function readXlsxRows(buf) {
+  const z = await readZip(buf), P = new DOMParser(), tags = (doc, t) => [...doc.getElementsByTagNameNS('*', t)];
+  const ssx = await z.get('xl/sharedStrings.xml');
+  const ss = ssx ? tags(P.parseFromString(ssx, 'application/xml'), 'si').map(si => tags(si, 't').map(t => t.textContent).join('')) : [];
+  // primeira aba do arquivo
+  let path = 'xl/worksheets/sheet1.xml';
+  const wb = await z.get('xl/workbook.xml'), rels = await z.get('xl/_rels/workbook.xml.rels');
+  if (wb && rels) {
+    const sh = tags(P.parseFromString(wb, 'application/xml'), 'sheet')[0], rid = sh && (sh.getAttribute('r:id') || sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id'));
+    const rel = tags(P.parseFromString(rels, 'application/xml'), 'Relationship').find(r => r.getAttribute('Id') === rid);
+    if (rel) { const t = rel.getAttribute('Target').replace(/^\/?(xl\/)?/, ''); path = 'xl/' + t; }
+  }
+  const sx = await z.get(path) || await z.get(z.names.find(n => /^xl\/worksheets\/sheet\d+\.xml$/.test(n)));
+  if (!sx) throw new Error('não encontrei a aba de dados na planilha');
+  const rows = [];
+  for (const r of tags(P.parseFromString(sx, 'application/xml'), 'row')) {
+    const ri = (+r.getAttribute('r') || rows.length + 1) - 1, row = rows[ri] = [];
+    for (const c of tags(r, 'c')) {
+      const ref = c.getAttribute('r') || '', letters = (ref.match(/^[A-Z]+/) || ['A'])[0];
+      const ci = [...letters].reduce((t, ch) => t * 26 + ch.charCodeAt(0) - 64, 0) - 1, t = c.getAttribute('t'), v = tags(c, 'v')[0];
+      row[ci] = t === 's' ? ss[+(v && v.textContent)] : t === 'inlineStr' ? tags(c, 't').map(x => x.textContent).join('') : v ? v.textContent : '';
+    }
+  }
+  return rows.map(r => r || []);
+}
+function readCsvRows(text) {
+  text = text.replace(/^\ufeff/, ''); const first = text.split(/\r?\n/)[0] || '', sep = (first.match(/;/g) || []).length >= (first.match(/,/g) || []).length ? ';' : ',';
+  const rows = []; let row = [], cur = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (q) { if (ch === '"') { if (text[i + 1] === '"') { cur += '"'; i++; } else q = false; } else cur += ch; }
+    else if (ch === '"') q = true; else if (ch === sep) { row.push(cur); cur = ''; }
+    else if (ch === '\n' || ch === '\r') { if (ch === '\r' && text[i + 1] === '\n') i++; row.push(cur); rows.push(row); row = []; cur = ''; }
+    else cur += ch;
+  }
+  if (cur || row.length) { row.push(cur); rows.push(row); }
+  return rows;
+}
+let lenImp = null;   // { file, items: [{ok, key, line, spool, old, nw, msg, ...}] }
+$('#lenTpl').onclick = () => {
+  const rows = [];
+  for (const x of lenLines()) {
+    if (!x.sps.length) rows.push([x.line, '', x.sop, Math.round(x.m * 1000) / 1000, null]);
+    else for (const sp of x.sps) rows.push([x.line, sp.code, x.sop, Math.round(sp.m * 1000) / 1000, null]);
+  }
+  const blob = XL.book('Comprimentos', [34, 22, 18, 22, 22], ['LINHA', 'SPOOL', 'SOP', 'COMPRIMENTO ATUAL (m)', 'NOVO COMPRIMENTO (m)'], rows, { 3: 2, 4: 2 });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Comprimentos_spools.xlsx'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Planilha com ${f0(rows.length)} itens baixada. Preencha só a coluna NOVO COMPRIMENTO e importe de volta.`);
+};
+$('#lenImpBtn').onclick = () => {
+  if (!canEdit()) return openLogin();
+  if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de importar comprimentos.', true);
+  $('#lenFile').value = ''; $('#lenFile').click();
+};
+$('#lenFile').onchange = async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const buf = await f.arrayBuffer();
+    const rows = /\.csv$/i.test(f.name) || /^[^PK]/.test(new TextDecoder().decode(new Uint8Array(buf, 0, 2))) ? readCsvRows(new TextDecoder().decode(buf)) : await readXlsxRows(buf);
+    lenImp = { file: f.name, items: lenParse(rows) }; renderLenImp();
+    $('#lenImp').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } catch (err) { toast('Não foi possível ler a planilha: ' + err.message, true); }
+};
+const normH = s => String(s ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase().trim();
+function lenParse(rows) {
+  const hi = rows.findIndex(r => r.some(c => normH(c) === 'LINHA' || normH(c) === 'TAG') && r.some(c => /COMPRIMENTO|NOVO|QUANTIDADE/.test(normH(c))));
+  if (hi < 0) throw new Error('não achei o cabeçalho. A planilha precisa das colunas LINHA, SPOOL e NOVO COMPRIMENTO (use "Baixar planilha")');
+  const H = rows[hi].map(normH), ci = f => H.findIndex(f);
+  const cL = ci(h => h === 'LINHA'), cS = ci(h => h === 'SPOOL' || h === 'TAG'), cN = (() => { const a = ci(h => h.startsWith('NOVO')); return a >= 0 ? a : ci(h => /COMPRIMENTO|QUANTIDADE/.test(h) && !/ATUAL/.test(h)); })();
+  if (cN < 0) throw new Error('falta a coluna NOVO COMPRIMENTO');
+  const byLow = new Map(R.map(x => [x.line.toLowerCase(), x])), byTag = new Map();
+  for (const x of R) { if (x.sps.length) for (const sp of x.sps) byTag.set(medTag(sp).toLowerCase(), sp); else byTag.set(medTag(x).toLowerCase(), x); }
+  const out = [], seen = new Map();
+  for (let r = hi + 1; r < rows.length; r++) {
+    const row = rows[r] || [], line = String(row[cL] ?? '').trim(), spool = cS >= 0 ? String(row[cS] ?? '').trim() : '', raw = String(row[cN] ?? '').trim();
+    if (!line && !spool) continue;
+    if (!raw) continue;                                                   // sem novo comprimento: não mexe
+    const it = { row: r + 1, line, spool, raw };
+    const n = parseNum(raw.replace(/\s/g, ''));
+    let target = null;
+    const x = line ? byLow.get(line.toLowerCase()) : null;
+    if (line && !x && !byTag.get((spool || line).toLowerCase())) { it.msg = 'linha não encontrada'; out.push(it); continue; }
+    if (x) {
+      if (!x.sps.length) { if (spool) { it.msg = 'esta linha não tem spool'; out.push(it); continue; } target = x; }
+      else if (!spool) { it.msg = 'linha tem spools: informe o spool'; out.push(it); continue; }
+      else target = x.sps.find(sp => sp.code.toLowerCase() === spool.toLowerCase() || medTag(sp).toLowerCase() === spool.toLowerCase()) || null;
+    } else target = byTag.get((spool || line).toLowerCase()) || null;
+    if (!target) { it.msg = `spool ${spool} não encontrado na linha`; out.push(it); continue; }
+    if (n == null || n < 0 || n > 10000) { it.msg = 'comprimento inválido'; out.push(it); continue; }
+    const key = itKey(target), xl = itLine(target);
+    it.key = key; it.line = xl.line; it.spool = target.isSp ? target.code : ''; it.old = target.isSp ? target.m : xl.m; it.nw = Math.round(n * 100) / 100;
+    it.orig = target.isSp ? target.mBase : xl.mEsc;
+    if (seen.has(key)) { it.msg = `repetido (linha ${seen.get(key)} da planilha)`; out.push(it); continue; }
+    seen.set(key, it.row);
+    it.ok = Math.abs(it.nw - it.old) >= 0.005; if (!it.ok) it.same = true;
+    out.push(it);
+  }
+  return out;
+}
+function renderLenImp() {
+  const box = $('#lenImp'); box.hidden = !lenImp; if (!lenImp) return;
+  const its = lenImp.items, ok = its.filter(i => i.ok), same = its.filter(i => i.same), bad = its.filter(i => i.msg);
+  const dif = ok.reduce((t, i) => t + i.nw - i.old, 0);
+  const tr = i => `<tr${i.msg ? ' class="imp-bad"' : i.same ? ' class="muted"' : ''}><td class="num">${i.row}</td><td>${esc(i.line)}</td><td>${esc(i.spool) || '<span class="muted">—</span>'}</td>
+    <td class="num">${i.old != null ? f2(i.old) : '—'}</td><td class="num"><b>${i.nw != null ? f2(i.nw) : esc(i.raw)}</b></td>
+    <td class="num ${i.ok && i.nw - i.old < 0 ? 'neg' : ''}">${i.ok ? (i.nw - i.old > 0 ? '+' : '') + f2(i.nw - i.old) : '—'}</td>
+    <td>${i.msg ? `<span class="tag s3">${esc(i.msg)}</span>` : i.same ? 'sem mudança' : '<span class="tag s2">alterar</span>'}</td></tr>`;
+  const list = [...bad, ...ok, ...same];
+  box.innerHTML = `<div class="panel-h"><div><h2>Revisar importação · ${esc(lenImp.file)}</h2>
+    <p><b>${f0(ok.length)}</b> ${ok.length === 1 ? 'alteração' : 'alterações'} (${dif >= 0 ? '+' : ''}${f2(dif)} m no total) · ${f0(same.length)} sem mudança · <b class="${bad.length ? 'neg' : ''}">${f0(bad.length)} com problema</b>${bad.length ? ' (ficam de fora)' : ''}</p></div>
+    <div class="tools"><button class="btn" id="lenImpCancel">Cancelar</button><button class="btn primary" id="lenImpApply" ${ok.length ? '' : 'disabled'}>Aplicar ${f0(ok.length)} ${ok.length === 1 ? 'alteração' : 'alterações'}</button></div></div>
+    <div class="tbl-wrap" style="max-height:420px;overflow:auto"><table><thead><tr><th class="num">Linha da planilha</th><th>Linha</th><th>Spool</th><th class="num">Atual (m)</th><th class="num">Novo (m)</th><th class="num">Diferença</th><th>Situação</th></tr></thead>
+    <tbody>${list.length ? list.slice(0, 3000).map(tr).join('') : '<tr><td colspan="7"><div class="empty"><b>Nenhum comprimento novo na planilha</b>Preencha a coluna NOVO COMPRIMENTO.</div></td></tr>'}</tbody></table></div>`;
+  $('#lenImpCancel').onclick = () => { lenImp = null; renderLenImp(); };
+  $('#lenImpApply').onclick = lenImpApply;
+}
+async function lenImpApply() {
+  const ok = lenImp.items.filter(i => i.ok); if (!ok.length) return;
+  if (!confirm(`Aplicar ${ok.length} ${ok.length === 1 ? 'alteração' : 'alterações'} de comprimento da planilha ${lenImp.file}?\n\nCada alteração fica no histórico (Detalhes).`)) return;
+  const btn = $('#lenImpApply'); btn.disabled = true;
+  let done = 0;
+  try {
+    for (let i = 0; i < ok.length; i += 400) {
+      const part = ok.slice(i, i + 400);
+      btn.textContent = `Aplicando… ${f0(done)} de ${f0(ok.length)}`;
+      await api('/spool-len', { method: 'POST', body: { note: `Importado da planilha ${lenImp.file}`.slice(0, 300), items: part.map(it => ({ key: it.key, line: it.line, spool: it.spool, comp: it.nw, mapa: Math.round(it.orig * 100) / 100 })) } });
+      done += part.length;
+    }
+    lenImp = null; renderLenImp();
+    const y = window.scrollY; await loadData(); renderAll(); setSync(); window.scrollTo(0, y);
+    toast(`${f0(done)} ${done === 1 ? 'comprimento atualizado' : 'comprimentos atualizados'} pela planilha.`);
+  } catch (err) {
+    toast(`Parou depois de ${f0(done)} alterações: ${err.message}`, true);
+    if (done) { await loadData(); renderAll(); }
+    btn.disabled = false; btn.textContent = 'Tentar de novo';
+  }
+}
+
 /* ============ programação semanal (avanço físico) ============ */
 const W70 = Date.parse('2026-10-26T03:00:00Z'); // segunda 26/10/2026 00:00 (Recife) = início da Semana 70
 const WEEK = 7 * 864e5;
@@ -2853,7 +3017,7 @@ function renderPv() {
   const spTr = (L, o) => `<tr class="sp-row${pvSelS.has(o.key) ? ' changed' : ''}">${adm ? `<td><input type="checkbox" data-pvs="${esc(o.key)}" ${pvSelS.has(o.key) ? 'checked' : ''} aria-label="Selecionar spool"></td>` : ''}
     <td class="sp-name">↳ ${esc(o.it.code)}</td><td></td><td></td><td class="num">${f2(o.it.m)}</td><td class="num">${f1(o.s)}%</td><td class="num">${f1(o.phys)}%</td>
     <td class="num">${o.t == null ? '<span class="muted">—</span>' : `<b>${f1(o.t)}%</b>`}</td><td class="num">${o.t == null ? '—' : f2(o.prevM)}</td>${isAdmin() ? `<td class="money">${o.t == null ? '—' : brl(o.prevM * L.pr)}</td>` : ''}
-    <td>${pvSit(o)}</td>${adm ? `<td><span class="acts">${o.toReal ? `<button class="btn sm primary" data-pvreal="${esc(o.key)}">Tornar real</button>` : ''}${o.t != null ? `<button class="btn sm ghost" data-pvrm="${esc(o.key)}">Remover</button>` : ''}</span></td>` : ''}</tr>`;
+    <td>${pvSit(o)}</td>${adm ? `<td><span class="acts">${o.toReal ? `<button class="btn sm primary" data-pvreal="${esc(o.key)}">Tornar real</button>` : ''}${o.isReal ? `<button class="btn sm" data-pvund="${esc(o.key)}" title="Desfaz a medição realizada; a previsão continua">Desfazer</button>` : ''}${o.t != null && !o.isReal ? `<button class="btn sm ghost" data-pvrm="${esc(o.key)}">Remover</button>` : ''}</span></td>` : ''}</tr>`;
   $('#pvBody').innerHTML = page.length ? page.map(L => {
     const x = L.x, hasSp = x.sps.length > 0, op = hasSp && (pvOpen.has(x.i) || (matchSpQ(L, q) && !matchQ(L, q))), o0 = L.its[0], nTo = L.its.filter(o => o.toReal).length;
     return `<tr class="${hasSp ? 'pg-grp' : ''}${op ? ' sp-open' : ''}${pvSelL.has(x.i) ? ' changed' : ''}" ${hasSp ? `data-pvo="${x.i}"` : ''}>
@@ -2862,7 +3026,7 @@ function renderPv() {
       <td>${esc(x.sop)}</td><td class="num">${hasSp ? `${f0(L.fcs.length)} de ${f0(x.sps.length)}` : '—'}</td><td class="num">${f2(x.m)}</td>
       <td class="num">${f1(L.s)}%</td><td class="num">${f1(L.phys)}%</td><td class="num">${L.tgt == null ? '<span class="muted">—</span>' : `<b>${f1(L.tgt)}%</b>`}</td>
       <td class="num">${L.fcs.length ? f2(L.prevM) : '—'}</td>${isAdmin() ? `<td class="money">${L.fcs.length ? brl(L.prevM * L.pr) : '—'}</td>` : ''}<td>${pvSitL(L)}</td>
-      ${adm ? `<td><span class="acts">${nTo ? `<button class="btn sm primary" ${hasSp ? `data-pvreall="${x.i}"` : `data-pvreal="${esc(o0.key)}"`}>Tornar real</button>` : ''}${L.fcs.length ? `<button class="btn sm ghost" ${hasSp ? `data-pvrml="${x.i}"` : `data-pvrm="${esc(o0.key)}"`}>Remover</button>` : ''}</span></td>` : ''}</tr>
+      ${adm ? `<td><span class="acts">${nTo ? `<button class="btn sm primary" ${hasSp ? `data-pvreall="${x.i}"` : `data-pvreal="${esc(o0.key)}"`}>Tornar real</button>` : ''}${L.rzs.length ? `<button class="btn sm" ${hasSp ? `data-pvundl="${x.i}"` : `data-pvund="${esc(o0.key)}"`} title="Desfaz a medição realizada; a previsão continua">Desfazer</button>` : ''}${L.fcs.some(o => !o.isReal) ? `<button class="btn sm ghost" ${hasSp ? `data-pvrml="${x.i}"` : `data-pvrm="${esc(o0.key)}"`}>Remover</button>` : ''}</span></td>` : ''}</tr>
       ${op ? L.its.map(o => spTr(L, o)).join('') : ''}`;
   }).join('') : `<tr><td colspan="${cols}"><div class="empty"><b>${show === 'fc' ? 'Nenhuma previsão nesta medição' : 'Nenhuma linha nesta visão'}</b>${show === 'fc' && adm ? '<br><button class="btn primary sm" data-pvaddmode style="margin-top:10px">+ Adicionar linhas à previsão</button>' : 'Ajuste a busca ou os filtros.'}</div></td></tr>`;
   const multi = page.filter(L => L.x.sps.length), allOpen = multi.length && multi.every(L => pvOpen.has(L.x.i));
@@ -2905,9 +3069,17 @@ async function pvMakeReal(its) {
   try { await saveReal(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item tornado real' : 'itens tornados reais'} na ${perLabel(per)}.`); }
   catch (err) { toast('Não foi possível tornar real: ' + err.message, true); }
 }
+async function pvUndoReal(its) {
+  const per = pvSel, keys = its.filter(it => rzOfIt(it, per)).map(itKey);
+  if (!keys.length) return toast('Nenhum dos itens foi tornado real nesta medição.', true);
+  if (!confirm(`Desfazer a medição realizada de ${keys.length} ${keys.length === 1 ? 'item' : 'itens'} na ${perLabel(per)}?\n\nA previsão continua cadastrada e o item volta a ficar como Previsto.`)) return;
+  try { await saveReal(per, new Map(keys.map(k => [k, null]))); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${keys.length} ${keys.length === 1 ? 'item voltou' : 'itens voltaram'} para Previsto.`); }
+  catch (err) { toast('Não foi possível desfazer: ' + err.message, true); }
+}
 async function pvRemove(its) {
-  const per = pvSel, ch = new Map(); for (const it of its) if (fcOfIt(it, per) != null) ch.set(itKey(it), null);
-  if (!ch.size) return toast('Nenhum dos itens está previsto nesta medição.', true);
+  const per = pvSel, ch = new Map(); let nReal = 0;
+  for (const it of its) if (fcOfIt(it, per) != null) { if (rzOfIt(it, per)) nReal++; else ch.set(itKey(it), null); }
+  if (!ch.size) return toast(nReal ? 'Os itens já foram tornados reais. Use "Desfazer real" antes de tirar da previsão.' : 'Nenhum dos itens está previsto nesta medição.', true);
   try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item retirado' : 'itens retirados'} da previsão.`); }
   catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
 }
@@ -2938,6 +3110,8 @@ $('#pvBody').addEventListener('click', e => {
   let b;
   if ((b = e.target.closest('[data-pvreal]'))) return pvMakeReal([itemOf(b.dataset.pvreal)].filter(Boolean));
   if ((b = e.target.closest('[data-pvreall]'))) return pvMakeReal(medItems(R[+b.dataset.pvreall]));
+  if ((b = e.target.closest('[data-pvund]'))) return pvUndoReal([itemOf(b.dataset.pvund)].filter(Boolean));
+  if ((b = e.target.closest('[data-pvundl]'))) return pvUndoReal(medItems(R[+b.dataset.pvundl]));
   if ((b = e.target.closest('[data-pvrm]'))) return pvRemove([itemOf(b.dataset.pvrm)].filter(Boolean));
   if ((b = e.target.closest('[data-pvrml]'))) { const x = R[+b.dataset.pvrml]; if (confirm(`Tirar a linha ${x.line} da previsão da ${perLabel(pvSel)}?`)) pvRemove(medItems(x)); return; }
   if (e.target.closest('input, .lname, button:not(.spt)')) return;
@@ -2948,6 +3122,7 @@ $('#pvAdd').onclick = () => { const v = clampPct($('#pvPct').value); if (v == nu
 $('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual', true);
 $('#pvReal').onclick = () => pvMakeReal(pvSelItems());
 $('#pvRmSel').onclick = () => pvRemove(pvSelItems());
+$('#pvUndoSel').onclick = () => pvUndoReal(pvSelItems());
 const pvToggleAdd = () => { $('#pvShow').value = $('#pvShow').value === 'none' ? 'fc' : 'none'; pvPage = 0; pvSelL.clear(); pvSelS.clear(); renderPv(); if ($('#pvShow').value === 'none') $('#pvQ').focus(); };
 $('#pvAddMode').onclick = pvToggleAdd;
 document.addEventListener('click', e => { if (e.target.closest('[data-pvaddmode]')) pvToggleAdd(); });
