@@ -36,7 +36,9 @@ a{color:var(--brand)}
 .mark svg{width:28px;height:28px}
 .brand b{display:block;color:#fff;font-size:15px;font-weight:600;letter-spacing:.01em;line-height:1.15}
 .brand small{display:block;color:var(--nav-mute);font-size:12px;margin-top:3px}
-.nav{padding:14px 10px;display:flex;flex-direction:column;gap:2px;flex:1}
+.nav{padding:14px 10px;display:flex;flex-direction:column;gap:2px;flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#3B5B75 transparent}
+.nav::-webkit-scrollbar{width:8px}.nav::-webkit-scrollbar-thumb{background:#3B5B75;border-radius:8px;border:2px solid transparent;background-clip:padding-box}.nav::-webkit-scrollbar-thumb:hover{background-color:#5A7D99}.nav::-webkit-scrollbar-track{background:transparent}
+.nav>*{flex-shrink:0}
 .nav button{display:flex;align-items:center;gap:12px;width:100%;border:0;background:none;color:var(--nav-ink);padding:10px 12px;border-radius:6px;cursor:pointer;text-align:left;font-size:14px;font-weight:500}
 .nav button svg{width:18px;height:18px;flex:none;stroke:currentColor;fill:none;stroke-width:1.7;opacity:.85}
 .nav button:hover{background:var(--nav2);color:#fff}
@@ -44,7 +46,7 @@ a{color:var(--brand)}
 .nav button[aria-current="page"] svg{opacity:1}
 .nav .count{margin-left:auto;font-size:12px;color:var(--nav-mute)}
 .nav button[aria-current="page"] .count{color:var(--muted)}
-.side-foot{padding:16px 20px 20px;border-top:1px solid #22405A;font-size:12px;color:var(--nav-mute)}
+.side-foot{flex-shrink:0;padding:16px 20px 20px;border-top:1px solid #22405A;font-size:12px;color:var(--nav-mute)}
 .side-foot b{color:var(--nav-ink);font-weight:500}
 
 .main{min-width:0;display:flex;flex-direction:column}
@@ -516,6 +518,8 @@ body.eqp .nsp.none{display:none}
 .jt-sw button[aria-pressed="true"]{background:var(--nav);color:#fff}
 .jt-b{border-top:1px solid var(--line2)}
 .jt tr.tot td{background:var(--surface2);font-weight:600}
+.jt-hist{border-top:3px solid var(--line2)}
+.jt-hh{display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;padding:12px 18px 8px}.jt-hh span{font-size:12.5px}
 @media (max-width:820px){.jt-sw{display:grid;grid-template-columns:repeat(3,1fr);width:100%}}
 /* ===== celular ===== */
 .nav-toggle{display:none}
@@ -1292,7 +1296,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '28/10/2026 09:00'; // versão deste arquivo
+const APP_BUILD = '28/10/2026 11:30'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -3936,25 +3940,76 @@ function scopeSum(per) {
   return t;
 }
 function jtPerOf(view) { if (view === 'previsao') return pvSel || openPeriod(); if (view === 'realizada') return rzSel || openPeriod(); return /^\d{4}-\d{2}$/.test(finSel || '') ? finSel : openPeriod(); }
+// itens medidos no mês (para o histórico gravado e o Excel)
+function rzXlsxRows(per) {
+  buildHIdx(); buildMedIdx(); const rows = [];
+  for (const x of R) { const L = medLine(x, per); for (const o of L.rzs) { if (!(o.realM > 0.0005)) continue;
+    rows.push([medTag(o.it), ppuLbl(x), medEtapa(x), Math.round(o.realM * 1000) / 1000, Math.round(o.realM * L.pr * 100) / 100]); } }
+  return rows.sort((a, b) => String(a[0]).localeCompare(String(b[0])));
+}
+const r2 = v => Math.round(v * 100) / 100, r3 = v => Math.round(v * 1000) / 1000;
+function scopeSnap(per) { const t = scopeSum(per); return { fcM: r3(t.fcM), fcV: r2(t.fcV), rzM: r3(t.rzM), rzV: r2(t.rzV), items: rzXlsxRows(per) }; }
+let medHist = null;
+async function medHistLoad(force) { if (medHist && !force) return medHist; try { medHist = (await api('/med/hist')).items || []; } catch (e) { medHist = e.status === 404 ? 'old' : []; } return medHist; }
 async function renderJt(view) {
   const box = document.getElementById('jt-' + view); if (!box) return;
   const on = jtOn();
   box.querySelectorAll('[data-jt]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.jt === (on ? 'jt' : SCOPE))));
   const body = box.querySelector('.jt-b'); body.hidden = !on; if (!on) return;
-  if (!OTHER) { body.innerHTML = '<p class="muted" style="padding:14px 18px">Carregando o outro escopo…</p>'; await otherLoad(); }
+  if (!OTHER || !medHist) { body.innerHTML = '<p class="muted" style="padding:14px 18px">Carregando o outro escopo…</p>'; await Promise.all([otherLoad(), medHistLoad()]); }
   const per = jtPerOf(view), adm = isAdmin(), mine = scopeSum(per), oth = inOther(() => scopeSum(per));
   const T = EQP ? oth : mine, E = EQP ? mine : oth, u = s => s === 'tub' ? 'm' : 'm²';
   const q = (o, k, s) => o ? `${f2(o[k])} ${u(s)}` : '—', v = (o, k) => o ? brl(o[k]) : '—';
-  const row = (nm, o, s) => `<tr><td><b>${nm}</b></td><td class="num">${q(o, 'fcM', s)}</td>${adm ? `<td class="money">${v(o, 'fcV')}</td>` : ''}<td class="num">${q(o, 'rzM', s)}</td>${adm ? `<td class="money">${v(o, 'rzV')}</td>` : ''}<td class="num">${o ? pctTxt(o.totM ? o.accM / o.totM * 100 : 0) : '—'}</td>${adm ? `<td class="money">${v(o, 'accV')}</td><td class="money">${v(o, 'totV')}</td>` : ''}</tr>`;
+  const row = (nm, o, s) => `<tr><td><b>${nm}</b></td><td class="num">${q(o, 'fcM', s)}</td>${adm ? `<td class="money">${v(o, 'fcV')}</td>` : ''}<td class="num">${q(o, 'rzM', s)}</td>${adm ? `<td class="money">${v(o, 'rzV')}</td>` : ''}</tr>`;
   const sum = k => (T ? T[k] : 0) + (E ? E[k] : 0);
   const miss = !oth ? `<p class="len-warn" style="margin:10px 18px">${OTHER && OTHER.missing ? `O escopo de ${EQP ? 'tubulação' : 'equipamentos'} ainda não tem base carregada.` : `Não foi possível carregar o outro escopo${OTHER?.error ? ': ' + esc(OTHER.error) : ''}.`}</p>` : '';
-  body.innerHTML = `${miss}<div class="tbl-wrap"><table><thead><tr><th>Escopo · ${esc(perLabel(per))}</th><th class="num">Previsto</th>${adm ? '<th class="money">Previsto (R$)</th>' : ''}<th class="num">Realizado no mês</th>${adm ? '<th class="money">Realizado (R$)</th>' : ''}<th class="num">Medido acumulado</th>${adm ? '<th class="money">Acumulado (R$)</th><th class="money">Valor do escopo</th>' : ''}</tr></thead><tbody class="m-noeq">
+  // histórico gravado
+  const H = Array.isArray(medHist) ? medHist : [];
+  const latest = new Set(); { const seen = new Set(); for (const h of H) if (!seen.has(h.period)) { seen.add(h.period); latest.add(h.at); } }
+  const cell = (o, s) => o ? `${f2(o.rzM)} ${u(s)}${adm && o.rzV != null ? `<br><small class="muted">${brl(o.rzV)}</small>` : ''}` : '—';
+  const hist = medHist === 'old' ? '<p class="len-warn" style="margin:10px 18px">Publique o worker.js novo para gravar o histórico das medições.</p>'
+    : H.length ? `<div class="tbl-wrap"><table><thead><tr><th>Medição</th><th>Gravada em</th><th class="num">Tubulação (realizado)</th><th class="num">Equipamentos (realizado)</th>${adm ? '<th class="money">Total realizado</th><th class="money">Total previsto</th>' : ''}<th></th></tr></thead><tbody>${
+      H.map(h => { const d = h.data || {}, tt = d.tub, ee = d.eqp, sr = k => (tt?.[k] || 0) + (ee?.[k] || 0);
+        return `<tr><td><b>${esc(perLabel(h.period))}</b>${latest.has(h.at) ? '' : ' <span class="tag s0">versão anterior</span>'}</td><td>${when(h.at)}<br><small class="muted">${esc(h.by || '')}</small></td>
+          <td class="num">${cell(tt, 'tub')}</td><td class="num">${cell(ee, 'eqp')}</td>${adm ? `<td class="money"><b>${brl(sr('rzV'))}</b></td><td class="money">${brl(sr('fcV'))}</td>` : ''}
+          <td><span class="acts"><button class="btn sm" data-hx="${esc(h.period)}|${esc(h.at)}">Excel</button>${adm ? `<button class="btn sm ghost" data-hdel="${esc(h.period)}|${esc(h.at)}">Excluir</button>` : ''}</span></td></tr>`; }).join('')
+    }</tbody></table></div>` : '<p class="muted" style="padding:12px 18px;margin:0">Nenhuma medição gravada ainda.' + (adm ? ' Use "Gravar medição" para guardar os números do mês.' : '') + '</p>';
+  body.innerHTML = `${miss}<div class="tbl-wrap"><table><thead><tr><th>Escopo · ${esc(perLabel(per))}</th><th class="num">Previsto no mês</th>${adm ? '<th class="money">Previsto (R$)</th>' : ''}<th class="num">Realizado no mês</th>${adm ? '<th class="money">Realizado (R$)</th>' : ''}</tr></thead><tbody>
     ${row('Isolamento de tubulação', T, 'tub')}${row('Isolamento de equipamentos', E, 'eqp')}
-    ${adm ? `<tr class="tot"><td><b>Total</b></td><td class="num muted">m + m²</td><td class="money"><b>${brl(sum('fcV'))}</b></td><td class="num muted">m + m²</td><td class="money"><b>${brl(sum('rzV'))}</b></td><td class="num">${pctTxt(sum('totV') ? sum('accV') / sum('totV') * 100 : 0)}</td><td class="money"><b>${brl(sum('accV'))}</b></td><td class="money"><b>${brl(sum('totV'))}</b></td></tr>` : ''}
+    ${adm ? `<tr class="tot"><td><b>Total</b></td><td class="num muted">m + m²</td><td class="money"><b>${brl(sum('fcV'))}</b></td><td class="num muted">m + m²</td><td class="money"><b>${brl(sum('rzV'))}</b></td></tr>` : ''}
   </tbody></table></div>
-  <div class="pager"><span>${adm ? 'Quantidades em metros (tubulação) e m² (equipamentos); os valores em R$ somam.' : 'Quantidades em metros (tubulação) e m² (equipamentos).'}</span><span class="spacer"></span>
-    <button class="btn sm" data-jtref>Atualizar</button>${view === 'previsao' ? `<button class="btn sm primary" data-jtxlsx>Exportar Excel dos dois escopos</button>` : ''}</div>`;
+  <div class="pager"><span>Quantidades em metros (tubulação) e m² (equipamentos)${adm ? '; os valores em R$ somam' : ''}.</span><span class="spacer"></span>
+    <button class="btn sm" data-jtref>Atualizar</button>${view === 'previsao' ? `<button class="btn sm" data-jtxlsx>Exportar Excel dos dois escopos</button>` : ''}${adm && medHist !== 'old' ? `<button class="btn sm primary" data-jtsave="${per}">Gravar medição ${esc(perLabel(per).replace('Medição ', ''))}</button>` : ''}</div>
+  <div class="jt-hist"><div class="jt-hh"><b>Histórico das medições gravadas</b><span class="muted">Fotos do mês guardadas no servidor; não mudam depois.</span></div>${hist}</div>`;
 }
+async function jtSave(per) {
+  await otherLoad(true);
+  const mine = scopeSnap(per), oth = inOther(() => scopeSnap(per));
+  const data = EQP ? { tub: oth, eqp: mine } : { tub: mine, eqp: oth };
+  const tot = (data.tub?.rzV || 0) + (data.eqp?.rzV || 0);
+  if (!confirm(`Gravar a ${perLabel(per)} no histórico?\n\nTubulação: ${data.tub ? f2(data.tub.rzM) + ' m · ' + brl(data.tub.rzV) : 'sem base'}\nEquipamentos: ${data.eqp ? f2(data.eqp.rzM) + ' m² · ' + brl(data.eqp.rzV) : 'sem base'}\nTotal realizado: ${brl(tot)}\n\nA gravação guarda os números de hoje. Se gravar de novo, fica uma nova versão e as anteriores continuam no histórico.`)) return;
+  try { await api('/med/hist', { method: 'POST', body: { period: per, data } }); await medHistLoad(true); ['previsao', 'realizada', 'financeiro'].forEach(renderJt); toast(`${perLabel(per)} gravada no histórico.`); }
+  catch (e) { toast('Não foi possível gravar: ' + e.message, true); }
+}
+function histXlsx(h) {
+  const rows = [];
+  for (const [sc, o] of [['tub', h.data?.tub], ['eqp', h.data?.eqp]]) for (const r of (o?.items || [])) rows.push([r[0], r[1], r[2], r[3], r[4] ?? null, 'A DEFINIR', 'Serviço', null, sc === 'eqp' ? 'Equipamento' : 'Tubulação']);
+  if (!rows.length) return toast('Esta gravação não tem itens medidos.', true);
+  const blob = XL.book('Medição', [31.25, 16.83, 14.83, 12.83, 14.83, 24.83, 12.83, 9.83, 28.83],
+    ['TAG', 'Item PPU', 'Etapa Critério', 'Quantidade', 'Valor (R$)', 'Taxonomia do Relatório', 'Categoria', 'Semana', 'Observação'], rows, { 3: 2, 4: 3 });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Medicao_${h.period}_gravada_${h.at.slice(0, 10)}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+}
+document.addEventListener('click', async e => {
+  let b;
+  if ((b = e.target.closest('[data-jtsave]'))) return jtSave(b.dataset.jtsave);
+  if ((b = e.target.closest('[data-hx]'))) { const [p, at] = b.dataset.hx.split('|'); const h = (medHist || []).find(x => x.period === p && x.at === at); if (h) histXlsx(h); return; }
+  if ((b = e.target.closest('[data-hdel]'))) {
+    const [p, at] = b.dataset.hdel.split('|');
+    if (!confirm(`Excluir a gravação da ${perLabel(p)} feita em ${when(at)}? Esta ação não pode ser desfeita.`)) return;
+    try { await api('/med/hist/delete', { method: 'POST', body: { period: p, at } }); await medHistLoad(true); ['previsao', 'realizada', 'financeiro'].forEach(renderJt); toast('Gravação excluída.'); }
+    catch (er) { toast('Não foi possível excluir: ' + er.message, true); }
+  }
+});
 document.addEventListener('click', async e => {
   const b = e.target.closest('[data-jt]');
   if (b) {
@@ -3964,7 +4019,7 @@ document.addEventListener('click', async e => {
     else { try { sessionStorage.setItem(JT_KEY, '0'); } catch (er) {} renderJt(view); }
     return;
   }
-  if (e.target.closest('[data-jtref]')) { await otherLoad(true); return renderJt(e.target.closest('.jt').dataset.view); }
+  if (e.target.closest('[data-jtref]')) { await Promise.all([otherLoad(true), medHistLoad(true)]); return renderJt(e.target.closest('.jt').dataset.view); }
   if (e.target.closest('[data-jtxlsx]')) {
     const mine = pvXlsxRows(pvSel), oth = inOther(() => pvXlsxRows(pvSel)) || [];
     pvXlsxSave([...mine, ...oth], `Previsao_Medicao_${pvSel}_tubulacao_e_equipamentos.xlsx`);
