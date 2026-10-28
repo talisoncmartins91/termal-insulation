@@ -1263,8 +1263,8 @@ body.eqp .nsp.none{display:none}
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
-    <label class="fld"><span>Imagem da programação</span><select class="input" id="pptImg"></select></label>
-    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana na aba Acompanhamento visual (categoria Programação semanal). Envie a imagem antes, ou a apresentação sai com a imagem do modelo.</p>
+    <label class="fld"><span>Imagem do slide (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select></label>
+    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
   </div>
@@ -1300,7 +1300,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '28/10/2026 18:30'; // versão deste arquivo
+const APP_BUILD = '28/10/2026 19:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2635,6 +2635,7 @@ function pptWeekLines(P) {
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 const pptImages = P => visuals.filter(v => v.category === 'programacao' && Number(v.week) === Number(P) && /^image\//.test(v.mime || ''));
+const pptVgImages = () => visuals.filter(v => v.category === 'visao_geral' && /^image\//.test(v.mime || '')).slice(0, 40);
 function pptWeekOpts(sel) {
   const cur = weekOf(Date.now()), ws = new Set();
   for (let w = cur - 12; w <= cur + 4; w++) ws.add(w);
@@ -2642,9 +2643,12 @@ function pptWeekOpts(sel) {
   return [...ws].filter(w => w > 0).sort((a, b) => b - a).map(w => `<option value="${w}"${w === sel ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}${w === cur ? ' (atual)' : ''}</option>`).join('');
 }
 function pptRenderModal() {
-  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), lines: pptWeekLines(P) })) || { imgs: [], lines: [] }, imgs = tw.imgs, lines = tw.lines;
-  $('#pptImg').innerHTML = imgs.length ? imgs.map((v, i) => `<option value="${v.id}"${i === 0 ? ' selected' : ''}>${esc(v.filename)} · ${when(v.uploaded_at)}</option>`).join('') + '<option value="">Manter a imagem do modelo</option>'
-    : '<option value="">Sem imagem da programação desta semana (fica a do modelo)</option>';
+  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), lines: pptWeekLines(P) })) || { imgs: [], vg: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], lines = tw.lines;
+  const opt = (v, sel) => `<option value="${v.id}"${sel ? ' selected' : ''}>${esc(v.caption || v.filename)} · ${when(v.uploaded_at)}</option>`;
+  $('#pptImg').innerHTML =
+    (imgs.length ? `<optgroup label="Programação · Semana ${P}">${imgs.map((v, i) => opt(v, i === 0)).join('')}</optgroup>` : '') +
+    (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map((v, i) => opt(v, !imgs.length && i === 0)).join('')}</optgroup>` : '') +
+    `<option value=""${!imgs.length && !vg.length ? ' selected' : ''}>Manter a imagem do modelo</option>`;
   $('#pptImgWarn').hidden = imgs.length > 0;
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
@@ -2672,7 +2676,7 @@ $('#pptTplFile').onchange = async e => {
 };
 async function pptImageBytes(id) {
   const r = await fetch(`${API_URL}/visual/file/${id}`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
-  if (!r.ok) throw new Error(`não consegui baixar a imagem da programação (${r.status})`);
+  if (!r.ok) throw new Error(`não consegui baixar a imagem escolhida (${r.status})`);
   let blob = await r.blob(); const bmp = await createImageBitmap(blob);
   let ext = /png/.test(blob.type) ? 'png' : 'jpg';
   if (!/jpe?g|png/.test(blob.type)) {   // webp/gif: converte para JPG
