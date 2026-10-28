@@ -297,6 +297,8 @@ tr.pg-grp.sp-open td{background:#F6FAFD}
 .ph .cat{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 8px;border-radius:999px;width:max-content}
 .ph .cat.p{background:#FFF6CC;color:#7A5C00}
 .ph .cat.e{background:#E3F4E6;color:#1F6B30}
+.ph .cat.v{background:#E3EEF9;color:#1F4E79}
+.vt-ic.b{background:#3B82C4}
 .ph .edit{display:none;flex-direction:column;gap:6px;padding:8px;border:1px dashed var(--line);border-radius:8px}
 .ph .edit.on{display:flex}
 
@@ -1012,7 +1014,7 @@ body.eqp .nsp.none{display:none}
             <div class="tools"><button class="btn" id="pptTplBtn" hidden>Enviar modelo (.pptx)</button><input type="file" id="pptTplFile" accept=".pptx" hidden><button class="btn primary" id="pptOpen" disabled>Exportar apresentação</button></div></div>
         </div>
         <div class="panel" id="upPanel">
-          <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>Os arquivos vão para o repositório no GitHub e aparecem aqui com a data e a hora do envio.</p></div><div class="tools"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div></div></div>
+          <div class="panel-h"><div><h2>Enviar acompanhamento visual</h2><p>Os arquivos aparecem aqui com a data e a hora do envio. As vistas da maquete chegam direto pelo botão “Publicar no painel” do Navisworks.</p></div><div class="tools"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div></div></div>
           <div class="panel-b upload">
             <div>
               <label class="drop" id="drop" tabindex="0">
@@ -1025,13 +1027,13 @@ body.eqp .nsp.none{display:none}
             </div>
             <div class="form">
               <label>Onde publicar
-                <span class="seg vseg" id="upCat"><button type="button" data-c="programacao" aria-pressed="true">Programação semanal</button><button type="button" data-c="executadas" aria-pressed="false">Linhas executadas</button></span></label>
+                <span class="seg vseg" id="upCat"><button type="button" data-c="programacao" aria-pressed="true">Programação semanal</button><button type="button" data-c="executadas" aria-pressed="false">Linhas executadas</button><button type="button" data-c="visao_geral" aria-pressed="false">Visão geral da unidade</button></span></label>
               <label id="upWeekW">Semana da programação
                 <span class="pw"><input class="input" id="upWeek" type="text" inputmode="numeric" placeholder="Ex.: 70" style="max-width:120px"><span class="muted" id="upWeekR" style="align-self:center;font-size:12.5px"></span></span></label>
               <label>Descrição<textarea class="input" id="upCap" rows="3" placeholder="Ex.: Isométrico da SOP 0039 marcado com o programado da semana"></textarea></label>
               <label>SOP (opcional)<select class="input" id="upSop"><option value="">Sem SOP</option></select></label>
               <label>Linha (opcional)<input class="input" id="upLine" list="lineList" placeholder="Digite para buscar a linha"></label>
-              <div><button class="btn primary" id="upSend" disabled>Enviar para o GitHub</button> <span class="muted" id="upMsg"></span></div>
+              <div><button class="btn primary" id="upSend" disabled>Enviar</button> <span class="muted" id="upMsg"></span></div>
             </div>
           </div>
         </div>
@@ -1041,6 +1043,7 @@ body.eqp .nsp.none{display:none}
             <div class="tools"><select class="input" id="visWeek" aria-label="Semana"></select><select class="input" id="visSop"><option value="">Todas as SOPs</option></select></div>
           </div>
           <div class="vtabs" id="visTabs" role="tablist">
+            <button role="tab" data-t="visao_geral" aria-selected="false"><span class="vt-ic b"></span>Visão geral da unidade <b id="vtV">0</b></button>
             <button role="tab" data-t="programacao" aria-selected="true"><span class="vt-ic y"></span>Programação semanal <b id="vtP">0</b></button>
             <button role="tab" data-t="executadas" aria-selected="false"><span class="vt-ic g"></span>Linhas executadas <b id="vtE">0</b></button>
           </div>
@@ -1297,7 +1300,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '28/10/2026 15:00'; // versão deste arquivo
+const APP_BUILD = '28/10/2026 18:30'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1943,7 +1946,9 @@ async function prepare(f) {
 }
 function toB64(blob) { return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = rej; r.readAsDataURL(blob); }); }
 let upCat = 'programacao', visTab = 'programacao';
-const catLabel = c => c === 'programacao' ? 'Programação semanal' : 'Linhas executadas';
+const catLabel = c => c === 'programacao' ? 'Programação semanal' : c === 'visao_geral' ? 'Visão geral da unidade' : 'Linhas executadas';
+const catTxt = v => vcat(v) === 'programacao' ? `Programação · Semana ${v.week ?? '—'}` : catLabel(vcat(v));
+const catCls = v => ({ programacao: 'p', visao_geral: 'v' })[vcat(v)] || 'e';
 function setUpCat(c) {
   upCat = c; $$('#upCat button').forEach(b => b.setAttribute('aria-pressed', b.dataset.c === c));
   $('#upWeekW').style.display = c === 'programacao' ? '' : 'none';
@@ -1981,26 +1986,26 @@ function photoCard(v) {
   return `<article class="ph" data-id="${v.id}">
     ${isPdf ? `<a class="pdf" href="${fileUrl(v)}" target="_blank" rel="noopener">PDF · abrir</a>` : `<button class="img" data-lb="${v.id}" aria-label="Ampliar foto"><img src="${fileUrl(v)}" alt="${esc(v.caption || v.filename)}" loading="lazy"></button>`}
     <div class="meta">
-      <span class="cat ${vcat(v) === 'programacao' ? 'p' : 'e'}">${vcat(v) === 'programacao' ? `Programação · Semana ${v.week ?? '—'}` : 'Linhas executadas'}</span>
+      <span class="cat ${catCls(v)}">${catTxt(v)}</span>
       <span class="when">Enviado em ${when(v.uploaded_at)}</span>
       ${v.caption ? `<span class="cap">${esc(v.caption)}</span>` : ''}
       <span class="row">${v.sop ? `<span class="chip">SOP ${esc(v.sop)}</span>` : ''}${v.line && byLine.has(v.line) ? `<button class="chip lname" data-line="${byLine.get(v.line).i}">${esc(v.line)}</button>` : ''}</span>
       <span class="by">por ${esc(v.uploaded_by || '—')}</span>
       ${canEdit() ? `<div class="edit" id="ve${v.id}">
-          <select class="input" data-vec="${v.id}"><option value="programacao"${vcat(v) === 'programacao' ? ' selected' : ''}>Programação semanal</option><option value="executadas"${vcat(v) === 'executadas' ? ' selected' : ''}>Linhas executadas</option></select>
+          <select class="input" data-vec="${v.id}"><option value="programacao"${vcat(v) === 'programacao' ? ' selected' : ''}>Programação semanal</option><option value="executadas"${vcat(v) === 'executadas' ? ' selected' : ''}>Linhas executadas</option><option value="visao_geral"${vcat(v) === 'visao_geral' ? ' selected' : ''}>Visão geral da unidade</option></select>
           <input class="input" data-vew="${v.id}" inputmode="numeric" placeholder="Semana (ex.: 70)" value="${v.week ?? ''}">
           <span style="display:flex;gap:6px"><button class="btn sm primary" data-vsave="${v.id}">Salvar</button><button class="btn sm" data-vedit="${v.id}">Cancelar</button></span></div>` : ''}
       <span style="display:flex;gap:6px">${canEdit() ? `<button class="btn sm" data-vedit="${v.id}">Mover</button>` : ''}${isAdmin() ? `<button class="btn sm danger" data-del="${v.id}">Excluir</button>` : ''}</span>
     </div></article>`;
 }
-const vcat = v => v.category === 'programacao' ? 'programacao' : 'executadas';
+const vcat = v => v.category === 'programacao' ? 'programacao' : v.category === 'visao_geral' ? 'visao_geral' : 'executadas';
 let visWeek = '';
 function renderVisual(justId) {
   $('#nVis').textContent = visuals.length ? f0(visuals.length) : '';
   $('#upPanel').style.display = canEdit() ? '' : 'none';
   if (!$('#upWeekW').dataset.init) { $('#upWeekW').dataset.init = 1; setUpCat(upCat); }
-  const prog = visuals.filter(v => vcat(v) === 'programacao'), exe = visuals.filter(v => vcat(v) === 'executadas');
-  $('#vtP').textContent = f0(prog.length); $('#vtE').textContent = f0(exe.length);
+  const prog = visuals.filter(v => vcat(v) === 'programacao'), exe = visuals.filter(v => vcat(v) === 'executadas'), vg = visuals.filter(v => vcat(v) === 'visao_geral');
+  $('#vtP').textContent = f0(prog.length); $('#vtE').textContent = f0(exe.length); $('#vtV').textContent = f0(vg.length);
   $$('#visTabs button').forEach(b => b.setAttribute('aria-selected', b.dataset.t === visTab));
   // semanas disponíveis na programação
   const weeks = [...new Set(prog.map(v => v.week).filter(w => w != null))].sort((a, b) => b - a);
@@ -2008,7 +2013,7 @@ function renderVisual(justId) {
   if (visWeek && !weeks.includes(Number(visWeek))) visWeek = '';
   ws.innerHTML = `<option value="">Todas as semanas</option>` + weeks.map(w => `<option value="${w}"${String(w) === visWeek ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}</option>`).join('');
   const sop = $('#visSop').value;
-  const list = (visTab === 'programacao' ? prog : exe).filter(v => (!sop || v.sop === sop) && (visTab !== 'programacao' || !visWeek || String(v.week) === visWeek));
+  const list = (visTab === 'programacao' ? prog : visTab === 'visao_geral' ? vg : exe).filter(v => (!sop || v.sop === sop) && (visTab !== 'programacao' || !visWeek || String(v.week) === visWeek));
   $('#visCount').textContent = `${f0(list.length)} ${list.length === 1 ? 'registro' : 'registros'} em ${catLabel(visTab)}${visuals[0] ? ` · último envio em ${when(visuals[0].uploaded_at)}` : ''}`;
   if (!list.length) {
     $('#gallery').innerHTML = `<div class="empty"><b>${online ? `Nenhum registro em ${catLabel(visTab)}` : 'Sem conexão com o servidor'}</b>${online ? (canEdit() ? `Envie no painel acima escolhendo "${catLabel(visTab)}".` : 'Entre com um usuário editor para enviar.') : 'Os registros aparecem quando o Worker estiver disponível.'}</div>`;
@@ -2040,10 +2045,10 @@ document.addEventListener('click', async e => {
 $('#visSop').onchange = () => renderVisual();
 document.addEventListener('click', async e => {
   const lb = e.target.closest('[data-lb]');
-  if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${vcat(v) === 'programacao' ? `Programação · Semana ${v.week ?? '—'}` : 'Linhas executadas'} · ${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
+  if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${catTxt(v)} · ${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
   const del = e.target.closest('[data-del]');
   if (del) {
-    if (!confirm('Excluir esta foto do painel e do GitHub?')) return;
+    if (!confirm('Excluir esta foto do painel?')) return;
     try { await api('/visual/' + del.dataset.del, { method: 'DELETE' }); visuals = visuals.filter(v => v.id != del.dataset.del); renderVisual(); renderPainel(); toast('Foto excluída.'); } catch (err) { toast(err.message, true); }
   }
 });
