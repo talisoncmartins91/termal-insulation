@@ -935,9 +935,10 @@ body.eqp .nsp.none{display:none}
             <input class="input" id="pgQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
             <select class="input" id="pgSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="pgSt"><option value="">Todas as situações</option><option value="hit">Meta atingida</option><option value="part">Parcial</option><option value="todo">Programada / não executada</option></select>
+            <div class="seg" id="pgUnit" title="Unidade para lançar o avanço"><button data-u="pct" aria-pressed="true">Lançar em %</button><button data-u="m" aria-pressed="false">Lançar em m</button></div>
           </div>
           <div class="tbl-wrap"><table>
-            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Spools</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th class="num" title="Avanço físico: digite o % ou use Meta. Depois clique em Salvar avanço na barra de baixo.">Lançar avanço (%)</th><th></th></tr></thead>
+            <thead><tr><th>Linha</th><th>SOP</th><th>STH</th><th class="num">Spools</th><th class="num">Metros</th><th class="num">% início</th><th class="num">Meta</th><th class="num">% atual</th><th class="num">Programado (m)</th><th class="num">Executado (m)</th><th>Situação</th><th class="num" id="pgAvH" title="Avanço físico: digite o valor ou use Meta. Depois clique em Salvar avanço na barra de baixo.">Lançar avanço (%)</th><th></th></tr></thead>
             <tbody id="pgBody"></tbody>
           </table></div>
           <div class="pager" id="pgPager"></div>
@@ -1254,7 +1255,7 @@ body.eqp .nsp.none{display:none}
   </div>
 </div>
 
-<div class="modal" id="pptModal" role="dialog" aria-modal="true" aria-labelledby="pptT">
+<div class="modal m-noeq" id="pptModal" role="dialog" aria-modal="true" aria-labelledby="pptT">
   <div class="box" style="width:min(560px,100%)">
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
@@ -1296,7 +1297,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '28/10/2026 11:30'; // versão deste arquivo
+const APP_BUILD = '28/10/2026 15:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -1814,13 +1815,14 @@ function toPct(x, raw, what = 'O avanço') {
 }
 function setUnit(u) {
   unit = u === 'm' ? 'm' : 'pct'; try { localStorage.setItem('ti_unit', unit); } catch (e) {}
-  $$('#lnUnit button').forEach(b => b.setAttribute('aria-pressed', b.dataset.u === unit));
+  $$('#lnUnit button, #pgUnit button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.u === unit)));
   $$('.u-lbl').forEach(el => el.textContent = unit === 'm' ? 'm' : '%');
   $('#lnAvH').textContent = `Avanço (${unit === 'm' ? 'm' : '%'})`;
   if (unit === 'm') { $('#bulkPct').placeholder = 'm'; $('#bulkWeekPct').placeholder = 'm'; }
-  renderLinhas(); renderEstrutura(); if (dLine != null) openLine(dLine);
+  renderLinhas(); renderEstrutura(); if (BASE) renderProg(); if (dLine != null) openLine(dLine);
 }
 $('#lnUnit').onclick = e => { const b = e.target.closest('button'); if (b) setUnit(b.dataset.u); };
+$('#pgUnit').onclick = e => { const b = e.target.closest('button'); if (b) setUnit(b.dataset.u); };
 document.addEventListener('change', e => {
   const inp = e.target.closest('.pct-in[data-i], .pct-in[data-sp]'); if (!inp) return;
   const x = inp.dataset.sp ? SP.get(inp.dataset.sp) : R[+inp.dataset.i]; if (!x) return;
@@ -2589,7 +2591,7 @@ async function lenImpApply() {
 // O modelo é o .pptx enviado pelo administrador. Na exportação o painel troca: semana da capa, data,
 // linhas e imagem da programação, resumo geral e o gráfico "Avanço por SOP". O restante fica como no modelo.
 let pptInfo = null;
-async function pptLoadInfo() { try { pptInfo = (await api('/ppt/template/info')).info || false; } catch (e) { pptInfo = e.status === 404 ? 'old' : false; } renderPptBar(); }
+async function pptLoadInfo() { try { pptInfo = (await api('/ppt/template/info', { headers: { 'X-Scope': 'tub' } })).info || false; } catch (e) { pptInfo = e.status === 404 ? 'old' : false; } renderPptBar(); }
 function renderPptBar() {
   const el = $('#pptInfo'); if (!el) return;
   $('#pptTplBtn').hidden = !isAdmin();
@@ -2635,16 +2637,17 @@ function pptWeekOpts(sel) {
   return [...ws].filter(w => w > 0).sort((a, b) => b - a).map(w => `<option value="${w}"${w === sel ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}${w === cur ? ' (atual)' : ''}</option>`).join('');
 }
 function pptRenderModal() {
-  const P = +$('#pptProg').value, imgs = pptImages(P), lines = pptWeekLines(P);
+  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), lines: pptWeekLines(P) })) || { imgs: [], lines: [] }, imgs = tw.imgs, lines = tw.lines;
   $('#pptImg').innerHTML = imgs.length ? imgs.map((v, i) => `<option value="${v.id}"${i === 0 ? ' selected' : ''}>${esc(v.filename)} · ${when(v.uploaded_at)}</option>`).join('') + '<option value="">Manter a imagem do modelo</option>'
     : '<option value="">Sem imagem da programação desta semana (fica a do modelo)</option>';
   $('#pptImgWarn').hidden = imgs.length > 0;
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
 }
-$('#pptOpen').onclick = () => {
+$('#pptOpen').onclick = async () => {
   const cur = weekOf(Date.now());
-  $('#pptProg').innerHTML = pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
+  const b = $('#pptOpen'); b.disabled = true; await otherLoad(); b.disabled = false;
+  $('#pptProg').innerHTML = inTub(() => pptWeekOpts(cur)) || pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
   pptRenderModal(); $('#pptModal').classList.add('on');
 };
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
@@ -2657,13 +2660,13 @@ $('#pptTplFile').onchange = async e => {
   const btn = $('#pptTplBtn'); btn.disabled = true; btn.textContent = 'Enviando modelo…';
   try {
     const content = await new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(',')[1]); r.onerror = () => rej(new Error('não consegui ler o arquivo')); r.readAsDataURL(f); });
-    const r = await api('/ppt/template', { method: 'POST', body: { content, filename: f.name } });
+    const r = await api('/ppt/template', { method: 'POST', body: { content, filename: f.name }, headers: { 'X-Scope': 'tub' } });
     pptInfo = r.info; renderPptBar(); toast('Modelo da apresentação atualizado.');
   } catch (err) { toast('Não foi possível enviar o modelo: ' + err.message, true); }
   btn.disabled = false; btn.textContent = 'Enviar modelo (.pptx)';
 };
 async function pptImageBytes(id) {
-  const r = await fetch(`${API_URL}/visual/file/${id}`, { headers: { 'X-Scope': SCOPE, ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
+  const r = await fetch(`${API_URL}/visual/file/${id}`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
   if (!r.ok) throw new Error(`não consegui baixar a imagem da programação (${r.status})`);
   let blob = await r.blob(); const bmp = await createImageBitmap(blob);
   let ext = /png/.test(blob.type) ? 'png' : 'jpg';
@@ -2696,7 +2699,64 @@ function pptChart(xml, st) {
   const out = ser(0, 'Concluído', done) + ser(1, 'Em andamento', prog_) + ser(2, 'Restante', st.map(o => 1 - o.p)) + ser(3, 'Espaço rótulo', st.map(() => 0.55), `<c:dLbls>${lbl}${tail}</c:dLbls>`);
   return (xml.slice(0, a) + out + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
 }
+/* ---------- apresentação: slide de equipamentos (mapa por área, status e gráfico) ---------- */
+function eqAreaStats() {
+  const m = new Map();
+  for (const x of R) { const code = String(x.sop || '').replace(/^Área\s*/i, '').trim(); const o = m.get(code) || { code, tm: 0, ex: 0 }; o.tm += x.m; o.ex += exSaved(x); m.set(code, o); }
+  return [...m.values()].filter(o => o.tm > 0 && /\d/.test(o.code)).map(o => ({ ...o, p: Math.max(0, Math.min(1, o.ex / o.tm)) }))
+    .sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }));
+}
+const eqDone = o => o.p >= 0.99995, eqZero = o => o.p <= 0.00005;
+const nfL = v => new Intl.NumberFormat('pt-BR', { maximumFractionDigits: 2, useGrouping: false }).format(v);
+const eqLbl = o => eqZero(o) ? `0% (${nfL(o.tm)} m²)` : eqDone(o) ? `100% (${nfL(o.tm)} m²)` : `${nfBR(o.p * 100, 2)}% (${nfL(o.ex)} m² de ${nfL(o.tm)} m²)`;
+function pptEqSlide(s, st) {
+  const by = new Map(st.map(o => [o.code, o]));
+  const box = blk => { const m = blk.match(/<a:off x="(-?\d+)" y="(-?\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/); return m ? m.slice(1).map(Number) : null; };
+  const sps = s.match(/<p:sp>[\s\S]*?<\/p:sp>/g) || [];
+  // retângulos das áreas no mapa (sem texto, preenchimento translúcido)
+  const rects = sps.filter(b => !/<a:t>/.test(b) && /<a:alpha val="25000"\/>/.test(b)).map(b => ({ b, r: box(b) })).filter(o => o.r);
+  const line = (blk, done) => blk.replace(/(<a:ln(?:\s[^>]*)?>\s*<a:solidFill>)[\s\S]*?(<\/a:solidFill>)/, `$1<a:srgbClr val="${done ? '00B050' : 'FFC000'}"/>$2`);
+  const fill = (blk, done) => blk.replace(/(<\/a:prstGeom>\s*<a:solidFill>)[\s\S]*?(<\/a:solidFill>)/, `$1<a:srgbClr val="${done ? '00B050' : 'FFFF00'}"><a:alpha val="25000"/></a:srgbClr>$2`);
+  for (const blk of sps) {
+    const ts = [...blk.matchAll(/<a:t>([^<]*)<\/a:t>/g)].map(m => m[1]);
+    if (ts.length < 2 || !/^\s*\d{3}\s*$/.test(ts[0])) continue;
+    const o = by.get(ts[0].trim()); if (!o) continue;
+    let k = 0;
+    const nb = line(blk.replace(/<a:t>[^<]*<\/a:t>/g, m => { k++; return k === 1 ? m : k === 2 ? `<a:t>${xmlEsc(eqLbl(o))}</a:t>` : '<a:t></a:t>'; }), eqDone(o));
+    s = s.replace(blk, nb);
+    const r = box(blk); if (!r) continue;
+    const cx = r[0] + r[2] / 2, cy = r[1] + r[3] / 2;
+    const q = rects.filter(q => cx >= q.r[0] && cx <= q.r[0] + q.r[2] && cy >= q.r[1] && cy <= q.r[1] + q.r[3]).sort((a, b) => a.r[2] * a.r[3] - b.r[2] * b.r[3])[0];
+    if (q) { const nr = line(fill(q.b, eqDone(o)), eqDone(o)); s = s.replace(q.b, nr); q.b = nr; }
+  }
+  // tabela de status (as datas de conclusão ficam como no modelo)
+  s = s.replace(/<p:graphicFrame>(?:(?!<\/p:graphicFrame>)[\s\S])*?>STATUS<[\s\S]*?<\/p:graphicFrame>/, gf => gf.replace(/<a:tr [^>]*>[\s\S]*?<\/a:tr>/g, tr => {
+    const tcs = tr.match(/<a:tc>[\s\S]*?<\/a:tc>/g) || []; if (tcs.length < 2) return tr;
+    const o = by.get(((tcs[0].match(/<a:t>([^<]*)<\/a:t>/) || [])[1] || '').trim()); if (!o) return tr;
+    const [lb, cor, fd] = eqDone(o) ? ['CONCLUÍDO', '006100', 'C6EFCE'] : eqZero(o) ? ['NÃO INICIADA', 'C00000', 'FFC1C1'] : ['EM ANDAMENTO', '9C5700', 'FFEB9C'];
+    const c = tcs[1].replace(/<a:t>[^<]*<\/a:t>/, `<a:t>${lb}</a:t>`)
+      .replace(/(<a:rPr[^>]*>\s*<a:solidFill>)[\s\S]*?(<\/a:solidFill>)/, `$1<a:srgbClr val="${cor}"/>$2`)
+      .replace(/(<\/a:lnB>)(?:<a:solidFill>[\s\S]*?<\/a:solidFill>|<a:noFill\/>)?(<\/a:tcPr>)/, `$1<a:solidFill><a:srgbClr val="${fd}"/></a:solidFill>$2`);
+    return tr.replace(tcs[1], c);
+  }));
+  return s;
+}
+function pptEqChart(xml, st) {
+  const a = xml.indexOf('<c:ser>'), b = xml.lastIndexOf('</c:ser>') + 8; if (a < 0) return xml;
+  const n = st.length, cat = `<c:cat><c:strLit><c:ptCount val="${n}"/>${st.map((o, i) => `<c:pt idx="${i}"><c:v>Área ${xmlEsc(o.code)}</c:v></c:pt>`).join('')}</c:strLit></c:cat>`;
+  const val = arr => `<c:val><c:numLit><c:formatCode>0.0</c:formatCode><c:ptCount val="${n}"/>${arr.map((v, i) => `<c:pt idx="${i}"><c:v>${+v.toFixed(4)}</c:v></c:pt>`).join('')}</c:numLit></c:val>`;
+  const run = (t, cor, b) => `<a:r><a:rPr lang="pt-BR" sz="900" b="${b}"><a:solidFill><a:srgbClr val="${cor}"/></a:solidFill><a:latin typeface="Aptos"/></a:rPr><a:t>${t}</a:t></a:r>`;
+  const lbl = st.map((o, i) => `<c:dLbl><c:idx val="${i}"/><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p>${run(`${nfBR(o.p * 100, 1)}%`, eqDone(o) ? '2E7D32' : '9A7D0A', 1)}${run(`    ${nfBR(o.ex, 2)} / ${nfBR(o.tm, 2)} m²`, '595959', 0)}</a:p></c:rich></c:tx><c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbl>`).join('');
+  const tail = '<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr><c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/><c:showLeaderLines val="0"/>';
+  const dpt = st.map((o, i) => eqDone(o) ? `<c:dPt><c:idx val="${i}"/><c:invertIfNegative val="0"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:srgbClr val="A9D5A3"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr></c:dPt>` : '').join('');
+  const s0 = `<c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:v>Total</c:v></c:tx><c:spPr><a:solidFill><a:srgbClr val="E6E8EC"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr><c:invertIfNegative val="0"/><c:dLbls>${lbl}${tail}</c:dLbls>${cat}${val(st.map(() => 100))}</c:ser>`;
+  const s1 = `<c:ser><c:idx val="1"/><c:order val="1"/><c:tx><c:v>Executado</c:v></c:tx><c:spPr><a:solidFill><a:srgbClr val="D9C56B"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr><c:invertIfNegative val="0"/>${dpt}${cat}${val(st.map(o => o.p * 100))}</c:ser>`;
+  return (xml.slice(0, a) + s0 + s1 + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
+}
+const inTub = fn => EQP ? inOther(fn) : fn(), inEq = fn => EQP ? fn() : inOther(fn);
 async function pptBuild(capa, P, imgId) {
+  await otherLoad();
+  const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: BASE.sops.length })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
   if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch (e) {} throw new Error(m || `não consegui baixar o modelo (${r.status})`); }
   const z = await readZip(await r.arrayBuffer());
@@ -2711,8 +2771,8 @@ async function pptBuild(capa, P, imgId) {
     // capa: semana
     s = s.replace(/>Semana\s*\d+</g, `>Semana ${capa}<`);
     // linhas programadas + imagem da programação
-    if (/LINHAS PROGRAMADAS PARA A/.test(s)) {
-      const lines = pptWeekLines(P);
+    if (tub && /LINHAS PROGRAMADAS PARA A/.test(s)) {
+      const lines = tub.lines;
       s = s.replace(/<p:graphicFrame>(?:(?!<\/p:graphicFrame>)[\s\S])*?LINHAS PROGRAMADAS PARA A[\s\S]*?<\/p:graphicFrame>/, gf => {
         const rows = gf.match(/<a:tr [^>]*>[\s\S]*?<\/a:tr>/g) || []; if (!rows.length) return gf;
         const strip = r => r.replace(/<a:extLst><a:ext uri="\{0D108BD9[\s\S]*?<\/a:extLst>/, '');
@@ -2749,9 +2809,9 @@ async function pptBuild(capa, P, imgId) {
       }
     }
     // resumo geral + gráfico por SOP
-    if (/RESUMO GERAL DE EXECU/.test(s)) {
-      const st = sopStats(), tm = st.reduce((t, o) => t + o.tm, 0), ex = st.reduce((t, o) => t + o.ex, 0);
-      const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(tm - ex, 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(BASE.sops.length)];
+    if (tub && /RESUMO GERAL DE EXECU/.test(s)) {
+      const st = tub.sop, tm = st.reduce((t, o) => t + o.tm, 0), ex = st.reduce((t, o) => t + o.ex, 0);
+      const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(tm - ex, 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(tub.nSops)];
       const at = s.indexOf('Total de SOPs</a:t>');
       if (at > 0) { let pos = at + 19, k = 0; s = s.slice(0, pos) + s.slice(pos).replace(/<a:t>[^<]*<\/a:t>/g, mm => k < 6 ? `<a:t>${xmlEsc(vals[k++])}</a:t>` : mm); }
       const relsP = relsOf(sp), rels = txt(relsP), ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []);
@@ -2761,8 +2821,19 @@ async function pptBuild(capa, P, imgId) {
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
       } else warn.push('não achei o gráfico Avanço por SOP');
     }
+    // equipamentos: áreas no mapa, tabela de status e gráfico por área
+    if (/ISOLAMENTO DE EQUIPAMENTOS/.test(s) && />STATUS</.test(s)) {
+      if (!eq) warn.push('sem base de equipamentos: o slide de equipamentos ficou como no modelo');
+      else {
+        s = pptEqSlide(s, eq);
+        const relsP = relsOf(sp), rels = files.has(relsP) ? txt(relsP) : '', ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []), target = ct[1] || ct[2];
+        if (target) { const cp = relPath(sp, target); files.set(cp, pptEqChart(txt(cp), eq)); const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, '')); }
+        else warn.push('não achei o gráfico Avanço por área');
+      }
+    }
     files.set(sp, s);
   }
+  if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
   const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
 }
@@ -2917,6 +2988,7 @@ function renderProg() {
     sops.map(x => `<tr><td>${esc(x.k)}</td><td class="num">${f0(x.n)}</td><td class="num">${f2(x.progM)}</td><td class="num">${fut ? '—' : f2(x.execP)}</td><td class="num">${fut || !x.progM ? '—' : pctTxt(x.capP / x.progM * 100)}</td></tr>`).join('')
   }<tr class="tot"><td>Total</td><td class="num">${f0(t.n)}</td><td class="num">${f2(t.progM)}</td><td class="num">${fut ? '—' : f2(t.execP)}</td><td class="num">${fut || adh == null ? '—' : pctTxt(adh * 100)}</td></tr></tbody></table>`
     : `<div class="empty"><b>Nenhuma linha programada nesta semana</b>Na aba Linhas, selecione as linhas e use "Programar na Semana ${pgSel}".</div>`;
+  pgAvHead();
   // linhas (spools agrupados na linha; clique na linha para ver os spools)
   const q = $('#pgQ').value.trim().toLowerCase(), sop = $('#pgSop').value, sf = $('#pgSt').value;
   const byLn = new Map(); for (const r of rows) { if (!byLn.has(r.ln.i)) byLn.set(r.ln.i, []); byLn.get(r.ln.i).push(r); }
@@ -2960,19 +3032,20 @@ function renderProg() {
   if ($('#pgAll')) $('#pgAll').onclick = () => { multi.forEach(g => allOpen ? pgOpen.delete(g.ln.i) : pgOpen.add(g.ln.i)); renderProg(); };
 }
 const pgOpen = new Set();
+function pgAvHead() { const h = document.getElementById('pgAvH'); if (h) h.textContent = `Lançar avanço (${unit === 'm' ? 'm' : '%'})`; $$('#pgUnit button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.u === unit))); }
 // campo de avanço físico na programação (usa a mesma barra "Salvar avanço" da aba Linhas)
 function pgAv(it, tgt) {
   const cur = pct(it), pend = it.isSp ? pendingSp.has(it.key) : pending.has(it.i);
   if (!canEdit()) return `${f1(cur)}%`;
-  return `<span class="acts" style="justify-content:flex-end"><input class="input pct-in${pend ? ' pend' : ''}" type="text" inputmode="decimal" data-pgav="${esc(it.isSp ? it.key : it.line)}" value="${fmtIn(+cur.toFixed(2))}" aria-label="Avanço físico em %" style="width:64px">${cur < tgt - 1e-6 ? `<button class="btn sm ghost" data-pgmeta="${esc(it.isSp ? it.key : it.line)}" data-v="${tgt}" title="Lançar até a meta (${f0(tgt)}%)">Meta</button>` : ''}</span>`;
+  return `<span class="acts" style="justify-content:flex-end"><input class="input pct-in${pend ? ' pend' : ''}" type="text" inputmode="decimal" data-pgav="${esc(it.isSp ? it.key : it.line)}" value="${fmtIn(unitVal(it, cur))}" title="${unit === 'm' ? `Executado em metros (${f2(it.m)} m no total)` : 'Avanço em % (0 a 100)'}" aria-label="Avanço físico em ${unit === 'm' ? 'metros' : '%'}" style="width:72px">${cur < tgt - 1e-6 ? `<button class="btn sm ghost" data-pgmeta="${esc(it.isSp ? it.key : it.line)}" data-v="${tgt}" title="Lançar até a meta (${f0(tgt)}%)">Meta</button>` : ''}</span>`;
 }
 function pgSetAv(it, v) { if (it.isSp) setSp(it, v); else setPending(it.i, v); }
 $('#pgBody').addEventListener('change', e => {
   const inp = e.target.closest('[data-pgav]'); if (!inp) return;
-  const it = itemOf(inp.dataset.pgav), v = clampPct(inp.value);
-  if (!it) return;
-  if (v == null) { toast('Informe o avanço em % (0 a 100).', true); inp.value = fmtIn(+pct(it).toFixed(2)); return; }
-  pgSetAv(it, v);
+  const it = itemOf(inp.dataset.pgav); if (!it) return;
+  const r = toPct(it, inp.value);
+  if (r.err) { toast(r.err, true); inp.value = fmtIn(unitVal(it, pct(it))); return; }
+  pgSetAv(it, r.pct);
 });
 $('#pgBody').addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.matches('[data-pgav]')) e.target.blur(); });
 $('#pgBody').addEventListener('click', e => {
@@ -3911,8 +3984,8 @@ async function otherLoad(force) {
   otherBusy = (async () => {
     try {
       const b = await call('/base');
-      const [p, hs, md, sl, f] = await Promise.all([call('/progress'), call('/history?limit=100000'), call('/med').catch(() => ({})), call('/spool-len').catch(() => ({})), isAdmin() ? call('/fin').catch(() => ({})) : Promise.resolve({})]);
-      OTHER = { scope: s, base: b.base, progress: p.items || [], logH: hs.items || [], med: { forecasts: md.forecasts || {}, reals: md.reals || {} }, splen: sl.items || {}, prices: f.prices || {} };
+      const [p, hs, md, sl, f, pr, vi] = await Promise.all([call('/progress'), call('/history?limit=100000'), call('/med').catch(() => ({})), call('/spool-len').catch(() => ({})), isAdmin() ? call('/fin').catch(() => ({})) : Promise.resolve({}), call('/prog').catch(() => ({})), call('/visual').catch(() => ({}))]);
+      OTHER = { scope: s, base: b.base, progress: p.items || [], logH: hs.items || [], med: { forecasts: md.forecasts || {}, reals: md.reals || {} }, splen: sl.items || {}, prices: f.prices || {}, prog: pr.weeks || {}, visuals: vi.items || [] };
     } catch (e) { OTHER = { scope: s, missing: e.status === 404, error: e.message }; }
     otherBusy = null; return OTHER;
   })();
@@ -3921,15 +3994,15 @@ async function otherLoad(force) {
 // roda fn com os dados do outro escopo no lugar dos atuais e devolve tudo como estava
 function inOther(fn) {
   const o = OTHER; if (!o || !o.base) return null;
-  const save = { BASE, R, byLine, SP, TOTAL_M, server, logH, hIdx, hIdxSrc, med, medIdx, SPLEN, fin, EQP };
+  const save = { BASE, R, byLine, SP, TOTAL_M, server, logH, hIdx, hIdxSrc, med, medIdx, SPLEN, fin, EQP, prog, progIdx, visuals };
   const pd = [new Map(pending), new Map(pendingSp), new Set(pendLines)]; pending.clear(); pendingSp.clear(); pendLines.clear();
   try {
     EQP = o.scope === 'eqp'; SPLEN = o.splen; initBase(o.base);
     server = {}; for (const it of o.progress) server[it.line] = it;
-    logH = o.logH; hIdx = new Map(); hIdxSrc = null; med = o.med; medIdx = null; fin = { ...fin, prices: o.prices };
+    logH = o.logH; hIdx = new Map(); hIdxSrc = null; med = o.med; medIdx = null; fin = { ...fin, prices: o.prices }; setProg(o.prog || {}); visuals = o.visuals || [];
     return fn();
   } finally {
-    ({ BASE, R, byLine, SP, TOTAL_M, server, logH, hIdx, hIdxSrc, med, medIdx, SPLEN, fin, EQP } = save);
+    ({ BASE, R, byLine, SP, TOTAL_M, server, logH, hIdx, hIdxSrc, med, medIdx, SPLEN, fin, EQP, prog, progIdx, visuals } = save);
     pd[0].forEach((v, k) => pending.set(k, v)); pd[1].forEach((v, k) => pendingSp.set(k, v)); pd[2].forEach(v => pendLines.add(v));
   }
 }
@@ -4029,7 +4102,6 @@ document.addEventListener('click', async e => {
 function renderScopeUi() {
   const eb = document.querySelector('.hero .eyebrow'); if (eb) eb.textContent = EQP ? 'UDA RNEST · Unidade U12 · Isolamento de equipamentos' : 'UDA RNEST · Unidade U12 · Isolamento de tubulação';
   document.title = `Thermal Insulation · ${EQP ? 'Equipamentos' : 'Tubulação'} · U12`;
-  const pb = document.querySelector('.ppt-bar'); if (pb) pb.hidden = EQP;
   const fp = document.getElementById('finPrices'); if (fp) fp.hidden = EQP;
   document.body.classList.toggle('eqp', EQP);
 }
