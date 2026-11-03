@@ -955,6 +955,7 @@ body.eqp .nsp.none{display:none}
           <div class="muted" id="pvRange" style="font-size:13px;align-self:flex-end;padding-bottom:9px"></div>
           <div class="spacer"></div>
           <button class="btn" id="pvWeeks" hidden>Trazer da programação semanal</button>
+          <label class="period"><span>Disciplina do Excel</span><select class="input" id="pvXlsxDisc"><option value="jt">Tubulação + Equipamentos</option><option value="tub">Só tubulação</option><option value="eqp">Só equipamentos</option></select></label>
           <button class="btn primary" id="pvXlsx">Exportar Excel</button>
           <button class="btn" id="pvCsv">CSV</button>
         </div>
@@ -3806,11 +3807,13 @@ function medEtapa(x) {
   const g = +m[1], k = +m[2];
   return g >= 12 && g <= 14 && k >= 1 && k <= 4 ? `6.13.${20 + (g - 12) * 4 + k}` : 'A DEFINIR';
 }
+// critério no Excel: equipamentos usam só os 3 primeiros níveis (6.13.22.1 → 6.13.22), como na planilha modelo
+function pvEtapaXlsx(x) { const e = String(medEtapa(x) || ''); if (!EQP) return e; const m = e.match(/^\s*(\d+\.\d+\.\d+)(?:\.\d+)*\s*$/); return m ? m[1] : e; }
 function pvXlsxRows(per) {
   buildHIdx(); buildMedIdx();
   const adm = isAdmin(), rows = [];
   for (const x of R) { const L = medLine(x, per); for (const o of L.fcs) { if (!(o.prevM > 0.0005)) continue;
-    rows.push([medTag(o.it), ppuLbl(x), medEtapa(x), Math.round(o.prevM * 1000) / 1000, adm && L.pr ? Math.round(o.prevM * L.pr * 100) / 100 : null, 'A DEFINIR', 'Serviço', null, EQP ? 'Equipamento' : null]); } }
+    rows.push([medTag(o.it), 'B-' + ppuCode(x), pvEtapaXlsx(x), Math.round(o.prevM * 1000) / 1000, null, 'A DEFINIR', 'Serviço', null, EQP ? 'Equipamento' : null]); } }
   return rows.sort((a, b) => a[0].localeCompare(b[0]));
 }
 function pvXlsxSave(rows, name) {
@@ -3820,16 +3823,20 @@ function pvXlsxSave(rows, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Planilha da ${perLabel(pvSel)} exportada: ${rows.length} ${rows.length === 1 ? 'item' : 'itens'}.`);
 }
-// Exportar Excel: sempre tubulação + equipamentos na mesma planilha (tubulação primeiro, depois equipamentos)
+// Exportar Excel: só tubulação, só equipamentos ou as duas disciplinas na mesma planilha (tubulação primeiro)
 $('#pvXlsx').onclick = async () => {
-  const btn = $('#pvXlsx'), per = pvSel; btn.disabled = true;
+  const btn = $('#pvXlsx'), per = pvSel, disc = ($('#pvXlsxDisc') || {}).value || 'jt'; btn.disabled = true;
+  const cur = EQP ? 'eqp' : 'tub', nome = { tub: 'tubulação', eqp: 'equipamentos' };
   try {
-    const mine = pvXlsxRows(per);
-    await otherLoad(true);
-    const oth = inOther(() => pvXlsxRows(per));
-    if (!oth) toast(`Não foi possível carregar o escopo de ${EQP ? 'tubulação' : 'equipamentos'}; a planilha sai só com ${EQP ? 'equipamentos' : 'tubulação'}.`, true);
-    const tub = EQP ? (oth || []) : mine, eqp = EQP ? mine : (oth || []);
-    pvXlsxSave([...tub, ...eqp], `Previsao_Medicao_${per}_tubulacao_e_equipamentos.xlsx`);
+    const rowsOf = sc => sc === cur ? pvXlsxRows(per) : (async () => { await otherLoad(true); return inOther(() => pvXlsxRows(per)); })();
+    if (disc !== 'jt') {
+      const rows = await rowsOf(disc);
+      if (!rows) return toast(`Não foi possível carregar o escopo de ${nome[disc]}.`, true);
+      return pvXlsxSave(rows, `Previsao_Medicao_${per}_${disc === 'eqp' ? 'equipamentos' : 'tubulacao'}.xlsx`);
+    }
+    const tub = await rowsOf('tub'), eqp = await rowsOf('eqp');
+    if (!tub || !eqp) toast(`Não foi possível carregar o escopo de ${!tub ? nome.tub : nome.eqp}; a planilha sai só com ${!tub ? nome.eqp : nome.tub}.`, true);
+    pvXlsxSave([...(tub || []), ...(eqp || [])], `Previsao_Medicao_${per}_tubulacao_e_equipamentos.xlsx`);
   } catch (e) { toast('Não foi possível exportar: ' + e.message, true); }
   finally { btn.disabled = false; }
 };
