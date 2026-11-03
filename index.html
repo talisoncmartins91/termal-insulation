@@ -1263,8 +1263,8 @@ body.eqp .nsp.none{display:none}
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
-    <label class="fld"><span>Imagem do slide (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select></label>
-    <label class="fld"><span>Imagem do slide de equipamentos</span><select class="input" id="pptEqImg"></select></label>
+    <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
+    <label class="fld"><span>Imagem do slide de equipamentos</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
@@ -1301,7 +1301,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '29/10/2026 10:00'; // versão deste arquivo
+const APP_BUILD = '29/10/2026 11:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2643,6 +2643,17 @@ function pptWeekOpts(sel) {
   Object.keys(prog).forEach(k => ws.add(Number(k))); visuals.forEach(v => v.week && ws.add(Number(v.week)));
   return [...ws].filter(w => w > 0).sort((a, b) => b - a).map(w => `<option value="${w}"${w === sel ? ' selected' : ''}>Semana ${w} · ${weekRange(w)}${w === cur ? ' (atual)' : ''}</option>`).join('');
 }
+// prévia da imagem escolhida em cada campo da exportação
+async function pptPreview(sel, el, scope) {
+  const id = sel.value;
+  el.hidden = true; if (el.dataset.url) { URL.revokeObjectURL(el.dataset.url); delete el.dataset.url; }
+  if (!id) return;
+  try {
+    const r = await fetch(`${API_URL}/visual/file/${id}?s=${scope}`, { headers: { 'X-Scope': scope, ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
+    if (!r.ok || sel.value !== id) return;
+    const u = URL.createObjectURL(await r.blob()); el.src = u; el.dataset.url = u; el.hidden = false;
+  } catch (e) {}
+}
 function pptRenderModal() {
   const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), lines: pptWeekLines(P) })) || { imgs: [], vg: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], lines = tw.lines;
   const opt = (v, sel) => `<option value="${v.id}"${sel ? ' selected' : ''}>${esc(v.caption || v.filename)} · ${when(v.uploaded_at)}</option>`;
@@ -2657,6 +2668,7 @@ function pptRenderModal() {
   const eqDef = (eqGroups[0] || [null, []])[1][0];
   $('#pptEqImg').innerHTML = eqGroups.map(([l, vs]) => `<optgroup label="${l}">${vs.map(v => opt(v, eqDef && v.id === eqDef.id)).join('')}</optgroup>`).join('') +
     `<option value=""${!eqDef ? ' selected' : ''}>Manter a imagem do modelo</option>`;
+  pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub'); pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
 }
@@ -2668,6 +2680,8 @@ $('#pptOpen').onclick = async () => {
 };
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
 $('#pptClose').onclick = () => $('#pptModal').classList.remove('on');
+$('#pptImg').onchange = () => pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub');
+$('#pptEqImg').onchange = () => pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
 $('#pptModal').addEventListener('click', e => { if (e.target.id === 'pptModal') $('#pptModal').classList.remove('on'); });
 $('#pptTplBtn').onclick = () => { $('#pptTplFile').value = ''; $('#pptTplFile').click(); };
 $('#pptTplFile').onchange = async e => {
