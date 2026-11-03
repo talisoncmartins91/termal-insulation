@@ -1264,6 +1264,7 @@ body.eqp .nsp.none{display:none}
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
     <label class="fld"><span>Imagem do slide (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select></label>
+    <label class="fld"><span>Imagem do slide de equipamentos</span><select class="input" id="pptEqImg"></select></label>
     <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
@@ -1300,7 +1301,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '28/10/2026 19:00'; // versão deste arquivo
+const APP_BUILD = '29/10/2026 10:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2650,12 +2651,18 @@ function pptRenderModal() {
     (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map((v, i) => opt(v, !imgs.length && i === 0)).join('')}</optgroup>` : '') +
     `<option value=""${!imgs.length && !vg.length ? ' selected' : ''}>Manter a imagem do modelo</option>`;
   $('#pptImgWarn').hidden = imgs.length > 0;
+  const eqAll = inEq(() => visuals.filter(v => /^image\//.test(v.mime || ''))) || [];
+  const eqGroups = [['visao_geral', 'Equipamentos · Visão geral da unidade'], ['programacao', 'Equipamentos · Programação semanal'], ['executadas', 'Equipamentos · Linhas executadas']]
+    .map(([c, l]) => [l, eqAll.filter(v => vcat(v) === c).slice(0, 40)]).filter(g => g[1].length);
+  const eqDef = (eqGroups[0] || [null, []])[1][0];
+  $('#pptEqImg').innerHTML = eqGroups.map(([l, vs]) => `<optgroup label="${l}">${vs.map(v => opt(v, eqDef && v.id === eqDef.id)).join('')}</optgroup>`).join('') +
+    `<option value=""${!eqDef ? ' selected' : ''}>Manter a imagem do modelo</option>`;
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
 }
 $('#pptOpen').onclick = async () => {
   const cur = weekOf(Date.now());
-  const b = $('#pptOpen'); b.disabled = true; await otherLoad(); b.disabled = false;
+  const b = $('#pptOpen'); b.disabled = true; await otherLoad(true); b.disabled = false;
   $('#pptProg').innerHTML = inTub(() => pptWeekOpts(cur)) || pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
   pptRenderModal(); $('#pptModal').classList.add('on');
 };
@@ -2674,8 +2681,8 @@ $('#pptTplFile').onchange = async e => {
   } catch (err) { toast('Não foi possível enviar o modelo: ' + err.message, true); }
   btn.disabled = false; btn.textContent = 'Enviar modelo (.pptx)';
 };
-async function pptImageBytes(id) {
-  const r = await fetch(`${API_URL}/visual/file/${id}`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
+async function pptImageBytes(id, scope = 'tub') {
+  const r = await fetch(`${API_URL}/visual/file/${id}?s=${scope}`, { headers: { 'X-Scope': scope, ...(token ? { Authorization: 'Bearer ' + token } : {}) } });
   if (!r.ok) throw new Error(`não consegui baixar a imagem escolhida (${r.status})`);
   let blob = await r.blob(); const bmp = await createImageBitmap(blob);
   let ext = /png/.test(blob.type) ? 'png' : 'jpg';
@@ -2763,7 +2770,27 @@ function pptEqChart(xml, st) {
   return (xml.slice(0, a) + s0 + s1 + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
 }
 const inTub = fn => EQP ? inOther(fn) : fn(), inEq = fn => EQP ? fn() : inOther(fn);
-async function pptBuild(capa, P, imgId) {
+// troca a maior imagem do slide pela imagem escolhida (mantém a posição e cabe no mesmo espaço)
+function pptSwapPic(files, txt, sp, s, img, name) {
+  const relsP = relsOf(sp); if (!files.has(relsP)) return null;
+  const rels = txt(relsP);
+  let best = null;
+  for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
+  if (!best) return null;
+  const media = `ppt/media/${name}.${img.ext}`; files.set(media, img.bytes);
+  const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
+  const oldT = (rels.match(relRe) || [])[2];
+  files.set(relsP, rels.replace(relRe, `$1../media/${name}.${img.ext}$3`));
+  if (oldT) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
+  const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
+  if (o) {
+    const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
+    const np = best.pic.replace(o[0], `<a:off x="${X + Math.round((W - w) / 2)}" y="${Y + Math.round((H - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/>`).replace(/<a:srcRect[^>]*\/>/, '<a:srcRect/>');
+    s = s.replace(best.pic, np);
+  }
+  return s;
+}
+async function pptBuild(capa, P, imgId, eqImgId) {
   await otherLoad();
   const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: BASE.sops.length })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
@@ -2835,6 +2862,10 @@ async function pptBuild(capa, P, imgId) {
       if (!eq) warn.push('sem base de equipamentos: o slide de equipamentos ficou como no modelo');
       else {
         s = pptEqSlide(s, eq);
+        if (eqImgId) {
+          const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(eqImgId, 'eqp'), `equipamentos_S${capa}`);
+          if (ns) s = ns; else warn.push('não achei a imagem no slide de equipamentos');
+        }
         const relsP = relsOf(sp), rels = files.has(relsP) ? txt(relsP) : '', ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []), target = ct[1] || ct[2];
         if (target) { const cp = relPath(sp, target); files.set(cp, pptEqChart(txt(cp), eq)); const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, '')); }
         else warn.push('não achei o gráfico Avanço por área');
@@ -2847,10 +2878,10 @@ async function pptBuild(capa, P, imgId) {
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
 }
 $('#pptGo').onclick = async () => {
-  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, btn = $('#pptGo');
+  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
-    const { blob, warn } = await pptBuild(capa, P, img);
+    const { blob, warn } = await pptBuild(capa, P, img, eqImg);
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
     toast(`Apresentação da Semana ${capa} gerada (programação S${P}).${warn.length ? ' Atenção: ' + warn.join('; ') + '.' : ''}`, warn.length > 0);
