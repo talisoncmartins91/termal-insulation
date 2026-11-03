@@ -3820,7 +3820,19 @@ function pvXlsxSave(rows, name) {
   const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Planilha da ${perLabel(pvSel)} exportada: ${rows.length} ${rows.length === 1 ? 'item' : 'itens'}.`);
 }
-$('#pvXlsx').onclick = () => pvXlsxSave(pvXlsxRows(pvSel), `Previsao_Medicao_${pvSel}${EQP ? '_equipamentos' : ''}.xlsx`);
+// Exportar Excel: sempre tubulação + equipamentos na mesma planilha (tubulação primeiro, depois equipamentos)
+$('#pvXlsx').onclick = async () => {
+  const btn = $('#pvXlsx'), per = pvSel; btn.disabled = true;
+  try {
+    const mine = pvXlsxRows(per);
+    await otherLoad(true);
+    const oth = inOther(() => pvXlsxRows(per));
+    if (!oth) toast(`Não foi possível carregar o escopo de ${EQP ? 'tubulação' : 'equipamentos'}; a planilha sai só com ${EQP ? 'equipamentos' : 'tubulação'}.`, true);
+    const tub = EQP ? (oth || []) : mine, eqp = EQP ? mine : (oth || []);
+    pvXlsxSave([...tub, ...eqp], `Previsao_Medicao_${per}_tubulacao_e_equipamentos.xlsx`);
+  } catch (e) { toast('Não foi possível exportar: ' + e.message, true); }
+  finally { btn.disabled = false; }
+};
 
 /* ---------- aba Medição realizada ---------- */
 let rzSel = null, rzPage = 0; const rzOpen = new Set();
