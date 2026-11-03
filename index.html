@@ -1264,7 +1264,7 @@ body.eqp .nsp.none{display:none}
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
     <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
-    <label class="fld"><span>Imagem do slide de equipamentos</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
+    <label class="fld"><span>Imagem do slide "Acompanhamento visual · Equipamentos"</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
@@ -1301,7 +1301,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '03/11/2026 11:00'; // versão deste arquivo
+const APP_BUILD = '03/11/2026 12:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2871,15 +2871,17 @@ async function pptBuild(capa, P, imgId, eqImgId) {
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
       } else warn.push('não achei o gráfico Avanço por SOP');
     }
+    // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
+    // (o slide do mapa visual de equipamentos mantém a imagem do modelo; só números e gráfico mudam)
+    if (eqImgId && /ACOMPANHAMENTO VISUAL\s*ISOLAMENTO DE EQUIPAMENTOS/i.test((s.match(/<a:t>[^<]*<\/a:t>/g) || []).map(t => t.slice(5, -6)).join(' '))) {
+      const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(eqImgId, 'eqp'), `equipamentos_S${capa}_${Date.now().toString(36)}`);
+      if (ns) s = ns; else warn.push('não achei a imagem no slide de acompanhamento visual de equipamentos');
+    }
     // equipamentos: áreas no mapa, tabela de status e gráfico por área
     if (/ISOLAMENTO DE EQUIPAMENTOS/.test(s) && />STATUS</.test(s)) {
       if (!eq) warn.push('sem base de equipamentos: o slide de equipamentos ficou como no modelo');
       else {
         s = pptEqSlide(s, eq);
-        if (eqImgId) {
-          const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(eqImgId, 'eqp'), `equipamentos_S${capa}_${Date.now().toString(36)}`);
-          if (ns) s = ns; else warn.push('não achei a imagem no slide de equipamentos');
-        }
         const relsP = relsOf(sp), rels = files.has(relsP) ? txt(relsP) : '', ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []), target = ct[1] || ct[2];
         if (target) { const cp = relPath(sp, target); files.set(cp, pptEqChart(txt(cp), eq)); const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, '')); }
         else warn.push('não achei o gráfico Avanço por área');
