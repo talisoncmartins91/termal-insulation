@@ -1301,7 +1301,7 @@ body.eqp .nsp.none{display:none}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '29/10/2026 11:00'; // versão deste arquivo
+const APP_BUILD = '03/11/2026 11:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -2795,7 +2795,7 @@ function pptSwapPic(files, txt, sp, s, img, name) {
   const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
   const oldT = (rels.match(relRe) || [])[2];
   files.set(relsP, rels.replace(relRe, `$1../media/${name}.${img.ext}$3`));
-  if (oldT) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
+  if (oldT && relPath(sp, oldT) !== media) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
   const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
   if (o) {
     const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
@@ -2844,11 +2844,11 @@ async function pptBuild(capa, P, imgId, eqImgId) {
         let best = null;
         for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
         if (best) {
-          const media = `ppt/media/programacao_S${P}.${img.ext}`; files.set(media, img.bytes);
+          const tag = Date.now().toString(36), media = `ppt/media/programacao_S${P}_${tag}.${img.ext}`; files.set(media, img.bytes);
           const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
           const oldT = (rels.match(relRe) || [])[2];
-          files.set(relsP, rels.replace(relRe, `$1../media/programacao_S${P}.${img.ext}$3`));
-          if (oldT) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
+          files.set(relsP, rels.replace(relRe, `$1../media/programacao_S${P}_${tag}.${img.ext}$3`));
+          if (oldT && relPath(sp, oldT) !== media) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
           const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
           if (o) {
             const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
@@ -2877,7 +2877,7 @@ async function pptBuild(capa, P, imgId, eqImgId) {
       else {
         s = pptEqSlide(s, eq);
         if (eqImgId) {
-          const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(eqImgId, 'eqp'), `equipamentos_S${capa}`);
+          const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(eqImgId, 'eqp'), `equipamentos_S${capa}_${Date.now().toString(36)}`);
           if (ns) s = ns; else warn.push('não achei a imagem no slide de equipamentos');
         }
         const relsP = relsOf(sp), rels = files.has(relsP) ? txt(relsP) : '', ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []), target = ct[1] || ct[2];
@@ -2896,7 +2896,8 @@ $('#pptGo').onclick = async () => {
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
     const { blob, warn } = await pptBuild(capa, P, img, eqImg);
-    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const hh = new Date(), stamp = `${String(hh.getDate()).padStart(2, '0')}-${String(hh.getMonth() + 1).padStart(2, '0')}_${String(hh.getHours()).padStart(2, '0')}h${String(hh.getMinutes()).padStart(2, '0')}`;
+    a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}_${stamp}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
     toast(`Apresentação da Semana ${capa} gerada (programação S${P}).${warn.length ? ' Atenção: ' + warn.join('; ') + '.' : ''}`, warn.length > 0);
   } catch (err) { toast('Não foi possível gerar a apresentação: ' + err.message, true); }
