@@ -616,6 +616,23 @@ body.eqp .nsp.none{display:none}
 }
 @media (prefers-reduced-motion:reduce){.hg,.h-glow,.h-flow,.hw,.h-shine,.h-pin,.hchip,.view.on>*,.hero .sync.on i{animation:none!important}.hw{opacity:.5}}
 
+
+/* ---------- Coating (empresa terceirizada) ---------- */
+:root{--coat:#6D3FB2;--coat-soft:#F3EDFB;--coat-line:#D9C9F2}
+.coat-tabs{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px 0}
+.coat-tabs .seg button[data-ct="coat"][aria-pressed="true"]{background:var(--coat)}
+.coat-tabs .seg button[data-ct="coat"]::before{content:"";display:inline-block;width:8px;height:8px;border-radius:2px;background:var(--coat);margin-right:7px;vertical-align:1px}
+.coat-tabs .seg button[data-ct="coat"][aria-pressed="true"]::before{background:#fff}
+.coat-info{font-size:13px;color:var(--ink2);background:var(--coat-soft);border:1px solid var(--coat-line);border-left:4px solid var(--coat);border-radius:var(--r1);padding:7px 12px}
+.coat-info b{color:var(--coat)}
+.coat-leg{font-size:12px;color:var(--muted);display:inline-flex;align-items:center;gap:6px}
+.coat-leg i{width:12px;height:12px;border-radius:2px;background:var(--coat-soft);border-left:3px solid var(--coat);display:inline-block}
+tr.coat>td{background:var(--coat-soft)}
+tr.coat>td:first-child{box-shadow:inset 4px 0 0 var(--coat)}
+tbody tr.coat:hover>td{background:#ECE2F9}
+tr.coat.changed>td{background:#FFF6E0}
+.coat-b{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;background:var(--coat);color:#fff;font-size:10px;font-weight:700;letter-spacing:.05em;vertical-align:1px}
+@media print{tr.coat>td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 </style>
 </head>
 <body class="locked">
@@ -838,7 +855,9 @@ body.eqp .nsp.none{display:none}
             <div><h2>Linhas do escopo</h2><p>Lance o avanço por spool (abra a linha em ▸) ou na linha inteira, que aplica o mesmo valor a todos os spools. SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
             <div class="tools"><button class="btn" id="exportCsv">Exportar CSV</button></div>
           </div>
-          <div class="filters">
+          <div class="coat-tabs" id="lnCoatBar"><div class="seg" id="lnCoat" role="group" aria-label="Executante"><button type="button" data-ct="" aria-pressed="true">Todas as linhas</button><button type="button" data-ct="coat" aria-pressed="false">Coating</button><button type="button" data-ct="own" aria-pressed="false">Sem Coating</button></div><span class="coat-leg"><i></i>Linhas executadas pela Coating</span><span class="coat-info" id="lnCoatInfo" hidden></span></div>
+          
+<div class="filters">
             <input class="input" id="lnQ" type="search" placeholder="Buscar linha, STH ou PPU" style="flex:1;min-width:220px">
             <select class="input" id="lnSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="lnStatus"><option value="">Todos os status</option><option value="0">Não iniciada</option><option value="1">Em andamento</option><option value="2">Concluída</option></select>
@@ -1700,7 +1719,37 @@ function lineTable(rows, compact) {
   }</tbody></table></div>`;
 }
 
+/* ============ Coating: linhas executadas pela empresa terceirizada ============ */
+const COATING_LINES = ["12\"-HC-12-00137-Me-IQ", "14\"-V6-12-00723-Bf-IQ", "16\"-HC-12-00130-Me-IQ", "16\"-HC-12-00131-Me-IQ", "16\"-HC-12-00132-Me-IQ", "16\"-HC-12-00133-Me-IQ", "16\"-HC-12-02411-C27-IQ", "16\"-HC-12-02412-C27-IQ", "16\"-HC-12-02413-C27-IQ", "18\"-HC-12-00476-B27-PP", "18\"-HC-12-00477-B27-PP", "18\"-HC-12-00478-B27-PP", "18\"-HC-12-00479-B27-PP", "20\"-HC-12-00134-Me-IQ", "20\"-HC-12-00135-Me-IQ", "20\"-V6-12-01415-Bf-IQ", "28\"-HC-12-00458-Me-IQ", "3\"-V20-12-01342-Ce-IQ", "3\"-V20-12-03011-Ce-IQ", "3\"-V6-12-01992-Bf-IQ", "3/4\"-HC-12-01784-C27-PP", "3/4\"-HC-12-02393-C27-IQ", "3/4\"-HC-12-02472-C27-PP", "4\"-V6-12-02962-Bf-IQ", "6\"-HC-12-00170-Me-IQ", "6\"-HC-12-00192-C27-IQ", "6\"-HC-12-00211-Me-IQ", "6\"-HC-12-00844-C27-IQ", "8\"-HC-12-00122-Me-IQ", "8\"-HC-12-00123-Me-IQ", "8\"-HC-12-00124-Me-IQ", "8\"-HC-12-00125-Me-IQ", "8\"-HC-12-00126-Me-IQ", "8\"-HC-12-00127-Me-IQ", "8\"-HC-12-00128-Me-IQ", "8\"-HC-12-00129-Me-IQ", "8\"-HC-12-00191-B28-IQ", "8\"-HC-12-00193-B28-IQ", "8\"-HC-12-00280-C27-PP"];
+const COATING_SPOOLS = ["U12-HC-00122-001", "U12-HC-00122-002", "U12-HC-00122-003", "U12-HC-00122-004", "U12-HC-00122-005", "U12-HC-00123-001", "U12-HC-00123-002", "U12-HC-00123-003", "U12-HC-00123-004", "U12-HC-00124-001", "U12-HC-00124-002", "U12-HC-00124-003", "U12-HC-00124-004", "U12-HC-00125-001", "U12-HC-00125-002", "U12-HC-00125-003", "U12-HC-00125-004", "U12-HC-00125-005", "U12-HC-00126-001", "U12-HC-00126-002", "U12-HC-00126-003", "U12-HC-00126-004", "U12-HC-00126-005", "U12-HC-00127-001", "U12-HC-00127-002", "U12-HC-00127-003", "U12-HC-00127-004", "U12-HC-00128-001", "U12-HC-00128-002", "U12-HC-00128-003", "U12-HC-00128-004", "U12-HC-00129-001", "U12-HC-00129-002", "U12-HC-00129-003", "U12-HC-00129-004", "U12-HC-00129-005", "U12-HC-00130-001", "U12-HC-00130-002", "U12-HC-00131-001", "U12-HC-00131-002", "U12-HC-00132-001", "U12-HC-00132-002", "U12-HC-00133-001", "U12-HC-00133-002", "U12-HC-00134-001", "U12-HC-00134-002", "U12-HC-00135-001", "U12-HC-00135-002", "U12-HC-00137-001", "U12-HC-00137-002", "U12-HC-00137-003", "U12-HC-00191-001", "U12-HC-00191-002", "U12-HC-00191-003", "U12-HC-00192-001", "U12-HC-00192-002", "U12-HC-00192-003", "U12-HC-00193-001", "U12-HC-00193-002", "U12-HC-00211-001", "U12-HC-00211-002", "U12-HC-00211-003", "U12-HC-00211-004", "U12-HC-00211-005", "U12-HC-00211-006", "U12-HC-00211-007", "U12-HC-00211-008", "U12-HC-00211-010", "U12-HC-00280-001", "U12-HC-00280-002", "U12-HC-00280-003", "U12-HC-00280-004", "U12-HC-00280-005", "U12-HC-00280-006", "U12-HC-00280-007", "U12-HC-00280-008", "U12-HC-00476-001", "U12-HC-00476-002", "U12-HC-00476-003", "U12-HC-00476-004", "U12-HC-00476-005", "U12-HC-00477-001", "U12-HC-00477-002", "U12-HC-00477-003", "U12-HC-00477-004", "U12-HC-00477-005", "U12-HC-00477-006", "U12-HC-00478-001", "U12-HC-00478-002", "U12-HC-00478-003", "U12-HC-00478-004", "U12-HC-00478-005", "U12-HC-00478-006", "U12-HC-00479-001", "U12-HC-00479-002", "U12-HC-00479-003", "U12-HC-00479-004", "U12-HC-00479-005", "U12-HC-00479-006", "U12-HC-00844-001", "U12-HC-00844-002", "U12-HC-00844-003", "U12-HC-00844-004", "U12-HC-00844-005", "U12-HC-01784-001", "U12-HC-01784-001A", "U12-HC-01784-001B", "U12-HC-01784-001C", "U12-HC-01784-001D", "U12-HC-02393-001", "U12-HC-02393-002", "U12-HC-02393-003", "U12-HC-02393-004", "U12-HC-02411-001", "U12-HC-02411-002", "U12-HC-02411-003", "U12-HC-02411-004", "U12-HC-02411-005", "U12-HC-02411-006", "U12-HC-02411-007", "U12-HC-02412-001", "U12-HC-02412-002", "U12-HC-02412-003", "U12-HC-02412-004", "U12-HC-02412-005", "U12-HC-02412-006", "U12-HC-02412-007", "U12-HC-02413-001", "U12-HC-02413-002", "U12-HC-02413-003", "U12-HC-02413-004", "U12-HC-02413-005", "U12-HC-02413-006", "U12-HC-02413-007", "U12-HC-02472-001", "U12-HC-02472-002", "U12-V20-01342-001", "U12-V20-01342-002", "U12-V20-01342-003", "U12-V20-01342-004", "U12-V20-01342-005", "U12-V20-01342-006", "U12-V20-01342-007", "U12-V20-01342-008", "U12-V20-03011-001", "U12-V20-03011-002", "U12-V20-03011-003", "U12-V20-03011-004", "U12-V20-03011-005", "U12-V20-03011-006", "U12-V20-03011-007", "U12-V20-03011-008", "U12-V20-03011-009", "U12-V20-03011-010", "U12-V20-03011-011", "U12-V20-03011-012", "U12-V20-03011-013", "U12-V6-00723-001", "U12-V6-01415-001", "U12-V6-01415-001A", "U12-V6-01415-001B", "U12-V6-01415-001C", "U12-V6-01415-002", "U12-V6-01415-002A", "U12-V6-01415-002B", "U12-V6-01992-001", "U12-V6-02962-001", "U12-V6-02962-002", "U12-V6-02962-003", "U12-V6-02962-004", "U12-V6-02962-005", "U12-V6-02962-006", "U12-V6-02962-007", "U12-V6-02962-008", "U12-V6-02962-009", "U12-V6-02962-010"];
+const COAT_SET = new Set(COATING_LINES.map(v => v.trim().toUpperCase()));
+const isCoat = line => !EQP && COAT_SET.has(String(line || '').trim().toUpperCase());
+let lnCoat = '';
+$$('#lnCoat [data-ct]').forEach(b => b.onclick = () => { lnCoat = b.dataset.ct; $$('#lnCoat [data-ct]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); lnPage = 0; renderLinhas(); });
+function renderCoatBar() {
+  const bar = $('#lnCoatBar'); if (!bar) return;
+  bar.hidden = !!EQP; if (EQP) return;
+  const info = $('#lnCoatInfo');
+  if (lnCoat !== 'coat') { info.hidden = true; return; }
+  const cl = R.filter(x => isCoat(x.line)), t = totals(cl), ex = cl.reduce((a, x) => a + x.m * pct(x) / 100, 0);
+  info.hidden = false;
+  info.innerHTML = `<b>Coating</b> · ${f0(cl.length)} de ${f0(COATING_LINES.length)} linhas na base · ${f2(t.m)} m · executado ${f2(ex)} m · avanço ${pctTxt(t.pct)}`;
+}
+// destaca em cor as linhas e spools da Coating nas demais tabelas (programação, previsão, realizada, histórico...)
+const COAT_RX = (() => { const e = v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); const all = [...COATING_LINES, ...COATING_SPOOLS].sort((a, b) => b.length - a.length).map(e); return all.length ? new RegExp('(?:^|[^A-Za-z0-9])(?:' + all.join('|') + ')(?![A-Za-z0-9])', 'i') : null; })();
+let coatPend = false;
+function coatMark() {
+  coatPend = false; if (!COAT_RX) return;
+  document.querySelectorAll('.view:not(#v-linhas) tbody tr').forEach(tr => {
+    const on = !EQP && COAT_RX.test(tr.textContent || '');
+    if (tr.classList.contains('coat') !== on) tr.classList.toggle('coat', on);
+  });
+}
+new MutationObserver(ms => { if (coatPend) return; if (ms.every(m => m.target.closest && m.target.closest('#v-linhas'))) return; coatPend = true; requestAnimationFrame(coatMark); })
+  .observe(document.body, { childList: true, subtree: true });
+
 /* ============ linhas ============ */
+
 let lnSort = { k: 'sop', d: 1 }, lnPage = 0; const PAGE = 60; const sel = new Set(); let lnFiltered = [];
 function fillFilters() {
   $('#nLines').textContent = f0(R.length);
@@ -1723,18 +1772,18 @@ function renderLinhas() {
   const pOk = x => { if (!pf) return true; const ws = [...(progIdx.get(x.line) || []), ...x.sps.flatMap(sp => progIdx.get(sp.key) || [])]; const cur = weekOf(Date.now());
     if (pf === 'any') return ws.some(([w]) => w >= cur); if (pf === 'none') return !ws.some(([w]) => w >= cur);
     const n = Number(pf.slice(2)); return ws.some(([w]) => w === n); };
-  lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm) && pOk(x));
+  lnFiltered = R.filter(x => (!q || (x.line + ' ' + x.sth + ' ' + x.ppu + ' ' + x.sub).toLowerCase().includes(q)) && (!sop || x.sop === sop) && (sf === '' || st(pct(x)) === Number(sf)) && (!tp || x.tipo === tp) && (!dm || x.diam === dm) && pOk(x) && (!lnCoat || (lnCoat === 'coat') === isCoat(x.line)));
   const k = lnSort.k, d = lnSort.d;
   const val = x => k === 'pct' ? pct(x) : k === 'm' ? x.m : k === 'esp' ? Number(x.esp) : x[k];
   lnFiltered.sort((a, b) => { const A = val(a), B = val(b); return (typeof A === 'number' ? A - B : String(A).localeCompare(String(B))) * d || a.line.localeCompare(b.line); });
   const pages = Math.max(1, Math.ceil(lnFiltered.length / PAGE)); lnPage = Math.min(lnPage, pages - 1);
   const rows = lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE);
-  $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x), ns = x.sps.length, op = openSp.has(x.i); return `<tr class="${pending.has(x.i) || pendLines.has(x.i) ? 'changed' : ''}${op ? ' sp-open' : ''}">
+  $('#lnBody').innerHTML = rows.length ? rows.map(x => { const p = pct(x), ns = x.sps.length, op = openSp.has(x.i); const co = isCoat(x.line); return `<tr class="${pending.has(x.i) || pendLines.has(x.i) ? 'changed' : ''}${op ? ' sp-open' : ''}${co ? ' coat' : ''}">
     <td><input type="checkbox" data-sel="${x.i}" ${sel.has(x.i) ? 'checked' : ''} ${canEdit() ? '' : 'disabled'} aria-label="Selecionar ${esc(x.line)}"></td>
-    <td><span class="lcell">${ns ? `<button class="spt${op ? ' open' : ''}" data-spt="${x.i}" title="${op ? 'Ocultar' : 'Mostrar'} os ${ns} spools" aria-expanded="${op}">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${ns ? `<small class="nsp">${ns} ${ns === 1 ? 'spool' : 'spools'}</small>` : '<small class="nsp none">sem spool</small>'}</span></td>
+    <td><span class="lcell">${ns ? `<button class="spt${op ? ' open' : ''}" data-spt="${x.i}" title="${op ? 'Ocultar' : 'Mostrar'} os ${ns} spools" aria-expanded="${op}">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${co ? '<span class="coat-b" title="Executada pela Coating">COATING</span>' : ''}${ns ? `<small class="nsp">${ns} ${ns === 1 ? 'spool' : 'spools'}</small>` : '<small class="nsp none">sem spool</small>'}</span></td>
     <td>${esc(x.sop)}</td><td class="muted sth" title="${esc(x.sth)}">…${esc(x.sth.replace(/^STH-\d{4}-\d{4}-\d{4}-/, ''))}</td><td>${esc(diamTxt(x.diam))}</td><td class="num">${esc(x.esp)}</td>
     <td class="num">${f2(x.m)}</td><td>${pctCell(x)}</td><td class="num">${f2(x.m * p / 100)}</td>
-    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChips(x)}</td></tr>${op ? x.sps.map(spRow).join('') : ''}`; }).join('')
+    <td><span class="tag s${st(p)}">${ST_LINE[st(p)]}</span></td><td>${progChips(x)}</td></tr>${op ? x.sps.map(spRow).join('').replace(/class="sp-row/g, co ? 'class="sp-row coat' : 'class="sp-row') : ''}`; }).join('')
     : `<tr><td colspan="11"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros.</div></td></tr>`;
   const t = totals(lnFiltered);
   $('#pager').innerHTML = `<span>${f0(lnFiltered.length)} ${lnFiltered.length === 1 ? 'linha' : 'linhas'} · ${f2(t.m)} m · avanço ${pctTxt(t.pct)}</span><span class="spacer"></span>
@@ -1747,7 +1796,7 @@ function renderLinhas() {
   if ($('#spAll')) $('#spAll').onclick = () => { const allOpen = rows.filter(x => x.sps.length).every(x => openSp.has(x.i)); rows.forEach(x => { if (x.sps.length) allOpen ? openSp.delete(x.i) : openSp.add(x.i); }); renderLinhas(); };
   $('#selPage').checked = rows.length > 0 && rows.every(x => sel.has(x.i));
   $('#selPage').disabled = !canEdit();
-  renderBulk();
+  renderBulk(); renderCoatBar();
 }
 $('#selPage').onchange = e => { lnFiltered.slice(lnPage * PAGE, lnPage * PAGE + PAGE).forEach(x => e.target.checked ? sel.add(x.i) : sel.delete(x.i)); renderLinhas(); };
 const openSp = new Set(), selSp = new Set();
@@ -3813,7 +3862,7 @@ function pvXlsxRows(per) {
   buildHIdx(); buildMedIdx();
   const adm = isAdmin(), rows = [];
   for (const x of R) { const L = medLine(x, per); for (const o of L.fcs) { if (!(o.prevM > 0.0005)) continue;
-    rows.push([medTag(o.it), 'B-' + ppuCode(x), pvEtapaXlsx(x), Math.round(o.prevM * 1000) / 1000, null, 'A DEFINIR', 'Serviço', null, EQP ? 'Equipamento' : null]); } }
+    rows.push([medTag(o.it), 'B-' + ppuCode(x), pvEtapaXlsx(x), Math.round(o.prevM * 1000) / 1000, null, 'A DEFINIR', 'Serviço', null, EQP ? 'Equipamento' : (isCoat(x.line) ? 'COATING' : null)]); } }
   return rows.sort((a, b) => a[0].localeCompare(b[0]));
 }
 function pvXlsxSave(rows, name) {
