@@ -635,6 +635,19 @@ tr.coat.changed>td{background:#FFF6E0}
 .btn.coat-on:hover{background:var(--coat-soft)}
 .coat-b{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;background:var(--coat);color:#fff;font-size:10px;font-weight:700;letter-spacing:.05em;vertical-align:1px}
 @media print{tr.coat>td{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+
+/* ---------- mover fotos entre abas e semanas ---------- */
+.ph{position:relative}
+.ph-sel{position:absolute;top:8px;left:8px;z-index:2;background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:6px;padding:4px 6px;display:flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:var(--ink2);cursor:pointer;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+.ph-sel input{margin:0;width:15px;height:15px;cursor:pointer}
+.ph.sel{outline:3px solid var(--brand);outline-offset:-1px}
+.vmove{display:none;position:sticky;top:8px;z-index:5;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 14px;margin:0 0 6px;background:var(--brand-soft);border:1px solid #C9DDEB;border-radius:var(--r1);font-size:13px;box-shadow:0 4px 14px rgba(16,40,60,.12)}
+.vmove.on{display:flex}
+.vmove b{color:var(--ink)}
+.vmove .input{width:auto;min-width:0;padding:6px 8px}
+.vmove .vm-week{max-width:120px}
+.day .btn{flex:none;font-weight:500}
+.day .vm-day{display:flex;gap:6px;order:2}
 </style>
 </head>
 <body class="locked">
@@ -1073,6 +1086,13 @@ tr.coat.changed>td{background:#FFF6E0}
             <button role="tab" data-t="executadas" aria-selected="false"><span class="vt-ic g"></span>Linhas executadas <b id="vtE">0</b></button>
           </div>
           <div class="vleg-bar"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div><span class="muted" style="font-size:12px">Cores usadas na marcação dos desenhos e fotos.</span></div>
+          <div class="panel-b" style="padding-bottom:0"><div class="vmove" id="visMove" role="region" aria-label="Mover fotos selecionadas">
+            <b id="vmN">0 selecionadas</b><span>Mover para</span>
+            <select class="input" id="vmCat"><option value="programacao">Programação semanal</option><option value="executadas">Linhas executadas</option><option value="visao_geral">Visão geral da unidade</option></select>
+            <label id="vmWeekW" style="display:flex;align-items:center;gap:6px">Semana <input class="input vm-week" id="vmWeek" inputmode="numeric" list="vmWeeks" placeholder="Ex.: 71"></label><datalist id="vmWeeks"></datalist>
+            <span class="muted" id="vmWeekR" style="font-size:12px"></span>
+            <button class="btn sm primary" id="vmGo">Mover</button><button class="btn sm" id="vmAll">Selecionar todas desta lista</button><button class="btn sm" id="vmClear">Limpar seleção</button>
+          </div></div>
           <div class="panel-b" id="gallery"></div>
         </div>
       </section>
@@ -2077,7 +2097,8 @@ $('#upSend').onclick = async () => {
 const fileUrl = v => `${API_URL}/visual/file/${v.id}?s=${SCOPE}${token ? '&t=' + encodeURIComponent(token) : ''}`;
 function photoCard(v) {
   const isPdf = v.mime === 'application/pdf';
-  return `<article class="ph" data-id="${v.id}">
+  const sl = !!(visSel && visSel.has(v.id));
+  return `<article class="ph${sl ? ' sel' : ''}" data-id="${v.id}">${canEdit() ? `<label class="ph-sel" title="Selecionar para mover"><input type="checkbox" data-vsel="${v.id}"${sl ? ' checked' : ''}>Mover</label>` : ''}
     ${isPdf ? `<a class="pdf" href="${fileUrl(v)}" target="_blank" rel="noopener">PDF · abrir</a>` : `<button class="img" data-lb="${v.id}" aria-label="Ampliar foto"><img src="${fileUrl(v)}" alt="${esc(v.caption || v.filename)}" loading="lazy"></button>`}
     <div class="meta">
       <span class="cat ${catCls(v)}">${catTxt(v)}</span>
@@ -2087,7 +2108,7 @@ function photoCard(v) {
       <span class="by">por ${esc(v.uploaded_by || '—')}</span>
       ${canEdit() ? `<div class="edit" id="ve${v.id}">
           <select class="input" data-vec="${v.id}"><option value="programacao"${vcat(v) === 'programacao' ? ' selected' : ''}>Programação semanal</option><option value="executadas"${vcat(v) === 'executadas' ? ' selected' : ''}>Linhas executadas</option><option value="visao_geral"${vcat(v) === 'visao_geral' ? ' selected' : ''}>Visão geral da unidade</option></select>
-          <input class="input" data-vew="${v.id}" inputmode="numeric" placeholder="Semana (ex.: 70)" value="${v.week ?? ''}">
+          <input class="input" data-vew="${v.id}" inputmode="numeric" list="vmWeeks" placeholder="Semana (ex.: 70)" value="${v.week ?? ''}"${vcat(v) === 'programacao' ? '' : ' hidden'}>
           <span style="display:flex;gap:6px"><button class="btn sm primary" data-vsave="${v.id}">Salvar</button><button class="btn sm" data-vedit="${v.id}">Cancelar</button></span></div>` : ''}
       <span style="display:flex;gap:6px">${canEdit() ? `<button class="btn sm" data-vedit="${v.id}">Mover</button>` : ''}${isAdmin() ? `<button class="btn sm danger" data-del="${v.id}">Excluir</button>` : ''}</span>
     </div></article>`;
@@ -2110,6 +2131,7 @@ function renderVisual(justId) {
   const list = (visTab === 'programacao' ? prog : visTab === 'visao_geral' ? vg : exe).filter(v => (!sop || v.sop === sop) && (visTab !== 'programacao' || !visWeek || String(v.week) === visWeek));
   $('#visCount').textContent = `${f0(list.length)} ${list.length === 1 ? 'registro' : 'registros'} em ${catLabel(visTab)}${visuals[0] ? ` · último envio em ${when(visuals[0].uploaded_at)}` : ''}`;
   if (!list.length) {
+    visMoveBar(list);
     $('#gallery').innerHTML = `<div class="empty"><b>${online ? `Nenhum registro em ${catLabel(visTab)}` : 'Sem conexão com o servidor'}</b>${online ? (canEdit() ? `Envie no painel acima escolhendo "${catLabel(visTab)}".` : 'Entre com um usuário editor para enviar.') : 'Os registros aparecem quando o Worker estiver disponível.'}</div>`;
     return;
   }
@@ -2122,7 +2144,9 @@ function renderVisual(justId) {
   } else {
     for (const v of list) { const d = dLong.format(new Date(v.uploaded_at)); const k = d.charAt(0).toUpperCase() + d.slice(1); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(v); }
   }
-  $('#gallery').innerHTML = [...groups.entries()].map(([k, vs]) => `<div class="day">${esc(k)}</div><div class="gallery">${vs.map(photoCard).join('')}</div>`).join('');
+  const ids = vs => vs.map(v => v.id).join(',');
+  $('#gallery').innerHTML = [...groups.entries()].map(([k, vs]) => `<div class="day">${esc(k)}${canEdit() ? `<span class="vm-day"><button class="btn sm" data-vgrp="${ids(vs)}">${visTab === 'programacao' ? 'Selecionar a semana' : 'Selecionar o dia'} (${vs.length})</button></span>` : ''}</div><div class="gallery">${vs.map(photoCard).join('')}</div>`).join('');
+  visMoveBar(list);
   if (justId) { const el = document.querySelector(`.ph[data-id="${justId}"]`); if (el) { el.classList.add('just'); el.scrollIntoView({ block: 'center' }); } }
 }
 $('#visTabs').onclick = e => { const b = e.target.closest('button'); if (b) { visTab = b.dataset.t; renderVisual(); } };
@@ -2137,6 +2161,61 @@ document.addEventListener('click', async e => {
   catch (err) { toast(err.message, true); }
 });
 $('#visSop').onchange = () => renderVisual();
+// ---------- mover fotos em lote: de qualquer aba para qualquer semana ----------
+var visSel = new Set();
+var visList = [];
+function visMoveBar(list) {
+  if (!visSel) return;
+  if (list) visList = list;
+  for (const id of [...visSel]) if (!visuals.some(v => v.id === id)) visSel.delete(id);
+  const n = visSel.size, bar = $('#visMove'); if (!bar) return;
+  bar.classList.toggle('on', n > 0 && canEdit());
+  $('#vmN').textContent = `${f0(n)} ${n === 1 ? 'foto selecionada' : 'fotos selecionadas'}`;
+  const weeks = [...new Set(visuals.filter(v => vcat(v) === 'programacao' && v.week != null).map(v => v.week))];
+  const cw = weekOf(Date.now()); [cw - 1, cw, cw + 1, cw + 2].forEach(w => { if (!weeks.includes(w)) weeks.push(w); });
+  $('#vmWeeks').innerHTML = weeks.sort((a, b) => b - a).map(w => `<option value="${w}">Semana ${w} · ${weekRange(w)}${w === cw ? ' (atual)' : w === cw + 1 ? ' (próxima)' : ''}</option>`).join('');
+  vmWeekUi();
+}
+function vmWeekUi() {
+  const prog = $('#vmCat').value === 'programacao'; $('#vmWeekW').hidden = !prog;
+  const w = parseInt($('#vmWeek').value, 10);
+  $('#vmWeekR').textContent = prog && Number.isInteger(w) && w > 0 ? weekRange(w) : '';
+}
+$('#vmCat').onchange = vmWeekUi; $('#vmWeek').oninput = vmWeekUi;
+$('#vmClear').onclick = () => { visSel.clear(); renderVisual(); };
+$('#vmAll').onclick = () => { visList.forEach(v => visSel.add(v.id)); renderVisual(); };
+document.addEventListener('change', e => {
+  const cb = e.target.closest('[data-vsel]');
+  if (cb) { const id = Number(cb.dataset.vsel); cb.checked ? visSel.add(id) : visSel.delete(id); cb.closest('.ph').classList.toggle('sel', cb.checked); visMoveBar(); return; }
+  const c = e.target.closest('[data-vec]'); if (c) { const w = document.querySelector(`[data-vew="${c.dataset.vec}"]`); if (w) w.hidden = c.value !== 'programacao'; }
+});
+document.addEventListener('click', e => {
+  const g = e.target.closest('[data-vgrp]'); if (!g) return;
+  const ids = g.dataset.vgrp.split(',').map(Number), all = ids.every(id => visSel.has(id));
+  ids.forEach(id => all ? visSel.delete(id) : visSel.add(id));
+  if (!all && visTab === 'programacao') { $('#vmCat').value = 'programacao'; $('#vmWeek').value = ''; }
+  renderVisual(); if (!all) $('#vmWeek').focus();
+});
+$('#vmGo').onclick = async () => {
+  if (!canEdit()) return toast('Entre com um usuário editor para mover fotos.', true);
+  const c = $('#vmCat').value, w = parseInt($('#vmWeek').value, 10), ids = [...visSel];
+  if (!ids.length) return;
+  if (c === 'programacao' && !(Number.isInteger(w) && w > 0 && w < 1000)) { $('#vmWeek').focus(); return toast('Informe o número da semana de destino.', true); }
+  const dest = c === 'programacao' ? `Programação · Semana ${w}` : catLabel(c);
+  if (!confirm(`Mover ${ids.length} ${ids.length === 1 ? 'foto' : 'fotos'} para ${dest}?`)) return;
+  const btn = $('#vmGo'); btn.disabled = true; let ok = 0; const bad = [];
+  for (const id of ids) {
+    btn.textContent = `Movendo ${ok + bad.length + 1}/${ids.length}…`;
+    try { await api(`/visual/${id}/meta`, { method: 'POST', body: { category: c, week: c === 'programacao' ? w : null } }); ok++; visSel.delete(id); }
+    catch (err) { bad.push(err.message); }
+  }
+  btn.disabled = false; btn.textContent = 'Mover';
+  try { visuals = (await api('/visual')).items; } catch (e) {}
+  visTab = c; visWeek = c === 'programacao' ? String(w) : ''; renderVisual();
+  if (typeof renderPainel === 'function') try { renderPainel(); } catch (e) {}
+  toast(bad.length ? `${ok} movida(s); ${bad.length} com erro: ${bad[0]}` : `${ok} ${ok === 1 ? 'foto movida' : 'fotos movidas'} para ${dest}.`, !!bad.length);
+};
+
 document.addEventListener('click', async e => {
   const lb = e.target.closest('[data-lb]');
   if (lb) { const v = visuals.find(x => x.id == lb.dataset.lb); $('#lbImg').src = fileUrl(v); $('#lbCap').textContent = `${catTxt(v)} · ${v.caption ? v.caption + ' · ' : ''}Enviado em ${when(v.uploaded_at)} por ${v.uploaded_by || '—'}`; $('#lightbox').classList.add('on'); return; }
