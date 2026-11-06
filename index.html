@@ -1086,12 +1086,12 @@ tr.coat.changed>td{background:#FFF6E0}
             <button role="tab" data-t="executadas" aria-selected="false"><span class="vt-ic g"></span>Linhas executadas <b id="vtE">0</b></button>
           </div>
           <div class="vleg-bar"><div class="vlegend" role="list" aria-label="Legenda das cores"><span role="listitem"><i class="y"></i>Programado</span><span role="listitem"><i class="g"></i>Linhas isoladas</span><span role="listitem"><i class="r"></i>Isolamento não executado</span></div><span class="muted" style="font-size:12px">Cores usadas na marcação dos desenhos e fotos.</span></div>
-          <div class="panel-b" style="padding-bottom:0"><div class="vmove" id="visMove" role="region" aria-label="Mover fotos selecionadas">
-            <b id="vmN">0 selecionadas</b><span>Mover para</span>
+          <div class="panel-b" style="padding-bottom:0"><div class="vmove" id="visMove" role="region" aria-label="Mover ou copiar fotos selecionadas">
+            <b id="vmN">0 selecionadas</b><span>Destino</span>
             <select class="input" id="vmCat"><option value="programacao">Programação semanal</option><option value="executadas">Linhas executadas</option><option value="visao_geral">Visão geral da unidade</option></select>
             <label id="vmWeekW" style="display:flex;align-items:center;gap:6px">Semana <input class="input vm-week" id="vmWeek" inputmode="numeric" list="vmWeeks" placeholder="Ex.: 71"></label><datalist id="vmWeeks"></datalist>
             <span class="muted" id="vmWeekR" style="font-size:12px"></span>
-            <button class="btn sm primary" id="vmGo">Mover</button><button class="btn sm" id="vmAll">Selecionar todas desta lista</button><button class="btn sm" id="vmClear">Limpar seleção</button>
+            <button class="btn sm primary" id="vmGo">Mover</button><button class="btn sm primary" id="vmCopy" title="Mantém a foto onde está e cria uma cópia no destino">Copiar</button><button class="btn sm" id="vmAll">Selecionar todas desta lista</button><button class="btn sm" id="vmClear">Limpar seleção</button>
           </div></div>
           <div class="panel-b" id="gallery"></div>
         </div>
@@ -2098,7 +2098,7 @@ const fileUrl = v => `${API_URL}/visual/file/${v.id}?s=${SCOPE}${token ? '&t=' +
 function photoCard(v) {
   const isPdf = v.mime === 'application/pdf';
   const sl = !!(visSel && visSel.has(v.id));
-  return `<article class="ph${sl ? ' sel' : ''}" data-id="${v.id}">${canEdit() ? `<label class="ph-sel" title="Selecionar para mover"><input type="checkbox" data-vsel="${v.id}"${sl ? ' checked' : ''}>Mover</label>` : ''}
+  return `<article class="ph${sl ? ' sel' : ''}" data-id="${v.id}">${canEdit() ? `<label class="ph-sel" title="Selecionar para mover ou copiar"><input type="checkbox" data-vsel="${v.id}"${sl ? ' checked' : ''}>Selecionar</label>` : ''}
     ${isPdf ? `<a class="pdf" href="${fileUrl(v)}" target="_blank" rel="noopener">PDF · abrir</a>` : `<button class="img" data-lb="${v.id}" aria-label="Ampliar foto"><img src="${fileUrl(v)}" alt="${esc(v.caption || v.filename)}" loading="lazy"></button>`}
     <div class="meta">
       <span class="cat ${catCls(v)}">${catTxt(v)}</span>
@@ -2109,8 +2109,8 @@ function photoCard(v) {
       ${canEdit() ? `<div class="edit" id="ve${v.id}">
           <select class="input" data-vec="${v.id}"><option value="programacao"${vcat(v) === 'programacao' ? ' selected' : ''}>Programação semanal</option><option value="executadas"${vcat(v) === 'executadas' ? ' selected' : ''}>Linhas executadas</option><option value="visao_geral"${vcat(v) === 'visao_geral' ? ' selected' : ''}>Visão geral da unidade</option></select>
           <input class="input" data-vew="${v.id}" inputmode="numeric" list="vmWeeks" placeholder="Semana (ex.: 70)" value="${v.week ?? ''}"${vcat(v) === 'programacao' ? '' : ' hidden'}>
-          <span style="display:flex;gap:6px"><button class="btn sm primary" data-vsave="${v.id}">Salvar</button><button class="btn sm" data-vedit="${v.id}">Cancelar</button></span></div>` : ''}
-      <span style="display:flex;gap:6px">${canEdit() ? `<button class="btn sm" data-vedit="${v.id}">Mover</button>` : ''}${isAdmin() ? `<button class="btn sm danger" data-del="${v.id}">Excluir</button>` : ''}</span>
+          <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm primary" data-vsave="${v.id}">Mover</button><button class="btn sm primary" data-vcopy1="${v.id}">Copiar</button><button class="btn sm" data-vedit="${v.id}">Cancelar</button></span></div>` : ''}
+      <span style="display:flex;gap:6px">${canEdit() ? `<button class="btn sm" data-vedit="${v.id}">Mover / copiar</button>` : ''}${isAdmin() ? `<button class="btn sm danger" data-del="${v.id}">Excluir</button>` : ''}</span>
     </div></article>`;
 }
 const vcat = v => v.category === 'programacao' ? 'programacao' : v.category === 'visao_geral' ? 'visao_geral' : 'executadas';
@@ -2196,25 +2196,46 @@ document.addEventListener('click', e => {
   if (!all && visTab === 'programacao') { $('#vmCat').value = 'programacao'; $('#vmWeek').value = ''; }
   renderVisual(); if (!all) $('#vmWeek').focus();
 });
-$('#vmGo').onclick = async () => {
-  if (!canEdit()) return toast('Entre com um usuário editor para mover fotos.', true);
-  const c = $('#vmCat').value, w = parseInt($('#vmWeek').value, 10), ids = [...visSel];
+// copia: baixa o arquivo e envia de novo no destino (a original fica onde está; apagar uma não afeta a outra)
+async function visCopyOne(v, c, w) {
+  const r = await fetch(fileUrl(v), { cache: 'no-store' });
+  if (!r.ok) throw new Error(`não consegui ler a foto ${v.filename || v.id} (${r.status})`);
+  const blob = await r.blob();
+  if (blob.size > 15 * 1024 * 1024) throw new Error(`${v.filename || 'arquivo'} acima de 15 MB`);
+  const content = await new Promise((ok, ko) => { const fr = new FileReader(); fr.onload = () => ok(String(fr.result).split(',')[1] || ''); fr.onerror = () => ko(new Error('falha ao ler a foto')); fr.readAsDataURL(blob); });
+  await api('/visual', { method: 'POST', body: { content, mime: v.mime || blob.type || 'image/png', filename: v.filename || 'foto', caption: v.caption || '', sop: v.sop || '', line: v.line || '', category: c, week: c === 'programacao' ? w : null } });
+}
+async function visTransfer(ids, c, w, copy, btn) {
+  if (!canEdit()) return toast('Entre com um usuário editor para mover ou copiar fotos.', true);
   if (!ids.length) return;
-  if (c === 'programacao' && !(Number.isInteger(w) && w > 0 && w < 1000)) { $('#vmWeek').focus(); return toast('Informe o número da semana de destino.', true); }
-  const dest = c === 'programacao' ? `Programação · Semana ${w}` : catLabel(c);
-  if (!confirm(`Mover ${ids.length} ${ids.length === 1 ? 'foto' : 'fotos'} para ${dest}?`)) return;
-  const btn = $('#vmGo'); btn.disabled = true; let ok = 0; const bad = [];
+  if (c === 'programacao' && !(Number.isInteger(w) && w > 0 && w < 1000)) return toast('Informe o número da semana de destino.', true);
+  const dest = c === 'programacao' ? `Programação · Semana ${w}` : catLabel(c), n = ids.length;
+  if (!confirm(`${copy ? 'Copiar' : 'Mover'} ${n} ${n === 1 ? 'foto' : 'fotos'} para ${dest}?${copy ? '\n\nAs originais continuam onde estão.' : ''}`)) return;
+  const label = btn ? btn.textContent : ''; if (btn) btn.disabled = true;
+  let ok = 0; const bad = [];
   for (const id of ids) {
-    btn.textContent = `Movendo ${ok + bad.length + 1}/${ids.length}…`;
-    try { await api(`/visual/${id}/meta`, { method: 'POST', body: { category: c, week: c === 'programacao' ? w : null } }); ok++; visSel.delete(id); }
-    catch (err) { bad.push(err.message); }
+    if (btn) btn.textContent = `${copy ? 'Copiando' : 'Movendo'} ${ok + bad.length + 1}/${n}…`;
+    const v = visuals.find(x => x.id === id); if (!v) continue;
+    try {
+      if (copy) await visCopyOne(v, c, w);
+      else await api(`/visual/${id}/meta`, { method: 'POST', body: { category: c, week: c === 'programacao' ? w : null } });
+      ok++; visSel.delete(id);
+    } catch (err) { bad.push(err.message); }
   }
-  btn.disabled = false; btn.textContent = 'Mover';
+  if (btn) { btn.disabled = false; btn.textContent = label; }
   try { visuals = (await api('/visual')).items; } catch (e) {}
   visTab = c; visWeek = c === 'programacao' ? String(w) : ''; renderVisual();
   if (typeof renderPainel === 'function') try { renderPainel(); } catch (e) {}
-  toast(bad.length ? `${ok} movida(s); ${bad.length} com erro: ${bad[0]}` : `${ok} ${ok === 1 ? 'foto movida' : 'fotos movidas'} para ${dest}.`, !!bad.length);
-};
+  const verbo = copy ? (ok === 1 ? 'foto copiada' : 'fotos copiadas') : (ok === 1 ? 'foto movida' : 'fotos movidas');
+  toast(bad.length ? `${ok} ${verbo}; ${bad.length} com erro: ${bad[0]}` : `${ok} ${verbo} para ${dest}.`, !!bad.length);
+}
+$('#vmGo').onclick = () => visTransfer([...visSel], $('#vmCat').value, parseInt($('#vmWeek').value, 10), false, $('#vmGo'));
+$('#vmCopy').onclick = () => visTransfer([...visSel], $('#vmCat').value, parseInt($('#vmWeek').value, 10), true, $('#vmCopy'));
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-vcopy1]'); if (!b) return;
+  const id = Number(b.dataset.vcopy1), c = document.querySelector(`[data-vec="${id}"]`).value, w = parseInt(document.querySelector(`[data-vew="${id}"]`).value, 10);
+  visTransfer([id], c, w, true, b);
+});
 
 document.addEventListener('click', async e => {
   const lb = e.target.closest('[data-lb]');
