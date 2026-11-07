@@ -648,6 +648,9 @@ tr.coat.changed>td{background:#FFF6E0}
 .vmove .vm-week{max-width:120px}
 .day .btn{flex:none;font-weight:500}
 .day .vm-day{display:flex;gap:6px;order:2}
+
+.ppt-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media (max-width:640px){.ppt-two{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="locked">
@@ -1304,13 +1307,13 @@ tr.coat.changed>td{background:#FFF6E0}
 </div>
 
 <div class="modal m-noeq" id="pptModal" role="dialog" aria-modal="true" aria-labelledby="pptT">
-  <div class="box" style="width:min(560px,100%)">
+  <div class="box" style="width:min(720px,100%)">
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
-    <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
+    <div class="ppt-two"><label class="fld"><span>Slide de tubulação · imagem 1 <small class="muted">(em cima, à esquerda)</small></span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem 1 de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label><label class="fld"><span>Slide de tubulação · imagem 2 <small class="muted">(embaixo, à direita)</small></span><select class="input" id="pptImg2"></select><img id="pptImg2Prev" alt="Prévia da imagem 2 de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label></div>
     <label class="fld"><span>Imagem do slide "Acompanhamento visual · Equipamentos"</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
-    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
+    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher imagens da Visão geral da unidade ou de Linhas executadas, ou manter as imagens do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
   </div>
@@ -2848,12 +2851,16 @@ async function pptPreview(sel, el, scope) {
   } catch (e) {}
 }
 function pptRenderModal() {
-  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), lines: pptWeekLines(P) })) || { imgs: [], vg: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], lines = tw.lines;
+  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), ex: visuals.filter(v => v.category === 'executadas' && /^image\//.test(v.mime || '')).slice(0, 40), lines: pptWeekLines(P) })) || { imgs: [], vg: [], ex: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], exd = tw.ex || [], lines = tw.lines;
   const opt = (v, sel) => `<option value="${v.id}"${sel ? ' selected' : ''}>${esc(v.caption || v.filename)} · ${when(v.uploaded_at)}</option>`;
-  $('#pptImg').innerHTML =
-    (imgs.length ? `<optgroup label="Programação · Semana ${P}">${imgs.map((v, i) => opt(v, i === 0)).join('')}</optgroup>` : '') +
-    (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map((v, i) => opt(v, !imgs.length && i === 0)).join('')}</optgroup>` : '') +
-    `<option value=""${!imgs.length && !vg.length ? ' selected' : ''}>Manter a imagem do modelo</option>`;
+  // as duas imagens do slide de tubulação: por padrão as duas primeiras da programação da semana
+  const pool = [...imgs, ...vg, ...exd], def1 = imgs[0] || vg[0] || null, def2 = imgs[1] || null;
+  const tubOpts = selId => (imgs.length ? `<optgroup label="Programação · Semana ${P}">${imgs.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
+    (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
+    (exd.length ? `<optgroup label="Linhas executadas">${exd.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
+    `<option value=""${selId == null ? ' selected' : ''}>Manter a imagem do modelo</option>`;
+  $('#pptImg').innerHTML = tubOpts(def1 && def1.id); $('#pptImg2').innerHTML = tubOpts(def2 && def2.id);
+  if (!pool.length) { $('#pptImg').value = ''; $('#pptImg2').value = ''; }
   $('#pptImgWarn').hidden = imgs.length > 0;
   const eqAll = inEq(() => visuals.filter(v => /^image\//.test(v.mime || ''))) || [];
   const eqGroups = [['visao_geral', 'Equipamentos · Visão geral da unidade'], ['programacao', 'Equipamentos · Programação semanal'], ['executadas', 'Equipamentos · Linhas executadas']]
@@ -2861,7 +2868,7 @@ function pptRenderModal() {
   const eqDef = (eqGroups[0] || [null, []])[1][0];
   $('#pptEqImg').innerHTML = eqGroups.map(([l, vs]) => `<optgroup label="${l}">${vs.map(v => opt(v, eqDef && v.id === eqDef.id)).join('')}</optgroup>`).join('') +
     `<option value=""${!eqDef ? ' selected' : ''}>Manter a imagem do modelo</option>`;
-  pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub'); pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
+  pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub'); pptPreview($('#pptImg2'), $('#pptImg2Prev'), 'tub'); pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
 }
@@ -2874,6 +2881,7 @@ $('#pptOpen').onclick = async () => {
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
 $('#pptClose').onclick = () => $('#pptModal').classList.remove('on');
 $('#pptImg').onchange = () => pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub');
+$('#pptImg2').onchange = () => pptPreview($('#pptImg2'), $('#pptImg2Prev'), 'tub');
 $('#pptEqImg').onchange = () => pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
 $('#pptModal').addEventListener('click', e => { if (e.target.id === 'pptModal') $('#pptModal').classList.remove('on'); });
 $('#pptTplBtn').onclick = () => { $('#pptTplFile').value = ''; $('#pptTplFile').click(); };
@@ -2978,12 +2986,22 @@ function pptEqChart(xml, st) {
 }
 const inTub = fn => EQP ? inOther(fn) : fn(), inEq = fn => EQP ? fn() : inOther(fn);
 // troca a maior imagem do slide pela imagem escolhida (mantém a posição e cabe no mesmo espaço)
-function pptSwapPic(files, txt, sp, s, img, name) {
+// imagens do slide (ignora as pequenas, como a legenda), da maior para a menor
+function pptPics(s) {
+  const out = [];
+  for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) {
+    const o = pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1];
+    if (o && id) out.push({ pic, id, x: +o[1], y: +o[2], w: +o[3], h: +o[4], a: o[3] * o[4] });
+  }
+  out.sort((a, b) => b.a - a.a);
+  return out.filter(p => p.a >= (out[0] ? out[0].a * 0.2 : 0));
+}
+function pptSwapPic(files, txt, sp, s, img, name, target) {
   const relsP = relsOf(sp); if (!files.has(relsP)) return null;
   const rels = txt(relsP);
-  let best = null;
-  for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
-  if (!best) return null;
+  let best = target || null;
+  if (!best) for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
+  if (!best || !s.includes(best.pic)) return null;
   const media = `ppt/media/${name}.${img.ext}`; files.set(media, img.bytes);
   const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
   const oldT = (rels.match(relRe) || [])[2];
@@ -2997,7 +3015,26 @@ function pptSwapPic(files, txt, sp, s, img, name) {
   }
   return s;
 }
-async function pptBuild(capa, P, imgId, eqImgId) {
+// gráfico "Avanço por SOP" desenhado como imagem (para modelos em que ele é uma figura)
+async function pptSopImage(st, ratio) {
+  const W = 2400, H = Math.round(W / (ratio || 1.4)), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  const n = Math.max(st.length, 1), pad = 10, rowH = Math.min((H - pad * 2) / n, 64), fs = Math.max(11, Math.min(30, rowH * 0.56));
+  g.font = `${fs}px Arial, Helvetica, sans-serif`; g.textBaseline = 'middle';
+  const labW = Math.ceil(Math.max(...st.map(o => g.measureText(o.sop).width), 50)) + 24;
+  const right = st.map(o => `${nfBR(o.p * 100, 1)}%   ${nfBR(o.ex, 2)}/${nfBR(o.tm, 2)} m`), rightW = Math.ceil(Math.max(...right.map(t => g.measureText(t).width), 60)) + 28;
+  const bx = labW, bw = W - labW - rightW, bh = Math.max(6, rowH * 0.62);
+  st.forEach((o, i) => {
+    const cy = pad + rowH * i + rowH / 2, y = cy - bh / 2;
+    g.fillStyle = '#333'; g.textAlign = 'right'; g.fillText(o.sop, labW - 14, cy);
+    g.fillStyle = '#E4E7EA'; g.fillRect(bx, y, bw, bh); g.strokeStyle = '#C9CED3'; g.lineWidth = 1.5; g.strokeRect(bx + .75, y + .75, bw - 1.5, bh - 1.5);
+    if (o.p > 0) { g.fillStyle = '#D9C467'; g.fillRect(bx, y, Math.max(3, bw * o.p), bh); }
+    g.fillStyle = '#7A5A10'; g.textAlign = 'left'; g.fillText(right[i], bx + bw + 14, cy);
+  });
+  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: 'png', w: W, h: H };
+}
+async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
   await otherLoad();
   const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: BASE.sops.length })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
@@ -3030,25 +3067,14 @@ async function pptBuild(capa, P, imgId, eqImgId) {
         out = out.replace(/(<p:xfrm>[\s\S]*?<a:ext cx="\d+" cy=")\d+(")/, `$1${rh * (list.length + 1)}$2`);
         return out;
       });
-      if (imgId) {
-        const img = await pptImageBytes(imgId);
-        const relsP = relsOf(sp), rels = txt(relsP);
-        // maior imagem do slide = mapa da programação
-        let best = null;
-        for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
-        if (best) {
-          const tag = Date.now().toString(36), media = `ppt/media/programacao_S${P}_${tag}.${img.ext}`; files.set(media, img.bytes);
-          const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
-          const oldT = (rels.match(relRe) || [])[2];
-          files.set(relsP, rels.replace(relRe, `$1../media/programacao_S${P}_${tag}.${img.ext}$3`));
-          if (oldT && relPath(sp, oldT) !== media) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
-          const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
-          if (o) {
-            const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
-            const np = best.pic.replace(o[0], `<a:off x="${X + Math.round((W - w) / 2)}" y="${Y + Math.round((H - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/>`).replace(/<a:srcRect[^>]*\/>/, '<a:srcRect/>');
-            s = s.replace(best.pic, np);
-          }
-        } else warn.push('não achei a imagem no slide das linhas programadas');
+      // imagens: as duas maiores do slide, na ordem do modelo (de cima para baixo, da esquerda para a direita)
+      const slots = pptPics(s).slice(0, 2).sort((a, b) => a.y - b.y || a.x - b.x), picks = [imgId, img2Id];
+      if ((imgId || img2Id) && !slots.length) warn.push('não achei as imagens no slide das linhas programadas');
+      for (let k = 0; k < 2; k++) {
+        if (!picks[k]) continue;
+        if (!slots[k]) { warn.push(`o modelo tem só ${slots.length} imagem no slide de tubulação; a imagem ${k + 1} não foi usada`); continue; }
+        const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(picks[k]), `programacao_S${P}_${k + 1}_${Date.now().toString(36)}`, slots[k]);
+        if (ns) s = ns; else warn.push(`não consegui trocar a imagem ${k + 1} do slide de tubulação`);
       }
     }
     // resumo geral + gráfico por SOP
@@ -3062,7 +3088,11 @@ async function pptBuild(capa, P, imgId, eqImgId) {
       if (target) {
         const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
-      } else warn.push('não achei o gráfico Avanço por SOP');
+      } else {
+        const big = pptPics(s)[0];
+        if (!big) warn.push('não achei o gráfico Avanço por SOP');
+        else { const ns = pptSwapPic(files, txt, sp, s, await pptSopImage(st, big.w / big.h), `avanco_sop_${Date.now().toString(36)}`, big); if (ns) s = ns; else warn.push('não consegui atualizar a imagem do Avanço por SOP'); }
+      }
     }
     // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
     // (o slide do mapa visual de equipamentos mantém a imagem do modelo; só números e gráfico mudam)
@@ -3083,14 +3113,16 @@ async function pptBuild(capa, P, imgId, eqImgId) {
     files.set(sp, s);
   }
   if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
+  // garante que o pacote declare as extensões das imagens novas (jpg/png)
+  if (files.has('[Content_Types].xml')) { let ct = txt('[Content_Types].xml'); for (const [e, t] of [['jpg', 'image/jpeg'], ['jpeg', 'image/jpeg'], ['png', 'image/png']]) if (!new RegExp(`Extension="${e}"`, 'i').test(ct)) ct = ct.replace(/<Types[^>]*>/, m => m + `<Default Extension="${e}" ContentType="${t}"/>`); files.set('[Content_Types].xml', ct); }
   const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
 }
 $('#pptGo').onclick = async () => {
-  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
+  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, img2 = $('#pptImg2').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
-    const { blob, warn } = await pptBuild(capa, P, img, eqImg);
+    const { blob, warn } = await pptBuild(capa, P, img, eqImg, img2);
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const hh = new Date(), stamp = `${String(hh.getDate()).padStart(2, '0')}-${String(hh.getMonth() + 1).padStart(2, '0')}_${String(hh.getHours()).padStart(2, '0')}h${String(hh.getMinutes()).padStart(2, '0')}`;
     a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}_${stamp}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
