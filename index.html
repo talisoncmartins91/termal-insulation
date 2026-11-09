@@ -648,9 +648,6 @@ tr.coat.changed>td{background:#FFF6E0}
 .vmove .vm-week{max-width:120px}
 .day .btn{flex:none;font-weight:500}
 .day .vm-day{display:flex;gap:6px;order:2}
-
-.ppt-two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media (max-width:640px){.ppt-two{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="locked">
@@ -853,7 +850,7 @@ tr.coat.changed>td{background:#FFF6E0}
         <div class="panel">
           <div class="panel-h">
             <div><h2 id="estTitle">Resumo de metros por SOP</h2><p>Mesma estrutura das abas Resumo SOP, Resumo SUBSOP e Resumo STH. O avanço de cada grupo é calculado pelas linhas.</p></div>
-            <div class="tools"><div class="seg" id="estGroup"><button data-g="sop" aria-pressed="true">SOP</button><button data-g="sub" aria-pressed="false">SUBSOP</button><button data-g="sth" aria-pressed="false">STH</button></div></div>
+            <div class="tools"><div class="seg" id="estGroup"><button data-g="sop" aria-pressed="true">SOP</button><button data-g="sub" aria-pressed="false">SUBSOP</button><button data-g="sth" aria-pressed="false">STH</button></div><button class="btn" id="estXlsx" type="button" title="Planilha com as abas Resumo, SOP, SUBSOP e STH, com gráficos"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>Exportar Excel</button></div>
           </div>
           <div class="filters">
             <input class="input" id="estQ" type="search" placeholder="Buscar código ou linha" style="flex:1;min-width:220px">
@@ -1307,13 +1304,13 @@ tr.coat.changed>td{background:#FFF6E0}
 </div>
 
 <div class="modal m-noeq" id="pptModal" role="dialog" aria-modal="true" aria-labelledby="pptT">
-  <div class="box" style="width:min(720px,100%)">
+  <div class="box" style="width:min(560px,100%)">
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
-    <div class="ppt-two"><label class="fld"><span>Slide de tubulação · imagem 1 <small class="muted">(em cima, à esquerda)</small></span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem 1 de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label><label class="fld"><span>Slide de tubulação · imagem 2 <small class="muted">(embaixo, à direita)</small></span><select class="input" id="pptImg2"></select><img id="pptImg2Prev" alt="Prévia da imagem 2 de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label></div>
+    <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <label class="fld"><span>Imagem do slide "Acompanhamento visual · Equipamentos"</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
-    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher imagens da Visão geral da unidade ou de Linhas executadas, ou manter as imagens do modelo.</p>
+    <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
     <p class="muted" id="pptLines" style="font-size:12.5px;margin:12px 0"></p>
     <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px"><button class="btn primary" id="pptGo">Exportar apresentação</button></div>
   </div>
@@ -2851,16 +2848,12 @@ async function pptPreview(sel, el, scope) {
   } catch (e) {}
 }
 function pptRenderModal() {
-  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), ex: visuals.filter(v => v.category === 'executadas' && /^image\//.test(v.mime || '')).slice(0, 40), lines: pptWeekLines(P) })) || { imgs: [], vg: [], ex: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], exd = tw.ex || [], lines = tw.lines;
+  const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), lines: pptWeekLines(P) })) || { imgs: [], vg: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], lines = tw.lines;
   const opt = (v, sel) => `<option value="${v.id}"${sel ? ' selected' : ''}>${esc(v.caption || v.filename)} · ${when(v.uploaded_at)}</option>`;
-  // as duas imagens do slide de tubulação: por padrão as duas primeiras da programação da semana
-  const pool = [...imgs, ...vg, ...exd], def1 = imgs[0] || vg[0] || null, def2 = imgs[1] || null;
-  const tubOpts = selId => (imgs.length ? `<optgroup label="Programação · Semana ${P}">${imgs.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
-    (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
-    (exd.length ? `<optgroup label="Linhas executadas">${exd.map(v => opt(v, v.id === selId)).join('')}</optgroup>` : '') +
-    `<option value=""${selId == null ? ' selected' : ''}>Manter a imagem do modelo</option>`;
-  $('#pptImg').innerHTML = tubOpts(def1 && def1.id); $('#pptImg2').innerHTML = tubOpts(def2 && def2.id);
-  if (!pool.length) { $('#pptImg').value = ''; $('#pptImg2').value = ''; }
+  $('#pptImg').innerHTML =
+    (imgs.length ? `<optgroup label="Programação · Semana ${P}">${imgs.map((v, i) => opt(v, i === 0)).join('')}</optgroup>` : '') +
+    (vg.length ? `<optgroup label="Visão geral da unidade">${vg.map((v, i) => opt(v, !imgs.length && i === 0)).join('')}</optgroup>` : '') +
+    `<option value=""${!imgs.length && !vg.length ? ' selected' : ''}>Manter a imagem do modelo</option>`;
   $('#pptImgWarn').hidden = imgs.length > 0;
   const eqAll = inEq(() => visuals.filter(v => /^image\//.test(v.mime || ''))) || [];
   const eqGroups = [['visao_geral', 'Equipamentos · Visão geral da unidade'], ['programacao', 'Equipamentos · Programação semanal'], ['executadas', 'Equipamentos · Linhas executadas']]
@@ -2868,7 +2861,7 @@ function pptRenderModal() {
   const eqDef = (eqGroups[0] || [null, []])[1][0];
   $('#pptEqImg').innerHTML = eqGroups.map(([l, vs]) => `<optgroup label="${l}">${vs.map(v => opt(v, eqDef && v.id === eqDef.id)).join('')}</optgroup>`).join('') +
     `<option value=""${!eqDef ? ' selected' : ''}>Manter a imagem do modelo</option>`;
-  pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub'); pptPreview($('#pptImg2'), $('#pptImg2Prev'), 'tub'); pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
+  pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub'); pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
   $('#pptLines').innerHTML = lines.length ? `<b>${lines.length} ${lines.length === 1 ? 'linha programada' : 'linhas programadas'} na S${P}:</b> ${lines.slice(0, 12).map(esc).join(' · ')}${lines.length > 12 ? ` · e mais ${lines.length - 12}` : ''}`
     : `<b class="neg">Nenhuma linha programada na S${P}.</b> A tabela sai com a observação "Nenhuma linha programada".`;
 }
@@ -2881,7 +2874,6 @@ $('#pptOpen').onclick = async () => {
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
 $('#pptClose').onclick = () => $('#pptModal').classList.remove('on');
 $('#pptImg').onchange = () => pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub');
-$('#pptImg2').onchange = () => pptPreview($('#pptImg2'), $('#pptImg2Prev'), 'tub');
 $('#pptEqImg').onchange = () => pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
 $('#pptModal').addEventListener('click', e => { if (e.target.id === 'pptModal') $('#pptModal').classList.remove('on'); });
 $('#pptTplBtn').onclick = () => { $('#pptTplFile').value = ''; $('#pptTplFile').click(); };
@@ -2986,22 +2978,12 @@ function pptEqChart(xml, st) {
 }
 const inTub = fn => EQP ? inOther(fn) : fn(), inEq = fn => EQP ? fn() : inOther(fn);
 // troca a maior imagem do slide pela imagem escolhida (mantém a posição e cabe no mesmo espaço)
-// imagens do slide (ignora as pequenas, como a legenda), da maior para a menor
-function pptPics(s) {
-  const out = [];
-  for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) {
-    const o = pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1];
-    if (o && id) out.push({ pic, id, x: +o[1], y: +o[2], w: +o[3], h: +o[4], a: o[3] * o[4] });
-  }
-  out.sort((a, b) => b.a - a.a);
-  return out.filter(p => p.a >= (out[0] ? out[0].a * 0.2 : 0));
-}
-function pptSwapPic(files, txt, sp, s, img, name, target) {
+function pptSwapPic(files, txt, sp, s, img, name) {
   const relsP = relsOf(sp); if (!files.has(relsP)) return null;
   const rels = txt(relsP);
-  let best = target || null;
-  if (!best) for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
-  if (!best || !s.includes(best.pic)) return null;
+  let best = null;
+  for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
+  if (!best) return null;
   const media = `ppt/media/${name}.${img.ext}`; files.set(media, img.bytes);
   const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
   const oldT = (rels.match(relRe) || [])[2];
@@ -3015,26 +2997,7 @@ function pptSwapPic(files, txt, sp, s, img, name, target) {
   }
   return s;
 }
-// gráfico "Avanço por SOP" desenhado como imagem (para modelos em que ele é uma figura)
-async function pptSopImage(st, ratio) {
-  const W = 2400, H = Math.round(W / (ratio || 1.4)), c = document.createElement('canvas'); c.width = W; c.height = H;
-  const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
-  const n = Math.max(st.length, 1), pad = 10, rowH = Math.min((H - pad * 2) / n, 64), fs = Math.max(11, Math.min(30, rowH * 0.56));
-  g.font = `${fs}px Arial, Helvetica, sans-serif`; g.textBaseline = 'middle';
-  const labW = Math.ceil(Math.max(...st.map(o => g.measureText(o.sop).width), 50)) + 24;
-  const right = st.map(o => `${nfBR(o.p * 100, 1)}%   ${nfBR(o.ex, 2)}/${nfBR(o.tm, 2)} m`), rightW = Math.ceil(Math.max(...right.map(t => g.measureText(t).width), 60)) + 28;
-  const bx = labW, bw = W - labW - rightW, bh = Math.max(6, rowH * 0.62);
-  st.forEach((o, i) => {
-    const cy = pad + rowH * i + rowH / 2, y = cy - bh / 2;
-    g.fillStyle = '#333'; g.textAlign = 'right'; g.fillText(o.sop, labW - 14, cy);
-    g.fillStyle = '#E4E7EA'; g.fillRect(bx, y, bw, bh); g.strokeStyle = '#C9CED3'; g.lineWidth = 1.5; g.strokeRect(bx + .75, y + .75, bw - 1.5, bh - 1.5);
-    if (o.p > 0) { g.fillStyle = '#D9C467'; g.fillRect(bx, y, Math.max(3, bw * o.p), bh); }
-    g.fillStyle = '#7A5A10'; g.textAlign = 'left'; g.fillText(right[i], bx + bw + 14, cy);
-  });
-  const blob = await new Promise(res => c.toBlob(res, 'image/png'));
-  return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: 'png', w: W, h: H };
-}
-async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
+async function pptBuild(capa, P, imgId, eqImgId) {
   await otherLoad();
   const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: BASE.sops.length })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
@@ -3067,14 +3030,25 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
         out = out.replace(/(<p:xfrm>[\s\S]*?<a:ext cx="\d+" cy=")\d+(")/, `$1${rh * (list.length + 1)}$2`);
         return out;
       });
-      // imagens: as duas maiores do slide, na ordem do modelo (de cima para baixo, da esquerda para a direita)
-      const slots = pptPics(s).slice(0, 2).sort((a, b) => a.y - b.y || a.x - b.x), picks = [imgId, img2Id];
-      if ((imgId || img2Id) && !slots.length) warn.push('não achei as imagens no slide das linhas programadas');
-      for (let k = 0; k < 2; k++) {
-        if (!picks[k]) continue;
-        if (!slots[k]) { warn.push(`o modelo tem só ${slots.length} imagem no slide de tubulação; a imagem ${k + 1} não foi usada`); continue; }
-        const ns = pptSwapPic(files, txt, sp, s, await pptImageBytes(picks[k]), `programacao_S${P}_${k + 1}_${Date.now().toString(36)}`, slots[k]);
-        if (ns) s = ns; else warn.push(`não consegui trocar a imagem ${k + 1} do slide de tubulação`);
+      if (imgId) {
+        const img = await pptImageBytes(imgId);
+        const relsP = relsOf(sp), rels = txt(relsP);
+        // maior imagem do slide = mapa da programação
+        let best = null;
+        for (const pic of s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []) { const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"/), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (e && id && (!best || e[1] * e[2] > best.a)) best = { pic, id, a: e[1] * e[2] }; }
+        if (best) {
+          const tag = Date.now().toString(36), media = `ppt/media/programacao_S${P}_${tag}.${img.ext}`; files.set(media, img.bytes);
+          const relRe = new RegExp(`(<Relationship[^>]*Id="${best.id}"[^>]*Target=")([^"]+)(")`);
+          const oldT = (rels.match(relRe) || [])[2];
+          files.set(relsP, rels.replace(relRe, `$1../media/programacao_S${P}_${tag}.${img.ext}$3`));
+          if (oldT && relPath(sp, oldT) !== media) { const oldP = relPath(sp, oldT), still = [...files.keys()].some(k => /\.rels$/.test(k) && k !== relsP && txt(k).includes(oldT.split('/').pop())); if (!still) files.delete(oldP); }
+          const o = best.pic.match(/<a:off x="(\d+)" y="(\d+)"\/><a:ext cx="(\d+)" cy="(\d+)"\/>/);
+          if (o) {
+            const [X, Y, W, H] = o.slice(1).map(Number), k = Math.min(W / img.w, H / img.h), w = Math.round(img.w * k), h = Math.round(img.h * k);
+            const np = best.pic.replace(o[0], `<a:off x="${X + Math.round((W - w) / 2)}" y="${Y + Math.round((H - h) / 2)}"/><a:ext cx="${w}" cy="${h}"/>`).replace(/<a:srcRect[^>]*\/>/, '<a:srcRect/>');
+            s = s.replace(best.pic, np);
+          }
+        } else warn.push('não achei a imagem no slide das linhas programadas');
       }
     }
     // resumo geral + gráfico por SOP
@@ -3088,11 +3062,7 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
       if (target) {
         const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
-      } else {
-        const big = pptPics(s)[0];
-        if (!big) warn.push('não achei o gráfico Avanço por SOP');
-        else { const ns = pptSwapPic(files, txt, sp, s, await pptSopImage(st, big.w / big.h), `avanco_sop_${Date.now().toString(36)}`, big); if (ns) s = ns; else warn.push('não consegui atualizar a imagem do Avanço por SOP'); }
-      }
+      } else warn.push('não achei o gráfico Avanço por SOP');
     }
     // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
     // (o slide do mapa visual de equipamentos mantém a imagem do modelo; só números e gráfico mudam)
@@ -3113,16 +3083,14 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
     files.set(sp, s);
   }
   if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
-  // garante que o pacote declare as extensões das imagens novas (jpg/png)
-  if (files.has('[Content_Types].xml')) { let ct = txt('[Content_Types].xml'); for (const [e, t] of [['jpg', 'image/jpeg'], ['jpeg', 'image/jpeg'], ['png', 'image/png']]) if (!new RegExp(`Extension="${e}"`, 'i').test(ct)) ct = ct.replace(/<Types[^>]*>/, m => m + `<Default Extension="${e}" ContentType="${t}"/>`); files.set('[Content_Types].xml', ct); }
   const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
 }
 $('#pptGo').onclick = async () => {
-  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, img2 = $('#pptImg2').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
+  const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
-    const { blob, warn } = await pptBuild(capa, P, img, eqImg, img2);
+    const { blob, warn } = await pptBuild(capa, P, img, eqImg);
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const hh = new Date(), stamp = `${String(hh.getDate()).padStart(2, '0')}-${String(hh.getMonth() + 1).padStart(2, '0')}_${String(hh.getHours()).padStart(2, '0')}h${String(hh.getMinutes()).padStart(2, '0')}`;
     a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}_${stamp}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
@@ -4421,6 +4389,331 @@ function renderAll() { if (!BASE) return; renderWho(); renderPending(); renderPa
 
 document.body.classList.add('locked');
 boot();
+</script>
+<script>
+/* ============ Exportação Excel: SOP, SUBSOP e STH (abas formatadas + gráficos nativos) ============ */
+const EST_XLSX = (() => {
+  const x = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const colL = i => { let s = ''; i++; while (i > 0) { const m = (i - 1) % 26; s = String.fromCharCode(65 + m) + s; i = Math.floor((i - 1) / 26); } return s; };
+  const ref = (c, r) => colL(c) + r;
+  const aref = (sh, c1, r1, c2, r2) => `'${sh.replace(/'/g, "''")}'!$${colL(c1)}$${r1}:$${colL(c2)}$${r2}`;
+  const r2 = v => Math.round((Number(v) || 0) * 100) / 100;
+  const C = { brand: '1B5E8A', ink: '152330', muted: '617384', done: '6FAE55', prog: 'D2B241', rest: 'C9D1D8', grid: 'E6EBEF' };
+
+  /* ---------- estilos (índices de cellXfs) ---------- */
+  const S = { title: 1, sub: 2, kLab: 3, kNum: 4, kPct: 5, head: 6, txt: 7, txtZ: 8, int: 9, intZ: 10, num: 11, numZ: 12, pct: 13, pctZ: 14, st2: 15, st1: 16, st0: 17, tTxt: 18, tInt: 19, tNum: 20, tPct: 21, sect: 22, kInt: 23 };
+  const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00"/><numFmt numFmtId="165" formatCode="0.0%"/></numFmts>
+<fonts count="12">
+<font><sz val="11"/><color rgb="FF${C.ink}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="16"/><color rgb="FF${C.brand}"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="10"/><color rgb="FF${C.muted}"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="9"/><color rgb="FF${C.muted}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="14"/><color rgb="FF${C.ink}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FFFFFFFF"/><name val="Calibri"/><family val="2"/></font>
+<font><sz val="11"/><color rgb="FF${C.ink}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="10"/><color rgb="FF3E7A2A"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="10"/><color rgb="FF8A6D0B"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="10"/><color rgb="FF${C.muted}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="11"/><color rgb="FF${C.ink}"/><name val="Calibri"/><family val="2"/></font>
+<font><b/><sz val="12"/><color rgb="FF${C.brand}"/><name val="Calibri"/><family val="2"/></font>
+</fonts>
+<fills count="9"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFF3F6F8"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FF${C.brand}"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFF7F9FB"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFE5F2DF"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFFAF3D9"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFEEF1F4"/><bgColor indexed="64"/></patternFill></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFE4EFF7"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="3"><border><left/><right/><top/><bottom/><diagonal/></border>
+<border><left style="thin"><color rgb="FFD5DCE2"/></left><right style="thin"><color rgb="FFD5DCE2"/></right><top style="thin"><color rgb="FFD5DCE2"/></top><bottom style="thin"><color rgb="FFD5DCE2"/></bottom><diagonal/></border>
+<border><left style="thin"><color rgb="FFD5DCE2"/></left><right style="thin"><color rgb="FFD5DCE2"/></right><top style="medium"><color rgb="FF${C.brand}"/></top><bottom style="thin"><color rgb="FFD5DCE2"/></bottom><diagonal/></border>
+</borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="24">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="3" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1" indent="1"/></xf>
+<xf numFmtId="164" fontId="4" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="165" fontId="4" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+<xf numFmtId="0" fontId="5" fillId="3" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+<xf numFmtId="0" fontId="6" fillId="0" borderId="1" xfId="0" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="0" fontId="6" fillId="4" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="3" fontId="6" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="164" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="164" fontId="6" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="165" fontId="6" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="165" fontId="6" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="7" fillId="5" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="8" fillId="6" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="9" fillId="7" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="10" fillId="8" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="10" fillId="8" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="164" fontId="10" fillId="8" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="165" fontId="10" fillId="8" borderId="2" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+<xf numFmtId="0" fontId="11" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="center"/></xf>
+<xf numFmtId="3" fontId="4" fillId="2" borderId="1" xfId="0" applyNumberFormat="1" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="left" vertical="center" indent="1"/></xf>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+<dxfs count="0"/><tableStyles count="0" defaultTableStyle="TableStyleMedium2" defaultPivotStyle="PivotStyleLight16"/>
+</styleSheet>`;
+
+  /* ---------- planilha ---------- */
+  function Sheet(name) {
+    const cells = new Map(), heights = {}, merges = [], cf = [];
+    let cols = [], charts = [], freeze = 0, autoF = null;
+    const api = {
+      name,
+      set(c, r, v, s = 0, f) { cells.set(r + ':' + c, { c, r, v, s, f }); return api; },
+      row(r, c0, arr, styles) { arr.forEach((v, i) => api.set(c0 + i, r, v, Array.isArray(styles) ? styles[i] : styles)); return api; },
+      h(r, pt) { heights[r] = pt; return api; },
+      merge(c1, r1, c2, r2) { merges.push(`${ref(c1, r1)}:${ref(c2, r2)}`); return api; },
+      cols(w) { cols = w; return api; },
+      freeze(r) { freeze = r; return api; },
+      autoFilter(a) { autoF = a; return api; },
+      dataBar(sq) { cf.push(sq); return api; },
+      chart(ch) { charts.push(ch); return api; },
+      get charts() { return charts; },
+      xml(drawRid) {
+        const rows = new Map();
+        for (const o of cells.values()) { if (!rows.has(o.r)) rows.set(o.r, []); rows.get(o.r).push(o); }
+        const rk = [...rows.keys()].sort((a, b) => a - b);
+        let maxC = 0, maxR = 1;
+        const body = rk.map(r => {
+          maxR = Math.max(maxR, r);
+          const cs = rows.get(r).sort((a, b) => a.c - b.c).map(o => {
+            maxC = Math.max(maxC, o.c);
+            const at = `r="${ref(o.c, o.r)}"${o.s ? ` s="${o.s}"` : ''}`;
+            if (o.f) return `<c ${at}><f>${x(o.f)}</f>${typeof o.v === 'number' && isFinite(o.v) ? `<v>${o.v}</v>` : ''}</c>`;
+            if (o.v == null || o.v === '') return `<c ${at}/>`;
+            if (typeof o.v === 'number') return `<c ${at}><v>${isFinite(o.v) ? o.v : 0}</v></c>`;
+            return `<c ${at} t="inlineStr"><is><t xml:space="preserve">${x(o.v)}</t></is></c>`;
+          }).join('');
+          return `<row r="${r}"${heights[r] ? ` ht="${heights[r]}" customHeight="1"` : ''}>${cs}</row>`;
+        }).join('');
+        const pane = freeze ? `<pane ySplit="${freeze}" topLeftCell="A${freeze + 1}" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A${freeze + 1}" sqref="A${freeze + 1}"/>` : '';
+        const cfx = cf.map((sq, i) => `<conditionalFormatting sqref="${sq}"><cfRule type="dataBar" priority="${i + 1}"><dataBar><cfvo type="num" val="0"/><cfvo type="num" val="1"/><color rgb="FF${C.done}"/></dataBar></cfRule></conditionalFormatting>`).join('');
+        return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">` +
+          `<dimension ref="A1:${ref(maxC, maxR)}"/><sheetViews><sheetView showGridLines="0" workbookViewId="0">${pane}</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>` +
+          (cols.length ? `<cols>${cols.map((w, i) => `<col min="${i + 1}" max="${i + 1}" width="${w}" customWidth="1"/>`).join('')}</cols>` : '') +
+          `<sheetData>${body}</sheetData>` + (autoF ? `<autoFilter ref="${autoF}"/>` : '') +
+          (merges.length ? `<mergeCells count="${merges.length}">${merges.map(m => `<mergeCell ref="${m}"/>`).join('')}</mergeCells>` : '') + cfx +
+          `<pageMargins left="0.5" right="0.5" top="0.6" bottom="0.6" header="0.3" footer="0.3"/><pageSetup paperSize="9" orientation="landscape" fitToHeight="0"/>` +
+          (drawRid ? `<drawing r:id="${drawRid}"/>` : '') + `</worksheet>`;
+      }
+    };
+    return api;
+  }
+
+  /* ---------- gráficos ---------- */
+  const txPr = (sz, color = C.muted, b = 0) => `<c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="${sz}" b="${b}"><a:solidFill><a:srgbClr val="${color}"/></a:solidFill><a:latin typeface="Calibri"/></a:defRPr></a:pPr><a:endParaRPr lang="pt-BR"/></a:p></c:txPr>`;
+  const title = t => `<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr sz="1200" b="1"/></a:pPr><a:r><a:rPr lang="pt-BR" sz="1200" b="1"><a:solidFill><a:srgbClr val="${C.ink}"/></a:solidFill><a:latin typeface="Calibri"/></a:rPr><a:t>${x(t)}</a:t></a:r></a:p></c:rich></c:tx><c:overlay val="0"/></c:title><c:autoTitleDeleted val="0"/>`;
+  const strCache = arr => `<c:strCache><c:ptCount val="${arr.length}"/>${arr.map((v, i) => `<c:pt idx="${i}"><c:v>${x(v)}</c:v></c:pt>`).join('')}</c:strCache>`;
+  const numCache = (arr, fmt = 'General') => `<c:numCache><c:formatCode>${x(fmt)}</c:formatCode><c:ptCount val="${arr.length}"/>${arr.map((v, i) => `<c:pt idx="${i}"><c:v>${Number(v) || 0}</c:v></c:pt>`).join('')}</c:numCache>`;
+  const fill = c => `<c:spPr><a:solidFill><a:srgbClr val="${c}"/></a:solidFill><a:ln><a:noFill/></a:ln></c:spPr>`;
+  const shell = (inner, legend) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><c:lang val="pt-BR"/><c:roundedCorners val="0"/><c:chart>${inner}${legend ? `<c:legend><c:legendPos val="b"/><c:overlay val="0"/>${txPr(900)}</c:legend>` : ''}<c:plotVisOnly val="1"/><c:dispBlanksAs val="gap"/></c:chart><c:spPr><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="D5DCE2"/></a:solidFill></a:ln></c:spPr><c:txPr><a:bodyPr/><a:lstStyle/><a:p><a:pPr><a:defRPr><a:latin typeface="Calibri"/></a:defRPr></a:pPr><a:endParaRPr lang="pt-BR"/></a:p></c:txPr></c:chartSpace>`;
+  const axes = (valFmt, valMax, horiz) => `<c:catAx><c:axId val="101"/><c:scaling><c:orientation val="${horiz ? 'maxMin' : 'minMax'}"/></c:scaling><c:delete val="0"/><c:axPos val="${horiz ? 'l' : 'b'}"/><c:numFmt formatCode="General" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln w="9525"><a:solidFill><a:srgbClr val="${C.rest}"/></a:solidFill></a:ln></c:spPr>${txPr(900, C.ink)}<c:crossAx val="102"/><c:crosses val="autoZero"/><c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/><c:noMultiLvlLbl val="0"/></c:catAx>` +
+    `<c:valAx><c:axId val="102"/><c:scaling><c:orientation val="minMax"/>${valMax != null ? `<c:max val="${valMax}"/>` : ''}<c:min val="0"/></c:scaling><c:delete val="0"/><c:axPos val="${horiz ? 'b' : 'l'}"/><c:majorGridlines><c:spPr><a:ln w="6350"><a:solidFill><a:srgbClr val="${C.grid}"/></a:solidFill></a:ln></c:spPr></c:majorGridlines><c:numFmt formatCode="${x(valFmt)}" sourceLinked="0"/><c:majorTickMark val="none"/><c:minorTickMark val="none"/><c:tickLblPos val="nextTo"/><c:spPr><a:ln><a:noFill/></a:ln></c:spPr>${txPr(900)}<c:crossAx val="101"/><c:crosses val="${horiz ? 'max' : 'autoZero'}"/><c:crossBetween val="between"/></c:valAx>`;
+  // série: { name, nameRef, catRef, cats, valRef, vals, color, fmt }
+  const barSer = (s, i, lbl) => `<c:ser><c:idx val="${i}"/><c:order val="${i}"/><c:tx><c:strRef><c:f>${x(s.nameRef)}</c:f>${strCache([s.name])}</c:strRef></c:tx>${fill(s.color)}<c:invertIfNegative val="0"/>` +
+    (lbl ? `<c:dLbls><c:numFmt formatCode="${x(lbl)}" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${txPr(800, C.ink)}<c:dLblPos val="outEnd"/><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="0"/><c:showBubbleSize val="0"/></c:dLbls>` : '') +
+    `<c:cat><c:strRef><c:f>${x(s.catRef)}</c:f>${strCache(s.cats)}</c:strRef></c:cat><c:val><c:numRef><c:f>${x(s.valRef)}</c:f>${numCache(s.vals, s.fmt)}</c:numRef></c:val></c:ser>`;
+  function barChart({ t, series, stacked, horiz = true, valFmt = '#,##0', valMax, lbl }) {
+    return shell(title(t) + `<c:plotArea><c:layout/><c:barChart><c:barDir val="${horiz ? 'bar' : 'col'}"/><c:grouping val="${stacked ? 'stacked' : 'clustered'}"/><c:varyColors val="0"/>${series.map((s, i) => barSer(s, i, lbl)).join('')}<c:gapWidth val="55"/>${stacked ? '<c:overlap val="100"/>' : ''}<c:axId val="101"/><c:axId val="102"/></c:barChart>${axes(valFmt, valMax, horiz)}<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`, series.length > 1);
+  }
+  function doughnut({ t, s, colors }) {
+    const dpt = colors.map((c, i) => `<c:dPt><c:idx val="${i}"/><c:bubble3D val="0"/><c:spPr><a:solidFill><a:srgbClr val="${c}"/></a:solidFill><a:ln w="19050"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:ln></c:spPr></c:dPt>`).join('');
+    return shell(title(t) + `<c:plotArea><c:layout/><c:doughnutChart><c:varyColors val="1"/><c:ser><c:idx val="0"/><c:order val="0"/><c:tx><c:strRef><c:f>${x(s.nameRef)}</c:f>${strCache([s.name])}</c:strRef></c:tx>${dpt}` +
+      `<c:dLbls><c:numFmt formatCode="0.0%" sourceLinked="0"/><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>${txPr(1000, C.ink, 1)}<c:showLegendKey val="0"/><c:showVal val="0"/><c:showCatName val="0"/><c:showSerName val="0"/><c:showPercent val="1"/><c:showBubbleSize val="0"/><c:showLeaderLines val="1"/></c:dLbls>` +
+      `<c:cat><c:strRef><c:f>${x(s.catRef)}</c:f>${strCache(s.cats)}</c:strRef></c:cat><c:val><c:numRef><c:f>${x(s.valRef)}</c:f>${numCache(s.vals)}</c:numRef></c:val></c:ser><c:firstSliceAng val="0"/><c:holeSize val="58"/></c:doughnutChart><c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr></c:plotArea>`, true);
+  }
+  const anchor = (ch, id, rid) => `<xdr:twoCellAnchor editAs="oneCell"><xdr:from><xdr:col>${ch.c1}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${ch.r1}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from><xdr:to><xdr:col>${ch.c2}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>${ch.r2}</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to><xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="${id + 1}" name="Gráfico ${id}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart"><c:chart xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" r:id="${rid}"/></a:graphicData></a:graphic></xdr:graphicFrame><xdr:clientData/></xdr:twoCellAnchor>`;
+
+  /* ---------- pacote ---------- */
+  function pack(sheets) {
+    const files = [], ct = [], wbRels = [];
+    let chartN = 0, drawN = 0;
+    sheets.forEach((sh, i) => {
+      const n = i + 1;
+      let drawRid = null;
+      if (sh.charts.length) {
+        drawN++; drawRid = 'rId1';
+        const dRels = [], anchors = [];
+        sh.charts.forEach((ch, k) => {
+          chartN++;
+          files.push([`xl/charts/chart${chartN}.xml`, ch.xml]);
+          ct.push(`<Override PartName="/xl/charts/chart${chartN}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`);
+          dRels.push(`<Relationship Id="rId${k + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="../charts/chart${chartN}.xml"/>`);
+          anchors.push(anchor(ch, k + 1, `rId${k + 1}`));
+        });
+        files.push([`xl/drawings/drawing${drawN}.xml`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">${anchors.join('')}</xdr:wsDr>`]);
+        files.push([`xl/drawings/_rels/drawing${drawN}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${dRels.join('')}</Relationships>`]);
+        ct.push(`<Override PartName="/xl/drawings/drawing${drawN}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`);
+        files.push([`xl/worksheets/_rels/sheet${n}.xml.rels`, `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${drawN}.xml"/></Relationships>`]);
+      }
+      files.push([`xl/worksheets/sheet${n}.xml`, sh.xml(drawRid)]);
+      ct.push(`<Override PartName="/xl/worksheets/sheet${n}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`);
+      wbRels.push(`<Relationship Id="rId${n}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${n}.xml"/>`);
+    });
+    const sN = sheets.length;
+    wbRels.push(`<Relationship Id="rId${sN + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`);
+    const defNames = sheets.map((sh, i) => sh.filterRef ? `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">${sh.filterRef}</definedName>` : '').join('');
+    return zipBytes([
+      ['[Content_Types].xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${ct.join('')}</Types>`],
+      ['_rels/.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+      ['xl/workbook.xml', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><bookViews><workbookView activeTab="0"/></bookViews><sheets>${sheets.map((sh, i) => `<sheet name="${x(sh.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join('')}</sheets>${defNames ? `<definedNames>${defNames}</definedNames>` : ''}<calcPr calcId="191029" fullCalcOnLoad="1"/></workbook>`],
+      ['xl/_rels/workbook.xml.rels', `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRels.join('')}</Relationships>`],
+      ['xl/styles.xml', STYLES],
+      ...files
+    ]);
+  }
+
+  /* ---------- conteúdo ---------- */
+  function labels() {
+    return EQP
+      ? { sop: 'Área', sub: 'Disciplina', sth: 'Item PPU', sops: 'Áreas', subs: 'Disciplinas', sths: 'Itens PPU', un: 'm²', mt: 'Área', mtot: 'Área total', pelas: 'pelos equipamentos', item: 'Equipamentos', scope: 'Isolamento térmico de equipamentos', st: ['Não iniciado', 'Em andamento', 'Concluído'] }
+      : { sop: 'SOP', sub: 'SUBSOP', sth: 'STH', sops: 'SOPs', subs: 'SUBSOPs', sths: 'STHs', un: 'm', mt: 'Metros', mtot: 'Metros totais', pelas: 'pelas linhas', item: 'Linhas', scope: 'Isolamento térmico de tubulações', st: ['Não iniciada', 'Em andamento', 'Concluída'] };
+  }
+  const stamp = () => new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const header = (sh, L, t, lastC) => {
+    sh.set(0, 1, `${t} — ${L.scope} · U12 RNEST`, S.title).merge(0, 1, lastC, 1).h(1, 28);
+    sh.set(0, 2, `Exportado em ${stamp()} · base de ${BASE?.emissao || '—'} · avanço calculado ${L.pelas} do painel`, S.sub).merge(0, 2, lastC, 2);
+  };
+  // cartões de indicadores: pares [rótulo, valor, estilo], cada cartão ocupa `span` colunas
+  const kpis = (sh, r, cards, span = 1) => {
+    cards.forEach(([lab, v, s], i) => {
+      const c = i * span; sh.set(c, r, lab, S.kLab).set(c, r + 1, v, s);
+      for (let k = 1; k < span; k++) { sh.set(c + k, r, null, S.kLab).set(c + k, r + 1, null, s); }
+      if (span > 1) { sh.merge(c, r, c + span - 1, r); sh.merge(c, r + 1, c + span - 1, r + 1); }
+    });
+    sh.h(r, 18).h(r + 1, 26);
+  };
+
+  function groupSheet(key, L) {
+    const gs = groups(key).sort((a, b) => String(a.key).localeCompare(String(b.key), 'pt-BR', { numeric: true }));
+    const nm = L[key], sh = Sheet(nm), hasParent = key !== 'sop';
+    const parentNm = key === 'sub' ? L.sop : L.sub;
+    const head = [nm, ...(hasParent ? [parentNm] : []), L.item, `${L.mt} (${L.un})`, `Executado (${L.un})`, `Saldo (${L.un})`, 'Avanço', `${L.item} concluídas`.replace('Equipamentos concluídas', 'Equipamentos concluídos'), `${L.item} em andamento`, `${L.item} não iniciadas`.replace('Equipamentos não iniciadas', 'Equipamentos não iniciados'), 'Situação'];
+    const lastC = head.length - 1, o = hasParent ? 1 : 0;
+    const cM = 2 + o, cE = 3 + o, cS = 4 + o, cP = 5 + o, cSt = lastC, cN = 1 + o;
+    header(sh, L, `Resumo por ${nm}`, lastC);
+
+    const T = totals(R), done = gs.filter(g => g.pct >= 99.999).length, prog = gs.filter(g => g.pct > 0 && g.pct < 99.999).length;
+    kpis(sh, 4, [
+      [`${L[key + 's']} (${done} concluídos · ${prog} em andamento)`, gs.length, S.kInt], [`${L.mtot} (${L.un})`, r2(T.m), S.kNum], [`Executado (${L.un})`, r2(T.ex), S.kNum],
+      [`Saldo (${L.un})`, r2(T.m - T.ex), S.kNum], ['Avanço geral', T.m ? T.ex / T.m : 0, S.kPct]
+    ], 2);
+    const hr = 7; sh.row(hr, 0, head, S.head).h(hr, 32);
+    gs.forEach((g, i) => {
+      const r = hr + 1 + i, z = i % 2 === 1, s = st(g.pct);
+      const vals = [g.key, ...(hasParent ? [g.parents.join(', ')] : []), g.rows.length, r2(g.m), r2(g.ex), r2(g.m - g.ex), g.m ? g.ex / g.m : 0, g.n[2], g.n[1], g.n[0], ST_GRP[s]];
+      const sty = [z ? S.txtZ : S.txt, ...(hasParent ? [z ? S.txtZ : S.txt] : []), z ? S.intZ : S.int, z ? S.numZ : S.num, z ? S.numZ : S.num, z ? S.numZ : S.num, z ? S.pctZ : S.pct, z ? S.intZ : S.int, z ? S.intZ : S.int, z ? S.intZ : S.int, [S.st0, S.st1, S.st2][s]];
+      sh.row(r, 0, vals, sty);
+    });
+    const r1 = hr + 1, rN = hr + gs.length, tr = rN + 1;
+    if (gs.length) {
+      sh.set(0, tr, 'Total', S.tTxt); if (hasParent) sh.set(1, tr, null, S.tTxt);
+      const sum = c => `SUM(${colL(c)}${r1}:${colL(c)}${rN})`;
+      sh.set(cN, tr, gs.reduce((a, g) => a + g.rows.length, 0), S.tInt, sum(cN));
+      sh.set(cM, tr, r2(T.m), S.tNum, sum(cM)).set(cE, tr, r2(T.ex), S.tNum, sum(cE)).set(cS, tr, r2(T.m - T.ex), S.tNum, sum(cS));
+      sh.set(cP, tr, T.m ? T.ex / T.m : 0, S.tPct, `IF(${colL(cM)}${tr}=0,0,${colL(cE)}${tr}/${colL(cM)}${tr})`);
+      [cP + 1, cP + 2, cP + 3].forEach(c => sh.set(c, tr, gs.reduce((a, g) => a + g.n[[2, 1, 0][c - cP - 1]], 0), S.tInt, sum(c)));
+      sh.set(cSt, tr, null, S.tTxt);
+      sh.dataBar(`${colL(cP)}${r1}:${colL(cP)}${rN}`);
+      sh.autoFilter(`A${hr}:${colL(lastC)}${rN}`); sh.filterRef = aref(nm, 0, hr, lastC, rN);
+    }
+    sh.freeze(hr);
+
+    // quadro de situação dos grupos (alimenta o gráfico de rosca)
+    const sr = tr + 3;
+    sh.set(0, sr - 1, `${L[key + 's']} por situação`, S.sect);
+    sh.row(sr, 0, ['Situação', `Qtd. de ${L[key + 's']}`, `${L.mt} (${L.un})`], S.head).h(sr, 22);
+    const stRows = [2, 1, 0].map(s => { const sel = gs.filter(g => st(g.pct) === s); return [ST_GRP[s], sel.length, r2(sel.reduce((a, g) => a + g.m, 0)), s]; });
+    stRows.forEach((v, i) => sh.row(sr + 1 + i, 0, v.slice(0, 3), [[S.st0, S.st1, S.st2][v[3]], S.int, S.num]));
+
+    const w = [Math.max(16, Math.min(46, Math.max(nm.length, ...gs.map(g => String(g.key).length)) + 3)), ...(hasParent ? [Math.max(14, Math.min(30, Math.max(...gs.map(g => g.parents.join(', ').length), 8) + 3))] : []), 11, 15, 15, 15, 12, 13, 13, 13, 15];
+    sh.cols(w);
+
+    // dados dos gráficos: a própria tabela (até 40 grupos) ou os 30 maiores em metros
+    const ch0 = lastC + 2, chW = 11;
+    let cat, ex, sd, pc, cats, exV, sdV, pcV, suffix = '';
+    if (gs.length <= 40) {
+      cat = aref(nm, 0, r1, 0, rN); ex = aref(nm, cE, r1, cE, rN); sd = aref(nm, cS, r1, cS, rN); pc = aref(nm, cP, r1, cP, rN);
+      cats = gs.map(g => g.key); exV = gs.map(g => r2(g.ex)); sdV = gs.map(g => r2(g.m - g.ex)); pcV = gs.map(g => g.m ? g.ex / g.m : 0);
+    } else {
+      const top = gs.slice().sort((a, b) => b.m - a.m).slice(0, 30), ac = ch0 + chW + 1, ar = hr;
+      suffix = ' — 30 maiores em metros';
+      sh.set(ac, ar - 1, 'Dados dos gráficos (30 maiores em metros)', S.sect);
+      sh.row(ar, ac, [nm, `Executado (${L.un})`, `Saldo (${L.un})`, 'Avanço'], S.head);
+      top.forEach((g, i) => sh.row(ar + 1 + i, ac, [g.key, r2(g.ex), r2(g.m - g.ex), g.m ? g.ex / g.m : 0], [S.txt, S.num, S.num, S.pct]));
+      const e = ar + top.length;
+      cat = aref(nm, ac, ar + 1, ac, e); ex = aref(nm, ac + 1, ar + 1, ac + 1, e); sd = aref(nm, ac + 2, ar + 1, ac + 2, e); pc = aref(nm, ac + 3, ar + 1, ac + 3, e);
+      cats = top.map(g => g.key); exV = top.map(g => r2(g.ex)); sdV = top.map(g => r2(g.m - g.ex)); pcV = top.map(g => g.m ? g.ex / g.m : 0);
+      w.length = ac + 4; for (let i = 0; i < w.length; i++) if (w[i] == null) w[i] = 9.5;
+      w[ac] = 30; w[ac + 1] = 15; w[ac + 2] = 15; w[ac + 3] = 11; sh.cols(w);
+    }
+    const n = cats.length, hBar = Math.max(16, Math.round(n * 1.1) + 6);
+    const nameRef = c => aref(nm, c, hr, c, hr);
+    let rr = 3;
+    sh.chart({ c1: ch0, r1: rr, c2: ch0 + chW, r2: rr + hBar, xml: barChart({ t: `Executado × saldo por ${nm} (${L.un})${suffix}`, stacked: true, series: [
+      { name: `Executado (${L.un})`, nameRef: nameRef(cE), catRef: cat, cats, valRef: ex, vals: exV, color: C.done, fmt: '#,##0.00' },
+      { name: `Saldo (${L.un})`, nameRef: nameRef(cS), catRef: cat, cats, valRef: sd, vals: sdV, color: C.rest, fmt: '#,##0.00' }] }) });
+    rr += hBar + 1;
+    sh.chart({ c1: ch0, r1: rr, c2: ch0 + chW, r2: rr + hBar, xml: barChart({ t: `Avanço por ${nm}${suffix}`, valFmt: '0%', valMax: 1, lbl: '0.0%', series: [
+      { name: 'Avanço', nameRef: nameRef(cP), catRef: cat, cats, valRef: pc, vals: pcV, color: C.brand, fmt: '0.0%' }] }) });
+    rr += hBar + 1;
+    sh.chart({ c1: ch0, r1: rr, c2: ch0 + 7, r2: rr + 18, xml: doughnut({ t: `${L[key + 's']} por situação`, colors: [C.done, C.prog, C.rest], s: {
+      name: `Qtd. de ${L[key + 's']}`, nameRef: aref(nm, 1, sr, 1, sr), catRef: aref(nm, 0, sr + 1, 0, sr + 3), cats: stRows.map(v => v[0]), valRef: aref(nm, 1, sr + 1, 1, sr + 3), vals: stRows.map(v => v[1]) } }) });
+    return sh;
+  }
+
+  function resumoSheet(L) {
+    const sh = Sheet('Resumo'), T = totals(R), lastC = 5;
+    header(sh, L, 'Resumo geral', lastC);
+    kpis(sh, 4, [
+      [`${L.mtot} (${L.un})`, r2(T.m), S.kNum], [`Executado (${L.un})`, r2(T.ex), S.kNum], [`Saldo (${L.un})`, r2(T.m - T.ex), S.kNum], ['Avanço geral', T.m ? T.ex / T.m : 0, S.kPct],
+      [L.item, R.length, S.kInt], [`${L.item} concluídas`.replace('Equipamentos concluídas', 'Equipamentos concluídos'), T.n[2], S.kInt]
+    ]);
+    sh.set(0, 7, 'Visão por nível', S.sect);
+    sh.row(8, 0, ['Nível', 'Grupos', 'Concluídos', 'Em andamento', 'Não iniciados'], S.head).h(8, 30);
+    ['sop', 'sub', 'sth'].forEach((k, i) => {
+      const gs = groups(k), z = i % 2 === 1;
+      sh.row(9 + i, 0, [L[k], gs.length, gs.filter(g => st(g.pct) === 2).length, gs.filter(g => st(g.pct) === 1).length, gs.filter(g => st(g.pct) === 0).length],
+        [z ? S.txtZ : S.txt, z ? S.intZ : S.int, z ? S.intZ : S.int, z ? S.intZ : S.int, z ? S.intZ : S.int]);
+    });
+    sh.set(0, 13, `${L.mt} por situação (${L.un})`, S.sect);
+    sh.row(14, 0, ['Situação', `${L.mt} (${L.un})`, '% do total'], S.head).h(14, 22);
+    const rest = Math.max(T.m - T.dM - T.pM, 0);
+    [['Concluído', T.dM, 2], ['Executado em andamento', T.pM, 1], ['A executar', rest, 0]].forEach(([a, v, s], i) =>
+      sh.row(15 + i, 0, [a, r2(v), T.m ? v / T.m : 0], [[S.st0, S.st1, S.st2][s], S.num, S.pct]));
+    sh.set(0, 19, `${L.item} por situação`, S.sect);
+    sh.row(20, 0, ['Situação', L.item], S.head).h(20, 22);
+    [2, 1, 0].forEach((s, i) => sh.row(21 + i, 0, [L.st[s], T.n[s]], [[S.st0, S.st1, S.st2][s], S.int]));
+    sh.cols([30, 16, 16, 16, 16, 18]);
+    sh.chart({ c1: 7, r1: 3, c2: 14, r2: 21, xml: doughnut({ t: `${L.mt} por situação (${L.un})`, colors: [C.done, C.prog, C.rest], s: {
+      name: `${L.mt} (${L.un})`, nameRef: aref('Resumo', 1, 14, 1, 14), catRef: aref('Resumo', 0, 15, 0, 17), cats: ['Concluído', 'Executado em andamento', 'A executar'], valRef: aref('Resumo', 1, 15, 1, 17), vals: [r2(T.dM), r2(T.pM), r2(rest)] } }) });
+    sh.chart({ c1: 7, r1: 22, c2: 14, r2: 38, xml: barChart({ t: `${L.item} por situação`, horiz: false, lbl: '#,##0', series: [
+      { name: L.item, nameRef: aref('Resumo', 1, 20, 1, 20), catRef: aref('Resumo', 0, 21, 0, 23), cats: [2, 1, 0].map(s => L.st[s]), valRef: aref('Resumo', 1, 21, 1, 23), vals: [T.n[2], T.n[1], T.n[0]], color: C.brand }] }) });
+    return sh;
+  }
+
+  function exportar() {
+    if (!R || !R.length) return toast('A base ainda não carregou. Entre no painel e tente de novo.', true);
+    const L = labels();
+    const blob = pack([resumoSheet(L), groupSheet('sop', L), groupSheet('sub', L), groupSheet('sth', L)]);
+    const d = new Date(), p = v => String(v).padStart(2, '0');
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([blob], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }));
+    a.download = `${EQP ? 'Equipamentos_Area_Disciplina_ItemPPU' : 'Tubulacao_SOP_SUBSOP_STH'}_${p(d.getDate())}-${p(d.getMonth() + 1)}-${d.getFullYear()}_${p(d.getHours())}h${p(d.getMinutes())}.xlsx`;
+    a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    toast('Excel exportado com as abas Resumo, ' + [L.sop, L.sub, L.sth].join(', ') + '.');
+  }
+  return { exportar };
+})();
+(() => { const b = document.getElementById('estXlsx'); if (b) b.onclick = () => { try { EST_XLSX.exportar(); } catch (e) { console.error(e); toast('Não foi possível gerar o Excel: ' + e.message, true); } }; })();
 </script>
 </body>
 </html>
