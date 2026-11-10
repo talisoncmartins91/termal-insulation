@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <!-- EXPORT-EXCEL-ESTRUTURA v2 (09/11/2026): botão Exportar Excel na aba SOP, SUBSOP e STH -->
+<!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Thermal Insulation · Controle de isolamento U12</title>
@@ -871,7 +872,7 @@ tr.coat.changed>td{background:#FFF6E0}
         <div class="panel">
           <div class="panel-h">
             <div><h2>Linhas do escopo</h2><p>Lance o avanço por spool (abra a linha em ▸) ou na linha inteira, que aplica o mesmo valor a todos os spools. SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
-            <div class="tools"><button class="btn" id="exportCsv">Exportar CSV</button></div>
+            <div class="tools"><button class="btn" id="btTpl2" type="button" title="Planilha com a base atual (linhas e spools) para preencher os dados novos e enviar em Usuários > Base do escopo">Baixar base (modelo .xlsx)</button><button class="btn" id="exportCsv">Exportar CSV</button></div>
           </div>
           <div class="coat-tabs" id="lnCoatBar"><div class="seg" id="lnCoat" role="group" aria-label="Executante"><button type="button" data-ct="" aria-pressed="true">Todas as linhas</button><button type="button" data-ct="coat" aria-pressed="false">Coating</button><button type="button" data-ct="own" aria-pressed="false">Sem Coating</button></div><span class="coat-leg"><i></i>Linhas executadas pela Coating</span><span class="coat-info" id="lnCoatInfo" hidden></span></div>
           
@@ -1537,6 +1538,7 @@ const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linh
 function go(v) {
   if (!TITLES[v] || ((v === 'usuarios' || v === 'financeiro') && !isAdmin()) || (v === 'comprimentos' && !canEdit())) v = 'painel';
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
+  { const bt = document.getElementById('btTpl2'); if (bt) bt.hidden = !!EQP; }
   $$('.nav button').forEach(b => b.dataset.v === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
   $('#title').textContent = TITLES[v]; const nc = document.getElementById('navCur'); if (nc) nc.textContent = TITLES[v];
   if (location.hash !== '#' + v) history_replace(v);
@@ -4898,7 +4900,7 @@ async function btFromXlsx(buf) {
   }
   return out;
 }
-document.getElementById('btTpl')?.addEventListener('click', () => { try { btExport(); } catch (e) { console.error(e); toast('Não foi possível gerar a planilha: ' + e.message, true); } });
+['btTpl', 'btTpl2'].forEach(id => document.getElementById(id)?.addEventListener('click', () => { try { btExport(); } catch (e) { console.error(e); toast('Não foi possível gerar a planilha: ' + e.message, true); } }));
 </script>
 </body>
 </html>
