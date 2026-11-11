@@ -2,6 +2,7 @@
 <html lang="pt-BR">
 <head>
 <!-- EXPORT-EXCEL-ESTRUTURA v2 (09/11/2026): botão Exportar Excel na aba SOP, SUBSOP e STH -->
+<!-- GESTOR+COATING v4 (11/11/2026): perfil Gestor e filtro Só Coating nos comprimentos -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -940,6 +941,7 @@ tr.coat.changed>td{background:#FFF6E0}
             <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
             <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="lenF"><option value="">Todas as linhas</option><option value="ed">Com comprimento editado</option></select>
+            <select class="input" id="lenExe" title="Executante da linha"><option value="">Todos os executantes</option><option value="coat">Só Coating</option><option value="own">Sem Coating</option></select>
           </div>
           <div class="tbl-wrap">
             <table>
@@ -1198,9 +1200,9 @@ tr.coat.changed>td{background:#FFF6E0}
 
       <!-- USUÁRIOS -->
       <section class="view" id="v-usuarios">
-        <div class="grid2" style="margin-top:0;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr)">
+        <div class="grid2" id="uArea" style="margin-top:0;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr)">
           <div class="panel">
-            <div class="panel-h"><div><h2>Usuários</h2><p>Leitor só consulta. Editor lança avanço e fotos. Administrador também gerencia usuários e exclui fotos.</p></div></div>
+            <div class="panel-h"><div><h2>Usuários</h2><p>Leitor só consulta. Editor lança avanço e fotos. Gestor faz todas as edições do Administrador (medição, financeiro, base, site, executante, exclusões), menos o cadastro de usuários. Administrador também gerencia usuários.</p></div></div>
             <div class="tbl-wrap"><table><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th></th></tr></thead><tbody id="uBody"></tbody></table></div>
           </div>
           <div class="panel">
@@ -1208,7 +1210,7 @@ tr.coat.changed>td{background:#FFF6E0}
             <div class="panel-b form">
               <label>Usuário<input class="input" id="uUser" autocomplete="off" placeholder="ex.: joao.silva"></label>
               <label>Nome<input class="input" id="uName" placeholder="Nome completo"></label>
-              <label>Perfil<select class="input" id="uRole"><option value="viewer">Leitor</option><option value="editor" selected>Editor</option><option value="admin">Administrador</option></select></label>
+              <label>Perfil<select class="input" id="uRole"><option value="viewer">Leitor</option><option value="editor" selected>Editor</option><option value="gestor">Gestor (tudo, menos usuários)</option><option value="admin">Administrador</option></select></label>
               <label><span id="uPassL">Senha</span>
                 <span class="pw"><input class="input" id="uPass" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"><button class="btn" type="button" data-eye="uPass">Mostrar</button><button class="btn" type="button" data-gen="uPass">Gerar</button></span></label>
               <div class="err" id="uErr"></div>
@@ -1416,8 +1418,10 @@ const tFmt = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, hour: '2-digit', m
 const dLong = new Intl.DateTimeFormat('pt-BR', { timeZone: TZ, weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
 const when = iso => iso ? `${dFmt.format(new Date(iso))} às ${tFmt.format(new Date(iso))}` : '—';
 const diamTxt = d => EQP ? (d || '—') : (d || '').replace(/^1\.?1\/2$/, '1.1/2') + '"';
-const canEdit = () => me && (me.role === 'editor' || me.role === 'admin');
-const isAdmin = () => me && me.role === 'admin';
+const canEdit = () => me && (me.role === 'editor' || me.role === 'admin' || me.role === 'gestor');
+// Gestor: todas as permissões de administrador, menos o cadastro de usuários
+const isAdmin = () => me && (me.role === 'admin' || me.role === 'gestor');
+const isUserAdmin = () => me && me.role === 'admin';
 
 function savedPct(x) { const s = server[x.line]; return s ? Number(s.pct) : x.seed; }
 const pendingSp = new Map(), pendLines = new Set();
@@ -1520,7 +1524,7 @@ async function loadData() {
   applySpoolLens();
   lastTs = p.updated_at; logH = h.items || []; visuals = v.items || []; online = true;
   if (isAdmin()) {
-    try { users = (await api('/users')).users; } catch (e) {}
+    if (isUserAdmin()) { try { users = (await api('/users')).users; } catch (e) {} } else users = [];
     try { const f = await api('/fin'); fin = { prices: f.prices || {}, forecasts: f.forecasts || {}, pricesAt: f.prices_updated_at, pricesBy: f.prices_updated_by }; if (medApi !== true) { med = { forecasts: f.forecasts || {}, reals: {} }; medIdx = null; } } catch (e) {}
   }
 }
@@ -2284,9 +2288,11 @@ document.addEventListener('click', e => {
 });
 
 /* ============ usuários ============ */
-const ROLE_T = { viewer: 'Leitor', editor: 'Editor', admin: 'Administrador' };
+const ROLE_T = { viewer: 'Leitor', editor: 'Editor', gestor: 'Gestor', admin: 'Administrador' };
 function renderUsers() {
   $('#navUsers').hidden = !isAdmin(); $('#navFin').hidden = !isAdmin();
+  { const ua = isUserAdmin(), nb = $('#navUsers'), tn = [...nb.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()); if (tn) tn.textContent = ua ? 'Usuários' : 'Base e site';
+    TITLES.usuarios = ua ? 'Usuários' : 'Base e site'; $('#uArea').hidden = !ua; if (!ua) { $('#uBody').innerHTML = ''; return; } }
   $('#uBody').innerHTML = users.map(u => `<tr><td>${esc(u.username)}</td><td>${esc(u.name)}</td><td>${ROLE_T[u.role] || u.role}</td>
     <td><span class="acts"><button class="btn sm" data-uedit="${esc(u.username)}">Editar</button><button class="btn sm" data-upw="${esc(u.username)}">Redefinir senha</button>${u.username !== me?.username ? `<button class="btn sm danger" data-udel="${esc(u.username)}">Excluir</button>` : ''}</span></td></tr>`).join('');
 }
@@ -2633,8 +2639,10 @@ function spRuleTxt(x) {
 }
 const lenLast = x => SPLAST[x.line] || null;
 function lenLines() {
-  const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value;
+  const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value, ex = EQP ? '' : $('#lenExe').value;
+  $('#lenExe').hidden = !!EQP;
   return R.filter(x => (!sop || x.sop === sop)
+    && (!ex || (ex === 'coat') === isCoat(x.line))
     && (!q || (x.line + ' ' + x.sth + ' ' + x.sps.map(s => s.code).join(' ')).toLowerCase().includes(q))
     && (!f || (f === 'ed' && x.nEd)))
     .sort((a, b) => a.sop.localeCompare(b.sop) || a.line.localeCompare(b.line));
@@ -2677,7 +2685,7 @@ function renderLen() {
   $('#lenNext').onclick = () => { lenPage++; renderLen(); };
   if ($('#lenAll')) $('#lenAll').onclick = () => { rows.forEach(x => allOpen ? lenOpen.delete(x.i) : lenOpen.add(x.i)); renderLen(); };
 }
-['#lenQ', '#lenSop', '#lenF'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
+['#lenQ', '#lenSop', '#lenF', '#lenExe'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
 async function lenSaveOne(key) {
   if (!canEdit()) return openLogin();
   if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
@@ -2804,8 +2812,8 @@ $('#lenTpl').onclick = () => {
     else for (const sp of x.sps) rows.push([x.line, sp.code, x.sop, Math.round(sp.m * 1000) / 1000, null]);
   }
   const blob = XL.book('Comprimentos', [34, 22, 18, 22, 22], ['LINHA', 'SPOOL', 'SOP', 'COMPRIMENTO ATUAL (m)', 'NOVO COMPRIMENTO (m)'], rows, { 3: 2, 4: 2 });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Comprimentos_spools.xlsx'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  toast(`Planilha com ${f0(rows.length)} itens baixada. Preencha só a coluna NOVO COMPRIMENTO e importe de volta.`);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const exF = EQP ? '' : $('#lenExe').value; a.download = `Comprimentos_spools${exF === 'coat' ? '_Coating' : exF === 'own' ? '_sem_Coating' : ''}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  toast(`Planilha${exF === 'coat' ? ' da Coating' : exF === 'own' ? ' sem a Coating' : ''} com ${f0(rows.length)} itens baixada. Preencha só a coluna NOVO COMPRIMENTO e importe de volta.`);
 };
 $('#lenImpBtn').onclick = () => {
   if (!canEdit()) return openLogin();
