@@ -1202,7 +1202,7 @@ tr.coat.changed>td{background:#FFF6E0}
       <section class="view" id="v-usuarios">
         <div class="grid2" id="uArea" style="margin-top:0;grid-template-columns:minmax(0,1.7fr) minmax(300px,1fr)">
           <div class="panel">
-            <div class="panel-h"><div><h2>Usuários</h2><p>Leitor só consulta. Editor lança avanço e fotos. Gestor faz todas as edições do Administrador (medição, financeiro, base, site, executante, exclusões), menos o cadastro de usuários. Administrador também gerencia usuários.</p></div></div>
+            <div class="panel-h"><div><h2>Usuários</h2><p>Leitor só consulta. Editor lança avanço e fotos. Gestor faz as edições do Administrador (medição, financeiro, executante, exclusões), sem acesso a usuários, base e site. Administrador também gerencia usuários.</p></div></div>
             <div class="tbl-wrap"><table><thead><tr><th>Usuário</th><th>Nome</th><th>Perfil</th><th></th></tr></thead><tbody id="uBody"></tbody></table></div>
           </div>
           <div class="panel">
@@ -1210,7 +1210,7 @@ tr.coat.changed>td{background:#FFF6E0}
             <div class="panel-b form">
               <label>Usuário<input class="input" id="uUser" autocomplete="off" placeholder="ex.: joao.silva"></label>
               <label>Nome<input class="input" id="uName" placeholder="Nome completo"></label>
-              <label>Perfil<select class="input" id="uRole"><option value="viewer">Leitor</option><option value="editor" selected>Editor</option><option value="gestor">Gestor (tudo, menos usuários)</option><option value="admin">Administrador</option></select></label>
+              <label>Perfil<select class="input" id="uRole"><option value="viewer">Leitor</option><option value="editor" selected>Editor</option><option value="gestor">Gestor (sem usuários, base e site)</option><option value="admin">Administrador</option></select></label>
               <label><span id="uPassL">Senha</span>
                 <span class="pw"><input class="input" id="uPass" type="password" autocomplete="new-password" placeholder="Mínimo de 6 caracteres"><button class="btn" type="button" data-eye="uPass">Mostrar</button><button class="btn" type="button" data-gen="uPass">Gerar</button></span></label>
               <div class="err" id="uErr"></div>
@@ -1540,7 +1540,7 @@ setInterval(async () => { if (!BASE || !me || document.body.classList.contains('
 /* ============ navegação ============ */
 const TITLES = { painel: 'Painel', estrutura: 'SOP, SUBSOP e STH', linhas: 'Linhas', comprimentos: 'Comprimento dos spools', visual: 'Acompanhamento visual', historico: 'Histórico', programacao: 'Programação semanal', previsao: 'Previsão de medição', realizada: 'Medição realizada', financeiro: 'Financeiro', usuarios: 'Usuários' };
 function go(v) {
-  if (!TITLES[v] || ((v === 'usuarios' || v === 'financeiro') && !isAdmin()) || (v === 'comprimentos' && !canEdit())) v = 'painel';
+  if (!TITLES[v] || (v === 'usuarios' && !isUserAdmin()) || (v === 'financeiro' && !isAdmin()) || (v === 'comprimentos' && !canEdit())) v = 'painel';
   $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + v));
   { const bt = document.getElementById('btTpl2'); if (bt) bt.hidden = !!EQP; }
   $$('.nav button').forEach(b => b.dataset.v === v ? b.setAttribute('aria-current', 'page') : b.removeAttribute('aria-current'));
@@ -2290,7 +2290,7 @@ document.addEventListener('click', e => {
 /* ============ usuários ============ */
 const ROLE_T = { viewer: 'Leitor', editor: 'Editor', gestor: 'Gestor', admin: 'Administrador' };
 function renderUsers() {
-  $('#navUsers').hidden = !isAdmin(); $('#navFin').hidden = !isAdmin();
+  $('#navUsers').hidden = !isUserAdmin(); $('#navFin').hidden = !isAdmin();
   { const ua = isUserAdmin(), nb = $('#navUsers'), tn = [...nb.childNodes].find(n => n.nodeType === 3 && n.textContent.trim()); if (tn) tn.textContent = ua ? 'Usuários' : 'Base e site';
     TITLES.usuarios = ua ? 'Usuários' : 'Base e site'; $('#uArea').hidden = !ua; if (!ua) { $('#uBody').innerHTML = ''; return; } }
   $('#uBody').innerHTML = users.map(u => `<tr><td>${esc(u.username)}</td><td>${esc(u.name)}</td><td>${ROLE_T[u.role] || u.role}</td>
