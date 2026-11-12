@@ -3,6 +3,7 @@
 <head>
 <!-- EXPORT-EXCEL-ESTRUTURA v2 (09/11/2026): botão Exportar Excel na aba SOP, SUBSOP e STH -->
 <!-- GESTOR+COATING v4 (11/11/2026): perfil Gestor e filtro Só Coating nos comprimentos -->
+<!-- SPOOLS-CSV+COAT-LEN v5 (12/11/2026): Exportar CSV de Linhas com os spools; barra Coating em Comprimento dos spools -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -941,8 +942,8 @@ tr.coat.changed>td{background:#FFF6E0}
             <input class="input" id="lenQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:220px">
             <select class="input" id="lenSop"><option value="">Todas as SOPs</option></select>
             <select class="input" id="lenF"><option value="">Todas as linhas</option><option value="ed">Com comprimento editado</option></select>
-            <select class="input" id="lenExe" title="Executante da linha"><option value="">Todos os executantes</option><option value="coat">Só Coating</option><option value="own">Sem Coating</option></select>
           </div>
+          <div class="coat-tabs" id="lenCoatBar" style="padding:0 18px 12px"><div class="seg" id="lenCoat" role="group" aria-label="Executante"><button type="button" data-ct="" aria-pressed="true">Todas as linhas</button><button type="button" data-ct="coat" aria-pressed="false">Coating</button><button type="button" data-ct="own" aria-pressed="false">Sem Coating</button></div><span class="coat-leg"><i></i>Linhas executadas pela Coating</span><span class="coat-info" id="lenCoatInfo" hidden></span></div>
           <div class="tbl-wrap">
             <table>
               <thead><tr><th>Linha</th><th>SOP</th><th class="num">Spools</th><th class="num">Comprimento atual (m)</th><th>Última alteração</th></tr></thead>
@@ -2638,9 +2639,18 @@ function spRuleTxt(x) {
   return x.spRule === 'menor' ? `spools somam ${f2(x.spMapa)} m no Mapa; a diferença de ${f2(x.mEsc - x.spMapa)} m foi dividida igualmente entre eles` : x.spRule === 'maior' ? `spools somam ${f2(x.spMapa)} m no Mapa, ${f2(x.spMapa - x.mEsc)} m acima da ESCOPO; reduzidos na mesma proporção` : 'comprimentos do Mapa iguais à ESCOPO';
 }
 const lenLast = x => SPLAST[x.line] || null;
+let lenCoat = '';   // '' todas · 'coat' só Coating · 'own' sem Coating
+$$('#lenCoat [data-ct]').forEach(b => b.onclick = () => { lenCoat = b.dataset.ct; $$('#lenCoat [data-ct]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); lenPage = 0; renderLen(); });
+function renderLenCoatBar(list) {
+  const bar = $('#lenCoatBar'); bar.hidden = !!EQP; if (EQP) return;
+  const info = $('#lenCoatInfo');
+  if (lenCoat !== 'coat') { info.hidden = true; return; }
+  const nsp = list.reduce((t, x) => t + x.sps.length, 0), m = list.reduce((t, x) => t + x.m, 0), ed = list.reduce((t, x) => t + (x.nEd || 0), 0);
+  info.hidden = false;
+  info.innerHTML = `<b>Coating</b> · ${f0(list.length)} ${list.length === 1 ? 'linha' : 'linhas'} · ${f0(nsp)} spools · ${f2(m)} m${ed ? ` · ${f0(ed)} ${ed === 1 ? 'spool editado' : 'spools editados'}` : ''}`;
+}
 function lenLines() {
-  const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value, ex = EQP ? '' : $('#lenExe').value;
-  $('#lenExe').hidden = !!EQP;
+  const q = $('#lenQ').value.trim().toLowerCase(), sop = $('#lenSop').value, f = $('#lenF').value, ex = EQP ? '' : lenCoat;
   return R.filter(x => (!sop || x.sop === sop)
     && (!ex || (ex === 'coat') === isCoat(x.line))
     && (!q || (x.line + ' ' + x.sth + ' ' + x.sps.map(s => s.code).join(' ')).toLowerCase().includes(q))
@@ -2669,11 +2679,12 @@ function renderLen() {
   note.hidden = lenApi === true; note.classList.toggle('err', lenApi !== true);
   if (lenApi !== true) note.textContent = lenApi === 'old' ? 'O Worker publicado no Cloudflare ainda é o antigo (rota /spool-len não encontrada). Publique o worker.js novo para aparecerem os campos de edição.' : `O servidor recusou a leitura dos comprimentos (${lenErr}). Por isso os campos de edição não aparecem. Mande esta mensagem para conferir.`;
   const list = lenLines(), pages = Math.max(1, Math.ceil(list.length / PAGE)); lenPage = Math.min(lenPage, pages - 1);
+  renderLenCoatBar(list);
   const rows = list.slice(lenPage * PAGE, lenPage * PAGE + PAGE);
   $('#lenBody').innerHTML = rows.length ? rows.map(x => {
-    const op = lenOpen.has(x.i), l = lenLast(x);
-    return `<tr class="pg-grp${op ? ' sp-open' : ''}" data-lrow="${x.i}">
-      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${x.sps.length ? '' : '<small class="nsp none">sem spool</small>'}${x.nEd ? `<small class="nsp">${x.sps.length ? `${x.nEd} ${x.nEd === 1 ? 'editado' : 'editados'}` : 'editado'}</small>` : ''}</span></td>
+    const op = lenOpen.has(x.i), l = lenLast(x), co = isCoat(x.line);
+    return `<tr class="pg-grp${op ? ' sp-open' : ''}${co ? ' coat' : ''}" data-lrow="${x.i}">
+      <td><span class="lcell"><button class="spt${op ? ' open' : ''}" data-lt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button><button class="lname" data-line="${x.i}">${esc(x.line)}</button>${co ? '<span class="coat-b" title="Executada pela Coating">COATING</span>' : ''}${x.sps.length ? '' : '<small class="nsp none">sem spool</small>'}${x.nEd ? `<small class="nsp">${x.sps.length ? `${x.nEd} ${x.nEd === 1 ? 'editado' : 'editados'}` : 'editado'}</small>` : ''}</span></td>
       <td>${esc(x.sop)}</td><td class="num">${x.sps.length ? f0(x.sps.length) : '—'}</td><td class="num"><b>${f2(x.m)}</b></td>
       <td><span class="acts">${l ? `<span>${when(l.ts)}<br><small class="muted">${esc(l.user || '')}</small></span>` : ''}<button class="btn sm" data-ldet="${x.i}">Detalhes</button></span></td></tr>${op ? lenSubRow(x) : ''}`;
   }).join('') : `<tr><td colspan="5"><div class="empty"><b>Nenhuma linha encontrada</b>Ajuste a busca ou os filtros. </div></td></tr>`;
@@ -2685,7 +2696,7 @@ function renderLen() {
   $('#lenNext').onclick = () => { lenPage++; renderLen(); };
   if ($('#lenAll')) $('#lenAll').onclick = () => { rows.forEach(x => allOpen ? lenOpen.delete(x.i) : lenOpen.add(x.i)); renderLen(); };
 }
-['#lenQ', '#lenSop', '#lenF', '#lenExe'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
+['#lenQ', '#lenSop', '#lenF'].forEach(s => $(s).addEventListener(s === '#lenQ' ? 'input' : 'change', () => { lenPage = 0; renderLen(); }));
 async function lenSaveOne(key) {
   if (!canEdit()) return openLogin();
   if (lenApi !== true) return toast('Publique o worker.js novo no Cloudflare antes de salvar comprimentos.', true);
@@ -2737,12 +2748,13 @@ async function openLenDet(i) {
 $('#lmClose').onclick = () => $('#lenModal').classList.remove('on');
 $('#lenModal').addEventListener('click', e => { if (e.target.id === 'lenModal') $('#lenModal').classList.remove('on'); });
 $('#lenCsv').onclick = () => {
-  const head = ['LINHA', 'SOP', 'SPOOL', 'Comprimento atual (m)', 'Editado', 'Alterado por', 'Alterado em'];
+  const head = ['LINHA', 'SOP', 'SPOOL', 'Comprimento atual (m)', 'Editado', 'Alterado por', 'Alterado em', ...(EQP ? [] : ['Executante'])];
   const out = [];
   for (const x of lenLines()) {
-    if (!x.sps.length) { const sv = SPLEN[x.line]; out.push([x.line, x.sop, '(sem spool)', f2(x.m), x.lenEdited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); continue; }
-    for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '']); } }
-  downloadCsv(head, out, 'comprimento_spools.csv');
+    const exe = EQP ? [] : [isCoat(x.line) ? 'COATING' : ''];
+    if (!x.sps.length) { const sv = SPLEN[x.line]; out.push([x.line, x.sop, '(sem spool)', f2(x.m), x.lenEdited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '', ...exe]); continue; }
+    for (const s of x.sps) { const sv = SPLEN[s.key]; out.push([x.line, x.sop, s.code, f2(s.m), s.edited ? 'Sim' : 'Não', sv ? sv.updated_by : '', sv ? when(sv.updated_at) : '', ...exe]); } }
+  downloadCsv(head, out, `comprimento_spools${lenCoat === 'coat' ? '_Coating' : lenCoat === 'own' ? '_sem_Coating' : ''}.csv`);
 };
 
 /* ============ comprimentos por planilha (baixar, preencher, revisar e aplicar) ============ */
@@ -2812,7 +2824,7 @@ $('#lenTpl').onclick = () => {
     else for (const sp of x.sps) rows.push([x.line, sp.code, x.sop, Math.round(sp.m * 1000) / 1000, null]);
   }
   const blob = XL.book('Comprimentos', [34, 22, 18, 22, 22], ['LINHA', 'SPOOL', 'SOP', 'COMPRIMENTO ATUAL (m)', 'NOVO COMPRIMENTO (m)'], rows, { 3: 2, 4: 2 });
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const exF = EQP ? '' : $('#lenExe').value; a.download = `Comprimentos_spools${exF === 'coat' ? '_Coating' : exF === 'own' ? '_sem_Coating' : ''}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const exF = EQP ? '' : lenCoat; a.download = `Comprimentos_spools${exF === 'coat' ? '_Coating' : exF === 'own' ? '_sem_Coating' : ''}.xlsx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   toast(`Planilha${exF === 'coat' ? ' da Coating' : exF === 'own' ? ' sem a Coating' : ''} com ${f0(rows.length)} itens baixada. Preencha só a coluna NOVO COMPRIMENTO e importe de volta.`);
 };
 $('#lenImpBtn').onclick = () => {
@@ -4493,8 +4505,15 @@ function renderScopeUi() {
 }
 /* ============ exportação ============ */
 $('#exportCsv').onclick = () => {
-  const head = ['LINHA', 'm', 'Espessura', 'Espessura Pyrogel', 'Diâmetro', 'ITEM PPU', 'SOP', 'SUBSOP', 'STH', '% Avanço', 'm executado', 'Atualizado em', 'Responsável'];
-  const rows = (lnFiltered.length ? lnFiltered : R).map(x => { const s = server[x.line], p = pct(x); return [x.line, f2(x.m), x.esp, x.pyro, x.diam, 'Anexo IIB - ' + x.ppu, x.sop, x.sub, x.sth, f2(p), f2(x.m * p / 100), s ? when(s.updated_at) : '', s?.updated_by || '']; });
+  // uma linha "LINHA" com o total e, embaixo, uma linha "SPOOL" para cada spool (com os dados da linha repetidos para filtrar no Excel)
+  const head = ['LINHA', 'SPOOL', 'Tipo', 'm', 'Espessura', 'Espessura Pyrogel', 'Diâmetro', 'ITEM PPU', 'SOP', 'SUBSOP', 'STH', '% Avanço', 'm executado', 'Atualizado em', 'Responsável', ...(EQP ? [] : ['Executante'])];
+  const rows = [];
+  for (const x of (lnFiltered.length ? lnFiltered : R)) {
+    const s = server[x.line], p = pct(x), exe = EQP ? [] : [isCoat(x.line) ? 'COATING' : ''];
+    const info = [x.esp, x.pyro, x.diam, 'Anexo IIB - ' + x.ppu, x.sop, x.sub, x.sth];
+    rows.push([x.line, x.sps.length ? `${x.sps.length} ${x.sps.length === 1 ? 'spool' : 'spools'}` : '(sem spool)', 'LINHA', f2(x.m), ...info, f2(p), f2(x.m * p / 100), s ? when(s.updated_at) : '', s?.updated_by || '', ...exe]);
+    for (const sp of x.sps) { const q = spPct(sp); rows.push([x.line, sp.code, 'SPOOL', f2(sp.m), ...info, f2(q), f2(sp.m * q / 100), '', '', ...exe]); }
+  }
   const csv = '\ufeff' + [head, ...rows].map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\r\n');
   const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
   a.download = `isolamento_avanco_${new Date().toISOString().slice(0, 10)}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000);
