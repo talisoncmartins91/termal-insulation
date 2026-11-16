@@ -6,6 +6,7 @@
 <!-- SPOOLS-CSV+COAT-LEN v5 (12/11/2026): Exportar CSV de Linhas com os spools; barra Coating em Comprimento dos spools -->
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
+<!-- PPT-DADOS v8 (16/11/2026): gráficos da apresentação com planilha de dados embutida (Editar dados funciona no PowerPoint) -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -3118,6 +3119,50 @@ function pptPickChart(files, txt, sp, rels, avoid, want) {
   const scored = ts.map(t => { const ti = title(t); return { t, ok: want.test(ti) && !avoid.test(ti), bad: avoid.test(ti) }; });
   return (scored.find(o => o.ok) || scored.find(o => !o.bad) || scored[0]).t;
 }
+// gráfico gerado pelo painel (valores literais) passa a ter a planilha de dados embutida,
+// para o "Editar dados" do PowerPoint funcionar (sem isso ele avisa que o arquivo vinculado não está disponível)
+async function pptEmbedData(files, txt, cp) {
+  let xml = txt(cp);
+  const sers = xml.match(/<c:ser>[\s\S]*?<\/c:ser>/g) || []; if (!sers.length) return;
+  const unx = v => v.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, '&');
+  const pts = inner => { const o = []; for (const m of inner.matchAll(/<c:pt idx="(\d+)"[^>]*>\s*<c:v>([^<]*)<\/c:v>\s*<\/c:pt>/g)) o[+m[1]] = unx(m[2]); return o; };
+  const lit = (ser, tag) => { const m = ser.match(new RegExp(`<c:${tag}>([\\s\\S]*?)<\\/c:${tag}>`)); return m ? m[1] : null; };
+  const catIn = lit(sers[0], 'strLit') && /<c:cat>\s*<c:strLit>/.test(sers[0]) ? sers[0].match(/<c:cat>\s*<c:strLit>([\s\S]*?)<\/c:strLit>/)[1] : null;
+  if (!catIn || !sers.every(sr => /<c:val>\s*<c:numLit>/.test(sr))) return;   // só gráficos montados pelo painel
+  const cats = pts(catIn), n = Math.max(cats.length, ...sers.map(sr => pts(sr.match(/<c:val>\s*<c:numLit>([\s\S]*?)<\/c:numLit>/)[1]).length));
+  const names = sers.map((sr, i) => { const m = sr.match(/<c:tx>\s*<c:v>([^<]*)<\/c:v>\s*<\/c:tx>/); return m ? unx(m[1]) : `Série ${i + 1}`; });
+  const vals = sers.map(sr => pts(sr.match(/<c:val>\s*<c:numLit>([\s\S]*?)<\/c:numLit>/)[1]));
+  const SH = 'Planilha1', L = i => String.fromCharCode(66 + i), last = n + 1;
+  const rows = []; for (let r = 0; r < n; r++) rows.push([cats[r] ?? '', ...vals.map(v => v[r] == null || v[r] === '' ? null : Number(v[r]))]);
+  const blob = XL.book(SH, [28, ...names.map(() => 16)], ['', ...names], rows, Object.fromEntries(names.map((_, i) => [i + 1, 2])));
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  const newSers = sers.map((sr, i) => sr
+    .replace(/<c:tx>\s*<c:v>([^<]*)<\/c:v>\s*<\/c:tx>/, (m, v) => `<c:tx><c:strRef><c:f>${SH}!$${L(i)}$1</c:f><c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${v}</c:v></c:pt></c:strCache></c:strRef></c:tx>`)
+    .replace(/<c:cat>\s*<c:strLit>([\s\S]*?)<\/c:strLit>\s*<\/c:cat>/, (m, inn) => `<c:cat><c:strRef><c:f>${SH}!$A$2:$A$${last}</c:f><c:strCache>${inn}</c:strCache></c:strRef></c:cat>`)
+    .replace(/<c:val>\s*<c:numLit>([\s\S]*?)<\/c:numLit>\s*<\/c:val>/, (m, inn) => `<c:val><c:numRef><c:f>${SH}!$${L(i)}$2:$${L(i)}$${last}</c:f><c:numCache>${inn}</c:numCache></c:numRef></c:val>`));
+  let k = 0; xml = xml.replace(/<c:ser>[\s\S]*?<\/c:ser>/g, () => newSers[k++]);
+  // tira dados/vínculos antigos do gráfico e embute a planilha nova
+  xml = xml.replace(/<c:externalData\b[^>]*?(?:\/>|>[\s\S]*?<\/c:externalData>)/g, '');
+  const cr = relsOf(cp);
+  let rels = files.has(cr) ? txt(cr) : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  rels = rels.replace(/<Relationship\b[^>]*>/g, r => {
+    if (!/relationships\/(package|oleObject)"/.test(r)) return r;
+    const t = (r.match(/Target="([^"]+)"/) || [])[1];
+    if (t && !/TargetMode="External"/.test(r)) files.delete(relPath(cp, t));
+    return '';
+  });
+  let id = 'rIdPainelDados'; while (rels.includes(`Id="${id}"`)) id += 'X';
+  const emb = `ppt/embeddings/Painel_dados_${cp.split('/').pop().replace(/\.xml$/, '')}.xlsx`;
+  files.set(emb, bytes);
+  rels = rels.replace('</Relationships>', `<Relationship Id="${id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="../embeddings/${emb.split('/').pop()}"/></Relationships>`);
+  files.set(cr, rels);
+  if (!/xmlns:r=/.test(xml.slice(0, 600))) xml = xml.replace(/<c:chartSpace\b/, '<c:chartSpace xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"');
+  const ed = `<c:externalData r:id="${id}"><c:autoUpdate val="0"/></c:externalData>`;
+  const ce = xml.indexOf('</c:chart>') + 10, rest = xml.slice(ce);
+  const at = ['<c:printSettings', '<c:userShapes', '<c:extLst', '</c:chartSpace>'].map(t => rest.indexOf(t)).filter(i => i >= 0).sort((a, b) => a - b)[0];
+  xml = xml.slice(0, ce) + rest.slice(0, at) + ed + rest.slice(at);
+  files.set(cp, xml);
+}
 // arruma o pacote antes de salvar: gráficos sem vínculo com planilha externa (ex.: gráfico de SUBSOP colado
 // do Excel com vínculo) e tipos de arquivo de todas as imagens/partes registrados em [Content_Types].xml
 function pptFinalize(files, txt, warn) {
@@ -3226,6 +3271,7 @@ async function pptBuild(capa, P, imgId, eqImgId) {
       if (target) {
         const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
+        try { await pptEmbedData(files, txt, cp); } catch (e) { console.error(e); }
       } else warn.push('não achei o gráfico Avanço por SOP');
     }
     // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
@@ -3240,13 +3286,18 @@ async function pptBuild(capa, P, imgId, eqImgId) {
       else {
         s = pptEqSlide(s, eq);
         const relsP = relsOf(sp), rels = files.has(relsP) ? txt(relsP) : '', ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []), target = ct[1] || ct[2];
-        if (target) { const cp = relPath(sp, target); files.set(cp, pptEqChart(txt(cp), eq)); const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, '')); }
+        if (target) { const cp = relPath(sp, target); files.set(cp, pptEqChart(txt(cp), eq)); const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, '')); try { await pptEmbedData(files, txt, cp); } catch (e) { console.error(e); } }
         else warn.push('não achei o gráfico Avanço por área');
       }
     }
     files.set(sp, s);
   }
   if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
+  // demais gráficos do modelo sem planilha de dados (ex.: estrutura metálica): embute a planilha também
+  for (const cp of [...files.keys()].filter(n => /^ppt\/charts\/chart[^/]*\.xml$/.test(n))) {
+    if (/<c:externalData\b/.test(txt(cp))) continue;
+    try { await pptEmbedData(files, txt, cp); } catch (e) { console.error(e); }
+  }
   pptFinalize(files, txt, warn);
   const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
