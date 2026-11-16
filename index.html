@@ -5,6 +5,7 @@
 <!-- GESTOR+COATING v4 (11/11/2026): perfil Gestor e filtro Só Coating nos comprimentos -->
 <!-- SPOOLS-CSV+COAT-LEN v5 (12/11/2026): Exportar CSV de Linhas com os spools; barra Coating em Comprimento dos spools -->
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
+<!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -3109,6 +3110,37 @@ function pptEqChart(xml, st) {
   return (xml.slice(0, a) + s0 + s1 + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
 }
 const inTub = fn => EQP ? inOther(fn) : fn(), inEq = fn => EQP ? fn() : inOther(fn);
+// gráficos do slide: prefere o que tem no título o texto "want" e não tem "avoid" (ex.: SOP e não SUBSOP)
+function pptPickChart(files, txt, sp, rels, avoid, want) {
+  const ts = [...rels.matchAll(/<Relationship\b[^>]*>/g)].map(m => m[0]).filter(r => /Type="[^"]*\/chart"/.test(r)).map(r => (r.match(/Target="([^"]+)"/) || [])[1]).filter(Boolean);
+  if (!ts.length) return null;
+  const title = t => { const cp = relPath(sp, t); if (!files.has(cp)) return ''; const x = txt(cp), tt = (x.match(/<c:title>[\s\S]*?<\/c:title>/) || [''])[0]; return [...tt.matchAll(/<(?:a:t|c:v)>([^<]*)</g)].map(m => m[1]).join(' '); };
+  const scored = ts.map(t => { const ti = title(t); return { t, ok: want.test(ti) && !avoid.test(ti), bad: avoid.test(ti) }; });
+  return (scored.find(o => o.ok) || scored.find(o => !o.bad) || scored[0]).t;
+}
+// arruma o pacote antes de salvar: gráficos sem vínculo com planilha externa (ex.: gráfico de SUBSOP colado
+// do Excel com vínculo) e tipos de arquivo de todas as imagens/partes registrados em [Content_Types].xml
+function pptFinalize(files, txt, warn) {
+  let nLink = 0;
+  for (const cp of [...files.keys()].filter(n => /^ppt\/charts\/chart[^/]*\.xml$/.test(n))) {
+    let x = txt(cp); const cr = relsOf(cp); let rels = files.has(cr) ? txt(cr) : '';
+    const ext = new Set([...rels.matchAll(/<Relationship\b[^>]*>/g)].map(m => m[0]).filter(r => /TargetMode="External"/.test(r)).map(r => (r.match(/Id="([^"]+)"/) || [])[1]));
+    const has = id => new RegExp(`Id="${id}"`).test(rels);
+    const nx = x.replace(/<c:externalData\b[^>]*r:id="([^"]+)"[^>]*?(?:\/>|>[\s\S]*?<\/c:externalData>)/g, (m, id) => (ext.has(id) || !has(id)) ? '' : m);
+    if (nx !== x) { nLink++; files.set(cp, nx); }
+    if (ext.size && rels) { rels = rels.replace(/<Relationship\b[^>]*TargetMode="External"[^>]*\/>/g, ''); files.set(cr, rels); }
+  }
+  if (nLink) warn.push(`${nLink} ${nLink === 1 ? 'gráfico estava vinculado' : 'gráficos estavam vinculados'} a uma planilha externa; na apresentação ${nLink === 1 ? 'ficou' : 'ficaram'} com os valores fixos`);
+  const CT = '[Content_Types].xml'; if (!files.has(CT)) return;
+  let ct = txt(CT);
+  // tira Override de partes que não existem mais
+  ct = ct.replace(/<Override\b[^>]*PartName="([^"]+)"[^>]*\/>/g, (m, pn) => files.has(decodeURI(pn).replace(/^\//, '')) ? m : '');
+  const MIME = { png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', svg: 'image/svg+xml', emf: 'image/x-emf', wmf: 'image/x-wmf', tif: 'image/tiff', tiff: 'image/tiff', xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' };
+  const defs = new Set([...ct.matchAll(/<Default\b[^>]*Extension="([^"]+)"/g)].map(m => m[1].toLowerCase()));
+  const need = new Set([...files.keys()].map(n => (n.match(/\.([a-z0-9]+)$/i) || [])[1]).filter(Boolean).map(e => e.toLowerCase()).filter(e => MIME[e] && !defs.has(e)));
+  if (need.size) ct = ct.replace('</Types>', [...need].map(e => `<Default Extension="${e}" ContentType="${MIME[e]}"/>`).join('') + '</Types>');
+  files.set(CT, ct);
+}
 // troca a maior imagem do slide pela imagem escolhida (mantém a posição e cabe no mesmo espaço)
 function pptSwapPic(files, txt, sp, s, img, name) {
   const relsP = relsOf(sp); if (!files.has(relsP)) return null;
@@ -3189,8 +3221,8 @@ async function pptBuild(capa, P, imgId, eqImgId) {
       const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(tm - ex, 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(tub.nSops)];
       const at = s.indexOf('Total de SOPs</a:t>');
       if (at > 0) { let pos = at + 19, k = 0; s = s.slice(0, pos) + s.slice(pos).replace(/<a:t>[^<]*<\/a:t>/g, mm => k < 6 ? `<a:t>${xmlEsc(vals[k++])}</a:t>` : mm); }
-      const relsP = relsOf(sp), rels = txt(relsP), ct = (rels.match(/Type="[^"]*\/chart"[^>]*Target="([^"]+)"|Target="([^"]+)"[^>]*Type="[^"]*\/chart"/) || []);
-      const target = ct[1] || ct[2];
+      const relsP = relsOf(sp), rels = txt(relsP);
+      const target = pptPickChart(files, txt, sp, rels, /SUBSOP/i, /SOP/i);
       if (target) {
         const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
@@ -3215,6 +3247,7 @@ async function pptBuild(capa, P, imgId, eqImgId) {
     files.set(sp, s);
   }
   if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
+  pptFinalize(files, txt, warn);
   const order = [...files.keys()].sort((a, b) => (a === '[Content_Types].xml' ? -1 : b === '[Content_Types].xml' ? 1 : 0));
   return { blob: zipBytes(order.map(n => [n, files.get(n)])), warn };
 }
