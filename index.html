@@ -4,6 +4,7 @@
 <!-- EXPORT-EXCEL-ESTRUTURA v2 (09/11/2026): botão Exportar Excel na aba SOP, SUBSOP e STH -->
 <!-- GESTOR+COATING v4 (11/11/2026): perfil Gestor e filtro Só Coating nos comprimentos -->
 <!-- SPOOLS-CSV+COAT-LEN v5 (12/11/2026): Exportar CSV de Linhas com os spools; barra Coating em Comprimento dos spools -->
+<!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1011,7 +1012,7 @@ tr.coat.changed>td{background:#FFF6E0}
           <div class="filters">
             <input class="input" id="pvQ" type="search" placeholder="Buscar linha, spool ou STH" style="flex:1;min-width:200px">
             <select class="input" id="pvSop"><option value="">Todas as SOPs</option></select>
-            <select class="input" id="pvShow"><option value="fc">Com previsão no mês</option><option value="real">Com medição realizada no mês</option><option value="none">Sem previsão (não medidas por completo)</option><option value="all">Todas as linhas</option></select>
+            <select class="input" id="pvShow"><option value="fc">Com previsão no mês</option><option value="anyfc">Com previsão em qualquer mês</option><option value="real">Com medição realizada no mês</option><option value="none">Sem previsão (não medidas por completo)</option><option value="all">Todas as linhas</option></select>
           </div>
           <div class="bulk" id="pvBar">
             <b id="pvBarN"></b>
@@ -1022,7 +1023,8 @@ tr.coat.changed>td{background:#FFF6E0}
             <span class="sep"></span>
             <button class="btn primary sm" id="pvReal">Tornar real</button>
             <button class="btn sm" id="pvUndoSel" title="Desfaz a medição realizada; a previsão continua">Desfazer real</button>
-            <button class="btn sm" id="pvRmSel">Tirar da previsão</button>
+            <button class="btn sm" id="pvRmSel" title="Tira da previsão só do mês selecionado acima">Tirar da previsão do mês</button>
+            <button class="btn sm" id="pvRmAllSel" title="Tira da previsão de todos os meses em que estiver prevista (menos onde já foi tornada real)">Tirar de todos os meses</button>
             <button class="btn ghost sm" id="pvClear">Limpar seleção</button>
           </div>
           <div class="tbl-wrap"><table><thead id="pvHead"></thead><tbody id="pvBody"></tbody></table></div>
@@ -3807,6 +3809,9 @@ function buildMedIdx() {
   for (const a of [...fc.values(), ...rz.values()]) a.sort((p, q) => p[0].localeCompare(q[0]));
   medIdx = { src: med, fc, rz };
 }
+// meses em que a linha (ou algum spool dela) tem previsão
+function fcPers(x) { const s = new Set(); for (const it of medItems(x)) for (const [p] of medIdx.fc.get(itKey(it)) || []) s.add(p); return [...s].sort(); }
+const perShort = k => `${k.slice(5)}/${k.slice(0, 4)}`;
 const fcOfIt = (it, per) => { const a = medIdx.fc.get(itKey(it)), e = a && a.find(([p]) => p === per); return e ? e[1] : null; };
 const rzOfIt = (it, per) => { const a = medIdx.rz.get(itKey(it)), e = a && a.find(([p]) => p === per); return e ? e[1] : null; };
 // % acumulado medido até a medição (antes dela ou incluindo ela); parte do executado na base (medições anteriores)
@@ -3900,7 +3905,7 @@ function renderPv() {
   $('#pvKpis').innerHTML = cards.map(scard).join('');
   // tabela
   const list = all.filter(L => (matchQ(L, q) || matchSpQ(L, q)) && (!sop || L.x.sop === sop) &&
-    (show === 'all' || (show === 'fc' && L.fcs.length) || (show === 'real' && L.rzs.length) || (show === 'none' && !L.fcs.length && L.s < 100 - 1e-6)))
+    (show === 'all' || (show === 'fc' && L.fcs.length) || (show === 'anyfc' && fcPers(L.x).length) || (show === 'real' && L.rzs.length) || (show === 'none' && !L.fcs.length && L.s < 100 - 1e-6)))
     .sort((a, b) => a.x.sop.localeCompare(b.x.sop) || a.x.line.localeCompare(b.x.line));
   const pages = Math.max(1, Math.ceil(list.length / PAGE)); pvPage = Math.min(pvPage, pages - 1);
   const page = list.slice(pvPage * PAGE, pvPage * PAGE + PAGE);
@@ -3914,7 +3919,7 @@ function renderPv() {
     const x = L.x, hasSp = x.sps.length > 0, op = hasSp && (pvOpen.has(x.i) || (matchSpQ(L, q) && !matchQ(L, q))), o0 = L.its[0], nTo = L.its.filter(o => o.toReal).length;
     return `<tr class="${hasSp ? 'pg-grp' : ''}${op ? ' sp-open' : ''}${pvSelL.has(x.i) ? ' changed' : ''}" ${hasSp ? `data-pvo="${x.i}"` : ''}>
       ${adm ? `<td><input type="checkbox" data-pvl="${x.i}" ${pvSelL.has(x.i) ? 'checked' : ''} aria-label="Selecionar ${esc(x.line)}"></td>` : ''}
-      <td><span class="lcell">${hasSp ? `<button class="spt${op ? ' open' : ''}" data-pvt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${hasSp ? '' : '<small class="nsp none">sem spool</small>'}</span></td>
+      <td><span class="lcell">${hasSp ? `<button class="spt${op ? ' open' : ''}" data-pvt="${x.i}" aria-expanded="${op}" title="${op ? 'Ocultar' : 'Mostrar'} os spools">▸</button>` : '<span class="spt-ph"></span>'}<button class="lname" data-line="${x.i}">${esc(x.line)}</button>${hasSp ? '' : '<small class="nsp none">sem spool</small>'}${(() => { const o = fcPers(x).filter(p => p !== pvSel); return o.length ? `<small class="nsp" title="Também prevista em outra(s) medição(ões)">prevista em ${o.map(perShort).join(', ')}</small>` : ''; })()}</span></td>
       <td>${esc(x.sop)}</td><td class="num">${hasSp ? `${f0(L.fcs.length)} de ${f0(x.sps.length)}` : '—'}</td><td class="num">${f2(x.m)}</td>
       <td class="num">${f1(L.s)}%</td><td class="num">${f1(L.phys)}%</td><td class="num">${L.tgt == null ? '<span class="muted">—</span>' : `<b>${f1(L.tgt)}%</b>`}</td>
       <td class="num">${L.fcs.length ? f2(L.prevM) : '—'}</td>${isAdmin() ? `<td class="money">${L.fcs.length ? brl(L.prevM * L.pr) : '—'}</td>` : ''}<td>${pvSitL(L)}</td>
@@ -4000,6 +4005,25 @@ async function pvRemove(its) {
   try { await saveFc(per, ch); pvSelL.clear(); pvSelS.clear(); renderPv(); toast(`${ch.size} ${ch.size === 1 ? 'item retirado' : 'itens retirados'} da previsão.`); }
   catch (err) { toast('Não foi possível salvar: ' + err.message, true); }
 }
+// tira os itens da previsão de todos os meses (menos onde a medição já foi tornada real)
+async function pvRemoveAll(its) {
+  if (!its.length) return;
+  const byPer = new Map(), blocked = new Set(); let n = 0;
+  for (const it of its) for (const [per] of medIdx.fc.get(itKey(it)) || []) {
+    if (rzOfIt(it, per)) { blocked.add(per); continue; }
+    if (!byPer.has(per)) byPer.set(per, new Map());
+    byPer.get(per).set(itKey(it), null); n++;
+  }
+  if (!byPer.size) return toast(blocked.size ? `Os itens só têm previsão já tornada real (${[...blocked].sort().map(perShort).join(', ')}). Use "Desfazer real" no mês antes de tirar.` : 'Nenhum dos itens selecionados tem previsão em nenhum mês.', true);
+  const pers = [...byPer.keys()].sort();
+  if (!confirm(`Tirar da previsão ${f0(n)} ${n === 1 ? 'item' : 'itens'} nas medições: ${pers.map(p => `${perShort(p)} (${byPer.get(p).size})`).join(', ')}?${blocked.size ? `\n\nNão saem das medições já tornadas reais: ${[...blocked].sort().map(perShort).join(', ')}.` : ''}`)) return;
+  const done = [];
+  try {
+    for (const per of pers) { await saveFc(per, byPer.get(per)); done.push(per); }
+    pvSelL.clear(); pvSelS.clear(); renderPv();
+    toast(`Retirado da previsão em ${pers.map(perShort).join(', ')}.${blocked.size ? ` Ficou nas medições já reais: ${[...blocked].sort().map(perShort).join(', ')}.` : ''}`);
+  } catch (err) { renderPv(); toast(`Não foi possível salvar${done.length ? ` (já retirado em ${done.map(perShort).join(', ')})` : ''}: ${err.message}`, true); }
+}
 // por que o item ficou de fora: sem avanço físico, ou já medido (base ou medição realizada)
 function pvWhy(it, per, v, phys) {
   const nm = it.isSp ? `${it.parent.line} / ${it.code}` : it.line;
@@ -4039,6 +4063,7 @@ $('#pvAdd').onclick = () => { const v = clampPct($('#pvPct').value); if (v == nu
 $('#pvPhys').onclick = () => pvSetTarget(pvSelItems(), it => pct(it), 'o avanço físico atual', true);
 $('#pvReal').onclick = () => pvMakeReal(pvSelItems());
 $('#pvRmSel').onclick = () => pvRemove(pvSelItems());
+$('#pvRmAllSel').onclick = () => pvRemoveAll(pvSelItems());
 $('#pvUndoSel').onclick = () => pvUndoReal(pvSelItems());
 const pvToggleAdd = () => { $('#pvShow').value = $('#pvShow').value === 'none' ? 'fc' : 'none'; pvPage = 0; pvSelL.clear(); pvSelS.clear(); renderPv(); if ($('#pvShow').value === 'none') $('#pvQ').focus(); };
 $('#pvAddMode').onclick = pvToggleAdd;
