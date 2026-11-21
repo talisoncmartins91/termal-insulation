@@ -3406,7 +3406,8 @@ function weekRows(n) {
     const x = itemOf(k); if (!x) return null;
     const tgt = Number(v);
     let s0 = fut ? 0 : pctAt(x, a);
-    if (fut) { s0 = x.isSp ? spSaved(x) : savedPct(x); for (let w = cur; w < n; w++) { const t = progOf(w, k); if (t != null && t > s0) s0 = t; } }
+    // semana futura: parte do avanço real lançado até agora (não supõe que a programação das semanas anteriores foi cumprida)
+    if (fut) s0 = x.isSp ? spSaved(x) : savedPct(x);
     const e = fut ? s0 : pctAt(x, b);
     return { x, key: k, ln: x.isSp ? x.parent : x, tgt, s: s0, e, progM: x.m * Math.max(0, tgt - s0) / 100, execM: x.m * (e - s0) / 100, hit: e >= tgt - 1e-6 };
   }).filter(Boolean);
