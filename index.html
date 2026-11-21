@@ -7,6 +7,7 @@
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
 <!-- PPT-DADOS v8 (16/11/2026): gráficos da apresentação com planilha de dados embutida (Editar dados funciona no PowerPoint) -->
+<!-- PPT v9 (21/11/2026): datas do modelo mantidas, sem linhas NÃO CADASTRADAS NO CT / NÃO DEFINIDO, total fixo 26.790,83 m, gráfico SOP em imagem; visual v3 -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -661,6 +662,88 @@ tr.coat.changed>td{background:#FFF6E0}
 .vmove .vm-week{max-width:120px}
 .day .btn{flex:none;font-weight:500}
 .day .vm-day{display:flex;gap:6px;order:2}
+
+/* ===== visual v3 (21/11/2026): superfícies suaves, controles em pílula, tabelas mais leves ===== */
+:root{--r1:9px;--r2:16px;--bg:#EEF2F6;--line:#DCE3EA;--line2:#EBEFF3;--sh1:0 1px 2px rgba(15,38,56,.04),0 8px 24px -12px rgba(15,38,56,.16);--sh2:0 2px 6px rgba(15,38,56,.06),0 22px 44px -18px rgba(15,38,56,.30);--ring:0 0 0 4px rgba(43,134,191,.16)}
+body{background:radial-gradient(1200px 500px at 100% 0%,rgba(43,134,191,.07),transparent 60%),radial-gradient(900px 500px at 0% 100%,rgba(111,174,85,.06),transparent 60%),var(--bg);background-attachment:fixed}
+*{scrollbar-width:thin;scrollbar-color:#C3CFD9 transparent}
+::-webkit-scrollbar{width:10px;height:10px}::-webkit-scrollbar-thumb{background:#C3CFD9;border-radius:10px;border:2px solid transparent;background-clip:padding-box}::-webkit-scrollbar-thumb:hover{background-color:#9FB1BF}
+/* painéis */
+.panel,.ov-main,.scard{border:1px solid rgba(220,227,234,.9);box-shadow:var(--sh1)}
+.panel{overflow:hidden}
+.panel-h{padding:18px 22px;border-bottom:1px solid var(--line2);background:linear-gradient(180deg,#FFFFFF 0%,#FBFCFD 100%)}
+.panel-h h2{font-size:16px;font-weight:650;letter-spacing:-.01em}
+.panel-h h2::before{width:8px;height:8px;border-radius:50%;vertical-align:2px;background:linear-gradient(135deg,#2B86BF,#6FAE55);box-shadow:0 0 0 4px rgba(43,134,191,.12)}
+.panel-b{padding:20px 22px}
+.scard{border-radius:var(--r2)}
+.scard::before{height:0}
+.scard .si{border-radius:12px}
+.scard .sb,.scard .sb i{height:6px;border-radius:6px}
+/* botões */
+.btn{border-radius:var(--r1);border-color:var(--line);padding:8px 15px;font-weight:550;transition:background .15s,border-color .15s,box-shadow .15s,transform .15s}
+.btn:hover{border-color:#B7C6D2;background:#F7F9FB;box-shadow:0 2px 8px -4px rgba(15,38,56,.25)}
+.btn:active{transform:translateY(1px)}
+.btn.primary{background:linear-gradient(135deg,#2B86BF 0%,#1B5E8A 100%);border-color:#1B5E8A;box-shadow:0 6px 16px -8px rgba(27,94,138,.8),inset 0 1px 0 rgba(255,255,255,.18)}
+.btn.primary:hover{background:linear-gradient(135deg,#3194D0 0%,#1F6A9B 100%)}
+.btn.ghost{box-shadow:none}
+.btn.ghost:hover{background:var(--brand-soft);border-color:transparent;box-shadow:none}
+.btn.sm{padding:5px 11px;border-radius:8px}
+.hero .btn{border-radius:999px}
+/* campos */
+.input,select.input,textarea.input{border-radius:var(--r1);border-color:var(--line);background-color:#fff;transition:border-color .15s,box-shadow .15s}
+.input:hover{border-color:#BFCCD7}
+.input:focus{border-color:#2B86BF;box-shadow:var(--ring)}
+select.input{appearance:none;-webkit-appearance:none;padding-right:34px;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23617384' stroke-width='2.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center}
+input[type=checkbox]{accent-color:var(--brand);width:16px;height:16px}
+/* seletores em pílula */
+.seg,.jt-sw{background:#E9EEF2;border:0;border-radius:11px;padding:3px;gap:2px}
+.seg button,.jt-sw button{border:0!important;border-radius:8px;padding:6px 14px;background:transparent;color:var(--ink2);transition:background .15s,color .15s,box-shadow .15s}
+.seg button:hover,.jt-sw button:hover{color:var(--ink)}
+.seg button[aria-pressed="true"],.jt-sw button[aria-pressed="true"]{background:#fff;color:var(--brand);box-shadow:0 1px 2px rgba(15,38,56,.12),0 4px 10px -6px rgba(15,38,56,.35)}
+.coat-tabs .seg button[data-ct="coat"][aria-pressed="true"]{background:#fff;color:var(--coat)}
+.coat-tabs .seg button[data-ct="coat"][aria-pressed="true"]::before{background:var(--coat)}
+.vtabs button{border-radius:8px 8px 0 0}
+.vtabs button[aria-selected="true"]{color:var(--brand)}
+/* filtros e barras de ação */
+.filters{background:#fff;border-bottom:1px solid var(--line2);padding:14px 22px}
+.bulk,.fp-act,.vmove{background:linear-gradient(90deg,#E7F1F9,#EEF6EC);border-color:#CFE0EC}
+/* tabelas */
+th{background:rgba(246,248,250,.96);backdrop-filter:blur(6px);font-size:12px;font-weight:600;letter-spacing:.01em;color:#5B6E7E;padding:11px 12px;border-bottom:1px solid var(--line)}
+td{padding:8px 11px;border-bottom:1px solid #EFF2F5}
+tbody tr{transition:background .12s}
+tbody tr:hover td{background:#F4F8FB}
+tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
+.lname{font-weight:600}
+.tag{display:inline-flex;align-items:center;gap:6px;padding:3px 10px 3px 9px;font-weight:600;font-size:11.5px}
+.tag::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor;opacity:.8}
+.mini{height:7px;border-radius:7px}
+.mini i{border-radius:7px}
+.wk{border-radius:8px}
+.pager{background:#FBFCFD}
+/* gráficos de barras */
+.bar-row{border-radius:10px;padding:6px 8px}
+.bar-row:hover{background:#F2F7FB}
+.bar-row .track,.g-head .track{height:14px;border-radius:999px;background:#E8EDF1}
+.bar-row .track i:last-of-type,.g-head .track i:last-of-type{border-radius:0 999px 999px 0}
+.jacket{height:20px;border-radius:999px}
+.g-head{border-radius:0}
+.g-head:hover{background:#F4F8FB}
+/* menu lateral */
+.nav button{transition:background .15s,color .15s}
+.nav button:not([aria-current="page"]):hover svg{background:rgba(255,255,255,.12)}
+/* modais, gaveta e avisos */
+.scrim,.modal{backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
+.box,.gate-box{border-radius:18px;box-shadow:0 30px 80px -20px rgba(8,24,38,.55)}
+.drawer{border-radius:18px 0 0 18px;box-shadow:-20px 0 60px -20px rgba(8,24,38,.5)}
+.toast{border-radius:999px;padding:11px 20px;background:rgba(15,38,56,.92);backdrop-filter:blur(8px);box-shadow:0 14px 34px -12px rgba(8,24,38,.6)}
+.toast.bad{background:rgba(178,59,59,.95)}
+.pending{border-radius:16px;background:rgba(15,38,56,.94);backdrop-filter:blur(10px)}
+.warn,.len-warn,.coat-info{border-radius:10px}
+.ph{border-radius:14px;transition:transform .18s,box-shadow .18s}
+.ph:hover{transform:translateY(-2px);box-shadow:var(--sh2)}
+.drop{border-radius:14px;transition:border-color .15s,background .15s}
+.drop:hover{border-color:#2B86BF;background:#F2F8FC}
+@media (max-width:820px){.drawer{border-radius:0}.tbl-wrap tr:hover td{background:none!important}th{backdrop-filter:none}}
 </style>
 </head>
 <body class="locked">
@@ -1323,6 +1406,7 @@ tr.coat.changed>td{background:#FFF6E0}
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
+    <label class="fld"><span>Datas dos slides (caixa “DATA”)</span><select class="input" id="pptDates"><option value="keep">Manter as datas do modelo</option><option value="today">Trocar pela data de hoje</option></select></label>
     <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <label class="fld"><span>Imagem do slide "Acompanhamento visual · Equipamentos"</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
@@ -2963,7 +3047,7 @@ const nfBR = (v, d) => new Intl.NumberFormat('pt-BR', { minimumFractionDigits: d
 const exSaved = x => x.sps.length ? x.sps.reduce((t, sp) => t + sp.m * spSaved(sp) / 100, 0) : x.m * savedPct(x) / 100;
 function pptWeekLines(P) {
   const names = new Set();
-  for (const k of Object.keys(prog[String(P)] || {})) { const it = itemOf(k); if (it) names.add(itLine(it).line); }
+  for (const k of Object.keys(prog[String(P)] || {})) { const it = itemOf(k); if (it && !pptExcl(itLine(it))) names.add(itLine(it).line); }
   return [...names].sort((a, b) => a.localeCompare(b));
 }
 const pptImages = P => visuals.filter(v => v.category === 'programacao' && Number(v.week) === Number(P) && /^image\//.test(v.mime || ''));
@@ -3007,6 +3091,7 @@ $('#pptOpen').onclick = async () => {
   const cur = weekOf(Date.now());
   const b = $('#pptOpen'); b.disabled = true; await otherLoad(true); b.disabled = false;
   $('#pptProg').innerHTML = inTub(() => pptWeekOpts(cur)) || pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
+  try { $('#pptDates').value = localStorage.getItem('ti_ppt_dates') === 'today' ? 'today' : 'keep'; } catch (e) {}
   pptRenderModal(); $('#pptModal').classList.add('on');
 };
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
@@ -3039,9 +3124,16 @@ async function pptImageBytes(id, scope = 'tub') {
 }
 const relPath = (slidePath, target) => { const base = slidePath.split('/').slice(0, -1); for (const p of target.split('/')) { if (p === '..') base.pop(); else if (p !== '.') base.push(p); } return base.join('/'); };
 const relsOf = path => path.replace(/([^/]+)$/, '_rels/$1.rels');
+// linhas que nunca entram na apresentação: SOP/SUBSOP/STH "NÃO CADASTRADA NO CT" ou "NÃO DEFINIDO"
+const pptNorm = s => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toUpperCase();
+const PPT_EXCL = /\bNAO\s*(CADASTRAD|DEFINID)/;
+const pptExcl = x => [x.sop, x.sub, x.sth].some(v => PPT_EXCL.test(pptNorm(v)));
+const pptRows = () => R.filter(x => !pptExcl(x));
+// metragem total do escopo de tubulação no resumo da apresentação (fixa)
+const PPT_TOTAL_M = 26790.83;
 function sopStats() {
   const m = new Map();
-  for (const x of R) { const o = m.get(x.sop) || { sop: x.sop, tm: 0, ex: 0 }; o.tm += x.m; o.ex += exSaved(x); m.set(x.sop, o); }
+  for (const x of pptRows()) { const o = m.get(x.sop) || { sop: x.sop, tm: 0, ex: 0 }; o.tm += x.m; o.ex += exSaved(x); m.set(x.sop, o); }
   return [...m.values()].filter(o => o.tm > 0).map(o => ({ ...o, p: Math.max(0, Math.min(1, o.ex / o.tm)) })).sort((a, b) => a.sop.localeCompare(b.sop));
 }
 function pptChart(xml, st) {
@@ -3059,6 +3151,27 @@ function pptChart(xml, st) {
   const done = st.map(o => o.p >= 0.99995 ? 1 : 0), prog_ = st.map(o => o.p >= 0.99995 ? 0 : o.p);
   const out = ser(0, 'Concluído', done) + ser(1, 'Em andamento', prog_) + ser(2, 'Restante', st.map(o => 1 - o.p)) + ser(3, 'Espaço rótulo', st.map(() => 0.55), `<c:dLbls>${lbl}${tail}</c:dLbls>`);
   return (xml.slice(0, a) + out + xml.slice(b)).replace(/<c:externalData[\s\S]*?<\/c:externalData>/, '');
+}
+// gráfico "Avanço por SOP" desenhado em imagem (PNG), no mesmo estilo do modelo
+async function pptSopImage(st, ratio) {
+  const W = 2400, H = Math.round(W / (ratio || 1.37)), c = document.createElement('canvas'); c.width = W; c.height = H;
+  const g = c.getContext('2d'), F = 'Aptos, "Segoe UI", Calibri, Arial, sans-serif';
+  g.fillStyle = '#fff'; g.fillRect(0, 0, W, H);
+  g.fillStyle = '#595959'; g.font = `bold 34px ${F}`; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText('Avanço por SOP', W / 2, 40);
+  const top = 90, bot = 20, n = Math.max(1, st.length), rh = (H - top - bot) / n, fs = Math.max(11, Math.min(24, rh * 0.62));
+  g.font = `${fs}px ${F}`; const lw = Math.max(...st.map(o => g.measureText(o.sop).width), 100) + 30;
+  const x0 = lw, x1 = W * 0.69, bh = Math.max(4, rh * 0.8);
+  st.forEach((o, i) => {
+    const cy = top + rh * i + rh / 2;
+    g.fillStyle = '#000'; g.textAlign = 'right'; g.font = `${fs}px ${F}`; g.fillText(o.sop, x0 - 16, cy);
+    g.fillStyle = '#E3E5EA'; g.fillRect(x0, cy - bh / 2, x1 - x0, bh);
+    g.fillStyle = '#F7F8FA'; g.fillRect(x0, cy + bh / 2, x1 - x0, Math.max(1, rh - bh) / 2);
+    if (o.p > 0) { g.fillStyle = o.p >= 0.99995 ? '#70AD47' : '#DCC96B'; g.fillRect(x0, cy - bh / 2, (x1 - x0) * Math.min(1, o.p), bh); }
+    g.textAlign = 'left'; g.fillStyle = o.p >= 0.99995 ? '#3E7A23' : '#7F6000'; g.font = `${fs}px ${F}`;
+    const a = `${nfBR(o.p * 100, 1)}%`; g.fillText(a, x1 + 14, cy); g.fillText(`${nfBR(o.ex, 2)}/${nfBR(o.tm, 2)} m`, x1 + 14 + Math.max(g.measureText(a).width + 22, fs * 3.4), cy);
+  });
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  return { bytes: new Uint8Array(await blob.arrayBuffer()), ext: 'png', w: W, h: H };
 }
 /* ---------- apresentação: slide de equipamentos (mapa por área, status e gráfico) ---------- */
 function eqAreaStats() {
@@ -3210,9 +3323,9 @@ function pptSwapPic(files, txt, sp, s, img, name) {
   }
   return s;
 }
-async function pptBuild(capa, P, imgId, eqImgId) {
+async function pptBuild(capa, P, imgId, eqImgId, dates = 'keep') {
   await otherLoad();
-  const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: BASE.sops.length })), eq = inEq(() => eqAreaStats());
+  const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: new Set(pptRows().map(x => x.sop)).size })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
   if (!r.ok) { let m = ''; try { m = (await r.json()).error; } catch (e) {} throw new Error(m || `não consegui baixar o modelo (${r.status})`); }
   const z = await readZip(await r.arrayBuffer());
@@ -3223,7 +3336,7 @@ async function pptBuild(capa, P, imgId, eqImgId) {
   for (const sp of slides) {
     let s = txt(sp);
     // data do relatório (caixa "DATA")
-    s = s.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => /DATA\s*<\/a:t>/.test(blk) ? blk.replace(/\d{2}\/\d{2}\/\d{4}/g, today) : blk);
+    if (dates === 'today') s = s.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => /DATA\s*<\/a:t>/.test(blk) ? blk.replace(/\d{2}\/\d{2}\/\d{4}/g, today) : blk);
     // capa: semana
     s = s.replace(/>Semana\s*\d+</g, `>Semana ${capa}<`);
     // linhas programadas + imagem da programação
@@ -3266,8 +3379,8 @@ async function pptBuild(capa, P, imgId, eqImgId) {
     }
     // resumo geral + gráfico por SOP
     if (tub && /RESUMO GERAL DE EXECU/.test(s)) {
-      const st = tub.sop, tm = st.reduce((t, o) => t + o.tm, 0), ex = st.reduce((t, o) => t + o.ex, 0);
-      const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(tm - ex, 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(tub.nSops)];
+      const st = tub.sop, tm = PPT_TOTAL_M, ex = st.reduce((t, o) => t + o.ex, 0);
+      const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(Math.max(0, tm - ex), 2), nfBR(tm ? ex / tm * 100 : 0, 1) + '%', String(st.filter(o => o.ex > 0.0001).length), String(tub.nSops)];
       const at = s.indexOf('Total de SOPs</a:t>');
       if (at > 0) { let pos = at + 19, k = 0; s = s.slice(0, pos) + s.slice(pos).replace(/<a:t>[^<]*<\/a:t>/g, mm => k < 6 ? `<a:t>${xmlEsc(vals[k++])}</a:t>` : mm); }
       const relsP = relsOf(sp), rels = txt(relsP);
@@ -3276,7 +3389,12 @@ async function pptBuild(capa, P, imgId, eqImgId) {
         const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
         const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
         try { await pptEmbedData(files, txt, cp); } catch (e) { console.error(e); }
-      } else warn.push('não achei o gráfico Avanço por SOP');
+      } else {
+        // modelo com o gráfico colado como imagem: o painel desenha o gráfico e troca a imagem
+        const pic = (s.match(/<p:pic>[\s\S]*?<\/p:pic>/g) || []).map(p => ({ p, e: p.match(/<a:ext cx="(\d+)" cy="(\d+)"/) })).filter(o => o.e).sort((a, b) => b.e[1] * b.e[2] - a.e[1] * a.e[2])[0];
+        const ns = pic ? pptSwapPic(files, txt, sp, s, await pptSopImage(st, pic.e[1] / pic.e[2]), `avanco_sop_${Date.now().toString(36)}`) : null;
+        if (ns) s = ns; else warn.push('não achei o gráfico Avanço por SOP');
+      }
     }
     // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
     // (o slide do mapa visual de equipamentos mantém a imagem do modelo; só números e gráfico mudam)
@@ -3310,7 +3428,8 @@ $('#pptGo').onclick = async () => {
   const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
-    const { blob, warn } = await pptBuild(capa, P, img, eqImg);
+    const dates = $('#pptDates').value; try { localStorage.setItem('ti_ppt_dates', dates); } catch (e) {}
+    const { blob, warn } = await pptBuild(capa, P, img, eqImg, dates);
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const hh = new Date(), stamp = `${String(hh.getDate()).padStart(2, '0')}-${String(hh.getMonth() + 1).padStart(2, '0')}_${String(hh.getHours()).padStart(2, '0')}h${String(hh.getMinutes()).padStart(2, '0')}`;
     a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}_${stamp}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
