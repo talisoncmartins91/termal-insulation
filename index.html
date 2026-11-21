@@ -7,7 +7,7 @@
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
 <!-- PPT-DADOS v8 (16/11/2026): gráficos da apresentação com planilha de dados embutida (Editar dados funciona no PowerPoint) -->
-<!-- PPT v9 (21/11/2026): datas do modelo mantidas, sem linhas NÃO CADASTRADAS NO CT / NÃO DEFINIDO, total fixo 26.790,83 m, gráfico SOP em imagem; visual v3 -->
+<!-- PPT v9 (21/11/2026): DATA do topo = segunda-feira da semana seguinte à capa, datas das áreas mantidas, sem linhas NÃO CADASTRADAS NO CT / NÃO DEFINIDO, total fixo 26.790,83 m, gráfico SOP em imagem; visual v3 -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -1406,7 +1406,7 @@ tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
     <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><h3 id="pptT">Exportar apresentação</h3><p class="muted" style="margin:2px 0 14px">Gera o Mapa Visual com os dados atuais do painel.</p></div><button class="btn ghost" id="pptClose" aria-label="Fechar">✕</button></div>
     <label class="fld"><span>Programação da semana (linhas e imagem)</span><select class="input" id="pptProg"></select></label>
     <label class="fld"><span>Semana da capa</span><select class="input" id="pptCapa"></select></label>
-    <label class="fld"><span>Datas dos slides (caixa “DATA”)</span><select class="input" id="pptDates"><option value="keep">Manter as datas do modelo</option><option value="today">Trocar pela data de hoje</option></select></label>
+    <p class="muted" id="pptDataTxt" style="font-size:12.5px;margin:-4px 0 12px"></p>
     <label class="fld"><span>Imagem do slide de tubulação (programação ou visão geral da unidade)</span><select class="input" id="pptImg"></select><img id="pptImgPrev" alt="Prévia da imagem de tubulação" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <label class="fld"><span>Imagem do slide "Acompanhamento visual · Equipamentos"</span><select class="input" id="pptEqImg"></select><img id="pptEqPrev" alt="Prévia da imagem de equipamentos" hidden style="display:block;max-width:100%;max-height:150px;margin-top:8px;border-radius:8px;border:1px solid rgba(0,0,0,.12)"></label>
     <p class="len-warn" id="pptImgWarn" hidden>Não há imagem da programação desta semana. Você pode escolher uma imagem da Visão geral da unidade na lista acima, ou manter a imagem do modelo.</p>
@@ -3070,6 +3070,7 @@ async function pptPreview(sel, el, scope) {
   } catch (e) {}
 }
 function pptRenderModal() {
+  { const c = +$('#pptCapa').value; if (c) $('#pptDataTxt').innerHTML = `Data no topo dos slides: <b>${pptMonday(c)}</b> (segunda-feira da Semana ${c + 1}). As datas das áreas ficam como no modelo.`; }
   const P = +$('#pptProg').value, tw = inTub(() => ({ imgs: pptImages(P), vg: pptVgImages(), lines: pptWeekLines(P) })) || { imgs: [], vg: [], lines: [] }, imgs = tw.imgs, vg = tw.vg || [], lines = tw.lines;
   const opt = (v, sel) => `<option value="${v.id}"${sel ? ' selected' : ''}>${esc(v.caption || v.filename)} · ${when(v.uploaded_at)}</option>`;
   $('#pptImg').innerHTML =
@@ -3091,10 +3092,10 @@ $('#pptOpen').onclick = async () => {
   const cur = weekOf(Date.now());
   const b = $('#pptOpen'); b.disabled = true; await otherLoad(true); b.disabled = false;
   $('#pptProg').innerHTML = inTub(() => pptWeekOpts(cur)) || pptWeekOpts(cur); $('#pptCapa').innerHTML = pptWeekOpts(cur - 1);
-  try { $('#pptDates').value = localStorage.getItem('ti_ppt_dates') === 'today' ? 'today' : 'keep'; } catch (e) {}
   pptRenderModal(); $('#pptModal').classList.add('on');
 };
 $('#pptProg').onchange = () => { $('#pptCapa').innerHTML = pptWeekOpts(+$('#pptProg').value - 1); pptRenderModal(); };
+$('#pptCapa').onchange = () => pptRenderModal();
 $('#pptClose').onclick = () => $('#pptModal').classList.remove('on');
 $('#pptImg').onchange = () => pptPreview($('#pptImg'), $('#pptImgPrev'), 'tub');
 $('#pptEqImg').onchange = () => pptPreview($('#pptEqImg'), $('#pptEqPrev'), 'eqp');
@@ -3323,7 +3324,9 @@ function pptSwapPic(files, txt, sp, s, img, name) {
   }
   return s;
 }
-async function pptBuild(capa, P, imgId, eqImgId, dates = 'keep') {
+// data do topo dos slides (caixa "DATA") = segunda-feira da semana seguinte à da capa (ex.: capa S72 → 16/11, segunda da S73)
+const pptMonday = capa => dFmt.format(new Date(weekStart(capa + 1) + 12 * 3600e3));
+async function pptBuild(capa, P, imgId, eqImgId) {
   await otherLoad();
   const tub = inTub(() => ({ lines: pptWeekLines(P), sop: sopStats(), nSops: new Set(pptRows().map(x => x.sop)).size })), eq = inEq(() => eqAreaStats());
   const r = await fetch(`${API_URL}/ppt/template`, { headers: { 'X-Scope': 'tub', ...(token ? { Authorization: 'Bearer ' + token } : {}) }, cache: 'no-store' });
@@ -3331,12 +3334,13 @@ async function pptBuild(capa, P, imgId, eqImgId, dates = 'keep') {
   const z = await readZip(await r.arrayBuffer());
   const files = new Map(); for (const n of z.names) files.set(n, await z.raw(n));
   const td = new TextDecoder(), txt = n => typeof files.get(n) === 'string' ? files.get(n) : td.decode(files.get(n));
-  const today = dFmt.format(new Date(Date.now())), slides = z.names.filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
+  const today = pptMonday(capa), slides = z.names.filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
   const warn = [];
   for (const sp of slides) {
     let s = txt(sp);
     // data do relatório (caixa "DATA")
-    if (dates === 'today') s = s.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => /DATA\s*<\/a:t>/.test(blk) ? blk.replace(/\d{2}\/\d{2}\/\d{4}/g, today) : blk);
+    // só a data da caixa "DATA" do topo muda; as datas das áreas (conclusão etc.) ficam como no modelo
+    s = s.replace(/<p:sp>[\s\S]*?<\/p:sp>/g, blk => /DATA\s*<\/a:t>/.test(blk) ? blk.replace(/\d{2}\/\d{2}\/\d{4}/g, today) : blk);
     // capa: semana
     s = s.replace(/>Semana\s*\d+</g, `>Semana ${capa}<`);
     // linhas programadas + imagem da programação
@@ -3428,8 +3432,7 @@ $('#pptGo').onclick = async () => {
   const capa = +$('#pptCapa').value, P = +$('#pptProg').value, img = $('#pptImg').value, eqImg = $('#pptEqImg').value, btn = $('#pptGo');
   btn.disabled = true; btn.textContent = 'Gerando…';
   try {
-    const dates = $('#pptDates').value; try { localStorage.setItem('ti_ppt_dates', dates); } catch (e) {}
-    const { blob, warn } = await pptBuild(capa, P, img, eqImg, dates);
+    const { blob, warn } = await pptBuild(capa, P, img, eqImg);
     const a = document.createElement('a'); a.href = URL.createObjectURL(blob); const hh = new Date(), stamp = `${String(hh.getDate()).padStart(2, '0')}-${String(hh.getMonth() + 1).padStart(2, '0')}_${String(hh.getHours()).padStart(2, '0')}h${String(hh.getMinutes()).padStart(2, '0')}`;
     a.download = `Mapa_Visual_-_EstMetalica_e_Isolamento_SEM${capa}_${stamp}.pptx`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000);
     $('#pptModal').classList.remove('on');
