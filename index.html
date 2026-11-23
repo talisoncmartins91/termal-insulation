@@ -7,6 +7,7 @@
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
 <!-- PPT-DADOS v8 (16/11/2026): gráficos da apresentação com planilha de dados embutida (Editar dados funciona no PowerPoint) -->
+<!-- PPT v11 (23/11/2026): com modelo antigo salvo no painel, os slides de tubulação são montados no layout da S72 (2 imagens; gráfico SOP em imagem) e o aviso diz qual modelo está salvo -->
 <!-- PPT v10 (21/11/2026): modelo SEM72 — fotos ocupam o quadro do modelo (mesmo recorte), 2ª imagem no slide de tubulação, gráfico SOP sem título preenchendo o quadro, % executado sem casas -->
 <!-- PPT v9 (21/11/2026): DATA do topo = segunda-feira da semana seguinte à capa, datas das áreas mantidas, sem linhas NÃO CADASTRADAS NO CT / NÃO DEFINIDO, total fixo 26.790,83 m, gráfico SOP em imagem; visual v3 -->
 <!-- BASE-MODELO v3 (10/11/2026): Baixar base (modelo .xlsx) em Linhas e em Usuários > Base do escopo; atualização da base protegendo linhas medidas -->
@@ -3316,15 +3317,50 @@ function pptFinalize(files, txt, warn) {
 }
 // troca a imagem de um quadro do slide mantendo o quadro do modelo (mesma posição, tamanho e recorte):
 // se a foto nova tem a mesma proporção da foto do modelo, usa o mesmo recorte; senão, recorta ao centro para preencher o quadro
-async function pptFillPic(files, txt, sp, s, pic, img, name) {
+// recorte ao centro para a foto preencher um quadro de proporção F
+function pptCover(F, r) {
+  if (Math.abs(r - F) / F < 0.01) return '<a:srcRect/>';
+  if (r > F) { const k = Math.round((1 - F / r) / 2 * 100000); return `<a:srcRect l="${k}" r="${k}"/>`; }
+  const k = Math.round((1 - r / F) / 2 * 100000); return `<a:srcRect t="${k}" b="${k}"/>`;
+}
+// layout do modelo S72 (Mapa_Visual_..._SEM72): usado quando o modelo salvo no painel não tem os quadros desses slides
+const PPT_TUB_G1 = [466436, 584775, 8548254, 5475492], PPT_TUB_G2 = [4318000, 4800600, 8115300, 4564856], PPT_SOP_G = [1169231, 1758164, 10463138, 7612652];
+// foto 16:9 (Navisworks) no quadro 1 da tubulação: mesmo recorte do modelo S72 (corta só a direita)
+const pptTubSrc1 = img => Math.abs(img.w / img.h - 16 / 9) < 0.04 ? '<a:srcRect r="12184"/>' : pptCover(PPT_TUB_G1[2] / PPT_TUB_G1[3], img.w / img.h);
+const pptSetFrame = (pic, g) => pic.replace(/<a:off x="-?\d+" y="-?\d+"\/>\s*<a:ext cx="\d+" cy="\d+"\/>/, `<a:off x="${g[0]}" y="${g[1]}"/><a:ext cx="${g[2]}" cy="${g[3]}"/>`);
+// cria um quadro de imagem novo no slide (posição g); "before" = bloco antes do qual entra (fica atrás dele)
+function pptAddPic(files, txt, sp, s, img, name, g, before, src) {
+  const relsP = relsOf(sp);
+  let rels = files.has(relsP) ? txt(relsP) : '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>';
+  let n = 1; while (rels.includes(`Id="rIdPainelImg${n}"`)) n++; const rid = `rIdPainelImg${n}`;
+  files.set(`ppt/media/${name}.${img.ext}`, img.bytes);
+  files.set(relsP, rels.replace('</Relationships>', `<Relationship Id="${rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/${name}.${img.ext}"/></Relationships>`));
+  const id = Math.max(1, ...[...s.matchAll(/<p:cNvPr id="(\d+)"/g)].map(m => +m[1])) + 1;
+  const pic = `<p:pic><p:nvPicPr><p:cNvPr id="${id}" name="Imagem ${id}"/><p:cNvPicPr><a:picLocks noChangeAspect="1"/></p:cNvPicPr><p:nvPr/></p:nvPicPr><p:blipFill><a:blip r:embed="${rid}"/>${src || pptCover(g[2] / g[3], img.w / img.h)}<a:stretch><a:fillRect/></a:stretch></p:blipFill><p:spPr><a:xfrm><a:off x="${g[0]}" y="${g[1]}"/><a:ext cx="${g[2]}" cy="${g[3]}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></p:spPr></p:pic>`;
+  return before && s.includes(before) ? s.replace(before, pic + before) : s.replace('</p:spTree>', pic + '</p:spTree>');
+}
+// tira do slide um gráfico (quadro + arquivos do gráfico)
+function pptDropChart(files, txt, sp, s, target) {
+  const relsP = relsOf(sp), rels = txt(relsP);
+  const rel = [...rels.matchAll(/<Relationship\b[^>]*>/g)].map(m => m[0]).find(r => r.includes(`Target="${target}"`)); if (!rel) return s;
+  const id = (rel.match(/Id="([^"]+)"/) || [])[1];
+  const ns = s.replace(new RegExp(`<p:graphicFrame>(?:(?!<\\/p:graphicFrame>)[\\s\\S])*?r:id="${id}"[\\s\\S]*?<\\/p:graphicFrame>`), '');
+  if (ns === s) return s;
+  files.set(relsP, rels.replace(rel, ''));
+  const cp = relPath(sp, target), cr = relsOf(cp);
+  if (files.has(cr)) { for (const m of txt(cr).matchAll(/<Relationship\b[^>]*>/g)) { const t = (m[0].match(/Target="([^"]+)"/) || [])[1]; if (t && !/TargetMode="External"/.test(m[0])) files.delete(relPath(cp, t)); } files.delete(cr); }
+  files.delete(cp);
+  return ns;
+}
+async function pptFillPic(files, txt, sp, s, pic, img, name, srcOv) {
   const relsP = relsOf(sp); if (!files.has(relsP)) return null;
   const rels = txt(relsP), id = (pic.match(/r:embed="([^"]+)"/) || [])[1]; if (!id) return null;
   const relRe = new RegExp(`(<Relationship\\b[^>]*Id="${id}"[^>]*Target=")([^"]+)(")`);
   const oldT = (rels.match(relRe) || [])[2]; if (!oldT) return null;
   const e = pic.match(/<a:ext cx="(\d+)" cy="(\d+)"\/>/), F = e ? e[1] / e[2] : img.w / img.h, r = img.w / img.h;
   const oldSrc = (pic.match(/<a:srcRect\b[^>]*\/>/) || [''])[0];
-  let src = null;
-  if (oldSrc && /\s[ltrb]="/.test(oldSrc)) {
+  let src = srcOv || null;
+  if (!src && oldSrc && /\s[ltrb]="/.test(oldSrc)) {
     try { const ob = files.get(relPath(sp, oldT)), bm = await createImageBitmap(new Blob([typeof ob === 'string' ? new TextEncoder().encode(ob) : ob])); if (Math.abs(bm.width / bm.height - r) < 0.02 * r) src = oldSrc; } catch (err) {}
   }
   if (!src) {
@@ -3372,7 +3408,7 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
   const files = new Map(); for (const n of z.names) files.set(n, await z.raw(n));
   const td = new TextDecoder(), txt = n => typeof files.get(n) === 'string' ? files.get(n) : td.decode(files.get(n));
   const today = pptMonday(capa), slides = z.names.filter(n => /^ppt\/slides\/slide\d+\.xml$/.test(n));
-  const warn = [];
+  const warn = []; let tplOld = false;
   for (const sp of slides) {
     let s = txt(sp);
     // data do relatório (caixa "DATA")
@@ -3398,12 +3434,24 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
         return out;
       });
       // 1ª imagem escolhida → maior quadro do slide; 2ª → segundo quadro. Cada foto ocupa o quadro do modelo (mesma formatação)
-      const pics = pptPics(s), want = [imgId, img2Id], tag = Date.now().toString(36);
+      // se o modelo salvo no painel não tem os dois quadros (modelo antigo), os quadros são montados no layout do modelo S72
+      const want = [imgId, img2Id], tag = Date.now().toString(36);
+      let pics = pptPics(s), s72 = false;
+      if (pics.length < 2 && (want[0] || want[1])) {
+        s72 = true; tplOld = true;
+        if (pics[0]) { s = s.replace(pics[0].p, pptSetFrame(pics[0].p, PPT_TUB_G1)); pics = pptPics(s); }
+      }
       for (let i = 0; i < 2; i++) {
         if (!want[i]) continue;
-        if (!pics[i]) { warn.push(i ? 'o slide das linhas programadas não tem uma segunda imagem' : 'não achei a imagem no slide das linhas programadas'); continue; }
-        const ns = await pptFillPic(files, txt, sp, s, pics[i].p, await pptImageBytes(want[i]), `programacao_S${P}_${i + 1}_${tag}`);
-        if (ns) s = ns; else warn.push('não consegui trocar a imagem do slide das linhas programadas');
+        const img = await pptImageBytes(want[i]), name = `programacao_S${P}_${i + 1}_${tag}`;
+        if (pics[i]) {
+          const ns = await pptFillPic(files, txt, sp, s, pics[i].p, img, name, s72 && i === 0 ? pptTubSrc1(img) : null);
+          if (ns) s = ns; else warn.push('não consegui trocar a imagem do slide das linhas programadas');
+        } else {
+          const first = pptPics(s)[0];
+          s = i ? pptAddPic(files, txt, sp, s, img, name, PPT_TUB_G2, first && first.p)
+                : pptAddPic(files, txt, sp, s, img, name, PPT_TUB_G1, null, pptTubSrc1(img));
+        }
       }
     }
     // resumo geral + gráfico por SOP
@@ -3412,18 +3460,17 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
       const vals = [nfBR(tm, 2), nfBR(ex, 2), nfBR(Math.max(0, tm - ex), 2), nfBR(tm ? ex / tm * 100 : 0, 0) + '%', String(st.filter(o => o.ex > 0.0001).length), String(tub.nSops)];
       const at = s.indexOf('Total de SOPs</a:t>');
       if (at > 0) { let pos = at + 19, k = 0; s = s.slice(0, pos) + s.slice(pos).replace(/<a:t>[^<]*<\/a:t>/g, mm => k < 6 ? `<a:t>${xmlEsc(vals[k++])}</a:t>` : mm); }
-      const relsP = relsOf(sp), rels = txt(relsP);
-      const target = pptPickChart(files, txt, sp, rels, /SUBSOP/i, /SOP/i);
-      if (target) {
-        const cp = relPath(sp, target); files.set(cp, pptChart(txt(cp), st));
-        const cr = relsOf(cp); if (files.has(cr)) files.set(cr, txt(cr).replace(/<Relationship [^>]*TargetMode="External"[^>]*\/>/g, ''));
-        try { await pptEmbedData(files, txt, cp); } catch (e) { console.error(e); }
+      // gráfico "Avanço por SOP" sempre em imagem, como no modelo S72: desenhado na proporção exata do quadro e sem recorte
+      const pic = pptPics(s)[0], name = `avanco_sop_${Date.now().toString(36)}`;
+      if (pic) {
+        const ns = await pptFillPic(files, txt, sp, s, pic.p, await pptSopImage(st, pic.e[1] / pic.e[2]), name, '<a:srcRect/>');
+        if (ns) s = ns; else warn.push('não consegui trocar o gráfico Avanço por SOP');
       } else {
-        // modelo com o gráfico colado como imagem: o painel desenha o gráfico e troca a imagem
-        // a imagem é desenhada na proporção exata do quadro do modelo e entra sem recorte
-        const pic = pptPics(s)[0];
-        const ns = pic ? await pptFillPic(files, txt, sp, s, pic.p, await pptSopImage(st, pic.e[1] / pic.e[2]), `avanco_sop_${Date.now().toString(36)}`) : null;
-        if (ns) s = ns; else warn.push('não achei o gráfico Avanço por SOP');
+        // modelo antigo (gráfico do PowerPoint / vinculado ao Excel): tira os gráficos do slide e põe a imagem no lugar do modelo S72
+        tplOld = true;
+        const rels = files.has(relsOf(sp)) ? txt(relsOf(sp)) : '';
+        for (const m of rels.matchAll(/<Relationship\b[^>]*>/g)) if (/Type="[^"]*\/chart"/.test(m[0])) { const t = (m[0].match(/Target="([^"]+)"/) || [])[1]; if (t) s = pptDropChart(files, txt, sp, s, t); }
+        s = pptAddPic(files, txt, sp, s, await pptSopImage(st, PPT_SOP_G[2] / PPT_SOP_G[3]), name, PPT_SOP_G, null, '<a:srcRect/>');
       }
     }
     // equipamentos: slide "ACOMPANHAMENTO VISUAL ISOLAMENTO DE EQUIPAMENTOS" recebe a imagem escolhida
@@ -3446,6 +3493,7 @@ async function pptBuild(capa, P, imgId, eqImgId, img2Id) {
     files.set(sp, s);
   }
   if (!tub) warn.push('sem base de tubulação: os slides de tubulação ficaram como no modelo');
+  if (tplOld) warn.push(`o modelo salvo no painel${pptInfo && pptInfo.filename ? ` (${pptInfo.filename})` : ''} não é o da S72; os slides de tubulação foram montados no layout da S72 — envie o arquivo da S72 em "Enviar modelo (.pptx)"`);
   // demais gráficos do modelo sem planilha de dados (ex.: estrutura metálica): embute a planilha também
   for (const cp of [...files.keys()].filter(n => /^ppt\/charts\/chart[^/]*\.xml$/.test(n))) {
     if (/<c:externalData\b/.test(txt(cp))) continue;
