@@ -4,6 +4,7 @@
 <!-- EXPORT-EXCEL-ESTRUTURA v2 (09/11/2026): botão Exportar Excel na aba SOP, SUBSOP e STH -->
 <!-- GESTOR+COATING v4 (11/11/2026): perfil Gestor e filtro Só Coating nos comprimentos -->
 <!-- SPOOLS-CSV+COAT-LEN v5 (12/11/2026): Exportar CSV de Linhas com os spools; barra Coating em Comprimento dos spools -->
+<!-- INC-BASE v7 (27/11/2026): incluir linha nova ou spools novos direto na base, sem subir a planilha inteira -->
 <!-- PREV-TODOS-MESES v6 (16/11/2026): tirar linhas/spools da previsão de qualquer mês ou de todos os meses -->
 <!-- PPT-FIX v7 (16/11/2026): apresentação sem vínculo externo nos gráficos (SUBSOP), gráfico SOP certo e tipos de arquivo conferidos -->
 <!-- PPT-DADOS v8 (16/11/2026): gráficos da apresentação com planilha de dados embutida (Editar dados funciona no PowerPoint) -->
@@ -966,7 +967,7 @@ tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
         <div class="panel">
           <div class="panel-h">
             <div><h2>Linhas do escopo</h2><p>Lance o avanço por spool (abra a linha em ▸) ou na linha inteira, que aplica o mesmo valor a todos os spools. SOP, SUBSOP e STH são atualizados automaticamente.</p></div>
-            <div class="tools"><button class="btn" id="btTpl2" type="button" title="Planilha com a base atual (linhas e spools) para preencher os dados novos e enviar em Usuários > Base do escopo">Baixar base (modelo .xlsx)</button><button class="btn" id="exportCsv">Exportar CSV</button></div>
+            <div class="tools"><button class="btn" id="btTpl2" type="button" title="Planilha com a base atual (linhas e spools) para preencher os dados novos e enviar em Usuários > Base do escopo">Baixar base (modelo .xlsx)</button><button class="btn primary" id="incBtn" type="button" hidden title="Adicionar spools a uma linha ou incluir uma linha nova, sem subir a base inteira">+ Linha / spools</button><button class="btn" id="exportCsv">Exportar CSV</button></div>
           </div>
           <div class="coat-tabs" id="lnCoatBar"><div class="seg" id="lnCoat" role="group" aria-label="Executante"><button type="button" data-ct="" aria-pressed="true">Todas as linhas</button><button type="button" data-ct="coat" aria-pressed="false">Coating</button><button type="button" data-ct="own" aria-pressed="false">Sem Coating</button></div><span class="coat-leg"><i></i>Linhas executadas pela Coating</span><span class="coat-info" id="lnCoatInfo" hidden></span></div>
           
@@ -997,6 +998,7 @@ tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
             <button class="btn sm coat-adm coat-on" id="bulkCoatOn">Passar para Coating</button>
             <button class="btn sm coat-adm" id="bulkCoatOff">Tirar da Coating</button>
             <span class="sep"></span>
+            <span class="sep inc-adm"></span><button class="btn sm inc-adm" id="bulkIncSp" title="Adicionar spools à linha selecionada">+ Spools nesta linha</button>
             <button class="btn ghost sm" id="bulkClear">Limpar seleção</button>
           </div>
           <div class="tbl-wrap">
@@ -1433,6 +1435,28 @@ tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
   </div>
 </div>
 
+<div class="modal" id="incModal" role="dialog" aria-modal="true" aria-labelledby="incT">
+  <div class="box" style="width:min(860px,100%)">
+    <div style="display:flex;gap:12px;align-items:flex-start"><div style="flex:1"><div class="muted" style="font-size:12.5px">Base do escopo · inclusão rápida</div><h3 id="incT">Incluir linha ou spools</h3><p class="muted" style="margin:2px 0 12px">Grava direto na base atual, sem precisar subir a planilha inteira. Avanços, programação e medições das outras linhas não mudam.</p></div><button class="btn ghost" id="incClose" aria-label="Fechar">✕</button></div>
+    <div class="seg" id="incMode" role="group" aria-label="O que incluir" style="margin-bottom:14px"><button type="button" data-im="sp" aria-pressed="true">Adicionar spools a uma linha</button><button type="button" data-im="ln" aria-pressed="false">Nova linha</button></div>
+    <div id="incSpBox">
+      <label class="fld"><span>Linha</span><input class="input" id="incLine" list="lineList" placeholder="Digite para buscar a linha" autocomplete="off"></label>
+      <div id="incLineInfo"></div>
+    </div>
+    <div id="incLnBox" hidden>
+      <label class="fld"><span>Copiar os dados de uma linha existente (opcional)</span><input class="input" id="incCopy" list="lineList" placeholder="Ex.: uma linha do mesmo SOP/STH, para não digitar tudo" autocomplete="off"></label>
+      <div id="incFields" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:0 12px"></div>
+    </div>
+    <div class="h4" style="margin-top:6px">Spools novos <span class="muted" id="incSpHint" style="font-weight:400"></span></div>
+    <div class="tbl-wrap" style="max-height:260px;overflow:auto;border:1px solid var(--line2);border-radius:6px"><table><thead><tr><th>Spool</th><th class="num">Comprimento no Mapa (m)</th><th></th></tr></thead><tbody id="incSpBody"></tbody></table></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn sm" id="incSpAdd" type="button">+ Spool</button><button class="btn sm" id="incPasteBtn" type="button">Colar do Excel</button><span class="muted" id="incSpSum" style="font-size:12.5px;align-self:center"></span></div>
+    <div id="incPasteW" hidden style="margin-top:8px"><textarea class="input" id="incPaste" rows="4" style="width:100%;font-family:monospace" placeholder="Cole duas colunas do Excel: SPOOL e COMPRIMENTO (uma linha por spool)"></textarea><button class="btn sm primary" id="incPasteGo" type="button" style="margin-top:6px">Adicionar os spools colados</button></div>
+    <div id="incLenW" style="margin-top:12px"></div>
+    <div class="err" id="incErr" style="margin-top:8px"></div>
+    <div class="m-foot"><button class="btn" type="button" id="incCancel">Cancelar</button><button class="btn primary" id="incGo">Gravar na base</button></div>
+  </div>
+</div>
+
 <div class="modal" id="pwModal" role="dialog" aria-modal="true" aria-labelledby="pwT">
   <div class="box">
     <h3 id="pwT">Alterar minha senha</h3>
@@ -1456,7 +1480,7 @@ tr.tot td{background:#F4F7FA;border-top:1px solid var(--line)}
 /* ============ configuração ============ */
 const API_URL = 'https://bold-night-0842.talisonc-martins91.workers.dev'; // URL do Worker
 const TZ = 'America/Recife';
-const APP_BUILD = '03/11/2026 12:00'; // versão deste arquivo
+const APP_BUILD = '27/11/2026 10:00'; // versão deste arquivo
 const TOKEN_KEY = 'ti_isol_token';
 
 /* ============ base do escopo ============ */
@@ -5239,6 +5263,211 @@ async function btFromXlsx(buf) {
   return out;
 }
 ['btTpl', 'btTpl2'].forEach(id => document.getElementById(id)?.addEventListener('click', () => { try { btExport(); } catch (e) { console.error(e); toast('Não foi possível gerar a planilha: ' + e.message, true); } }));
+/* ============ inclusão rápida na base (tubulação): nova linha ou spools novos, sem subir a base inteira ============ */
+// Grava a base atual do servidor + a inclusão (POST /base). Só o administrador, só na tubulação.
+// Spools novos numa linha com spools: por padrão o comprimento da linha soma os spools novos e os spools atuais
+// ficam com o mesmo comprimento de hoje (o rateio é "congelado" na base), para não mexer em avanço nem medição.
+const INC_FLDS = [['LINHA', 0], ['METROS (ESCOPO)', 1], ['SOP', 6], ['SUBSOP', 7], ['STH', 8], ['ITEM PPU', 5], ['DIÂMETRO', 4], ['ESPESSURA (mm)', 2],
+  ['ESPESSURA PYROGEL (mm)', 3], ['PINTURA', 9], ['TRAÇO', 10], ['TH', 11], ['ETAPA', 13], ['CRITÉRIO', 14], ['TAG', 15], ['UNIDADE', 16]];
+let incMode = 'sp', incRows = [], incLenMode = '';
+const incCanUse = () => isUserAdmin() && !EQP && BASE && BASE.scope !== 'eqp';
+const incNorm = v => String(v ?? '').trim();
+function incFitRaw(sps, target) {   // mesmo rateio de spoolFit, sobre a base crua [[code, comp]]
+  const tot = sps.reduce((t, a) => t + (Number(a[1]) || 0), 0), dif = target - tot;
+  const rule = !sps.length ? null : Math.abs(dif) < 0.005 ? 'igual' : dif > 0 ? 'menor' : 'maior';
+  let acc = 0;
+  const ms = sps.map((a, k) => { const c = Number(a[1]) || 0; let mm = rule === 'menor' ? c + dif / sps.length : rule === 'maior' ? (tot > 0 ? c * target / tot : target / sps.length) : c; if (k === sps.length - 1) mm = Math.max(0, target - acc); acc += mm; return mm; });
+  return { ms, rule, tot };
+}
+function incNextCode(codes) {
+  const nums = codes.map(c => (String(c).match(/^(.*?)(\d+)$/) || [])).filter(m => m.length);
+  if (!nums.length) return '';
+  const last = nums.sort((a, b) => Number(a[2]) - Number(b[2]))[nums.length - 1];
+  return last[1] + String(Number(last[2]) + 1).padStart(last[2].length, '0');
+}
+function incSpRowsHtml() {
+  $('#incSpBody').innerHTML = incRows.length ? incRows.map((r, k) => `<tr><td><input class="input" data-ic="${k}" value="${esc(r.code)}" placeholder="Ex.: 006" style="width:100%;min-width:140px"></td>
+    <td class="num"><input class="input" data-im2="${k}" inputmode="decimal" value="${esc(r.comp)}" placeholder="0,00" style="width:120px;text-align:right"></td>
+    <td><button class="btn sm ghost" type="button" data-irm="${k}" aria-label="Remover">✕</button></td></tr>`).join('')
+    : `<tr><td colspan="3" class="muted">${incMode === 'ln' ? 'Linha sem spool. Clique em + Spool se a linha tiver spools.' : 'Clique em + Spool ou cole a lista do Excel.'}</td></tr>`;
+  incSum();
+}
+const incNewSum = () => incRows.reduce((t, r) => t + (parseNum(r.comp) || 0), 0);
+function incSum() {
+  const n = incRows.filter(r => incNorm(r.code)).length;
+  $('#incSpSum').textContent = n ? `${f0(n)} ${n === 1 ? 'spool novo' : 'spools novos'} · ${f2(incNewSum())} m` : '';
+  incLenHtml();
+}
+function incLineX() { return byLine.get(incNorm($('#incLine').value)) || null; }
+function incLenHtml() {
+  const w = $('#incLenW');
+  if (incMode === 'ln') { w.innerHTML = incRows.length ? '<p class="muted" style="font-size:12.5px;margin:0">Se METROS (ESCOPO) ficar vazio, a linha recebe a soma dos spools.</p>' : ''; return; }
+  const x = incLineX(); if (!x) { w.innerHTML = ''; return; }
+  const s = incNewSum(), has = x.sps.length > 0, med = bmMeasured(x);
+  const opts = [];
+  if (has) opts.push(['soma', `Somar ao comprimento da linha: ${f2(x.mEsc)} + ${f2(s)} = <b>${f2(x.mEsc + s)} m</b>. Os spools atuais continuam com o comprimento de hoje.`]);
+  if (!med) {
+    const allMapa = (has ? x.spMapa : 0) + s;
+    opts.push(['todos', `Comprimento da linha = soma de todos os spools no Mapa: <b>${f2(allMapa)} m</b>${has ? ' (os spools atuais voltam ao comprimento do Mapa)' : ''}.`]);
+    opts.push(['manter', `Manter a linha com <b>${f2(x.mEsc)} m</b> e ratear entre ${has ? 'todos ' : ''}os spools${has ? ' (os spools atuais mudam de comprimento)' : ''}.`]);
+  }
+  if (!opts.some(o => o[0] === incLenMode)) incLenMode = opts[0][0];
+  w.innerHTML = `<div class="h4" style="margin-top:0">Comprimento da linha</div>` + opts.map(([v, t]) => `<label style="display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px;cursor:pointer"><input type="radio" name="incLen" value="${v}" ${incLenMode === v ? 'checked' : ''}><span>${t}</span></label>`).join('')
+    + (x.nEd ? `<p class="len-warn">Esta linha tem ${x.nEd} ${x.nEd === 1 ? 'comprimento editado' : 'comprimentos editados'} no painel. ${has ? 'Eles continuam valendo.' : 'Com spools, o comprimento editado da linha inteira deixa de valer.'}</p>` : '');
+}
+function incLineInfo() {
+  const x = incLineX(), el = $('#incLineInfo');
+  if (!incNorm($('#incLine').value)) { el.innerHTML = ''; incLenHtml(); return; }
+  if (!x) { el.innerHTML = '<p class="len-warn">Linha não encontrada na base. Para criar, use "Nova linha".</p>'; incLenHtml(); return; }
+  const med = bmMeasured(x), p = pct(x);
+  el.innerHTML = `<p class="muted" style="font-size:12.5px;margin:0 0 6px">${esc(x.sop)} · ${esc(x.sth)} · ${f2(x.m)} m · avanço ${pctTxt(p)}${med ? ' · <b>linha medida</b>' : ''}</p>
+    ${x.sps.length ? `<details style="margin-bottom:8px"><summary style="cursor:pointer;font-size:13px">Spools atuais (${x.sps.length})</summary><div style="font-size:12.5px;columns:3 160px;margin-top:6px">${x.sps.map(sp => `<div>${esc(sp.code)} · ${f2(sp.m)} m</div>`).join('')}</div></details>` : '<p class="muted" style="font-size:12.5px;margin:0 0 8px">Hoje a linha não tem spools.</p>'}
+    ${!x.sps.length && med ? '<div class="bm-alert" style="margin:0 0 8px">Esta linha já foi medida na linha inteira (sem spool). Incluir spools mudaria a medição: a inclusão foi bloqueada.</div>' : !x.sps.length && p > 0 ? `<p class="len-warn">A linha tem ${pctTxt(p)} de avanço lançado na linha inteira. Os spools novos começam com esse mesmo %.</p>` : x.sps.length && p > 0 ? '<p class="muted" style="font-size:12.5px;margin:0 0 8px">Os spools novos começam com o avanço da linha antes dos lançamentos por spool; ajuste depois na aba Linhas.</p>' : ''}`;
+  if (!incRows.length || (incRows.length === 1 && !incNorm(incRows[0].comp))) { incRows = [{ code: incNextCode(x.sps.map(s => s.code)), comp: '' }]; incSpRowsHtml(); } else incLenHtml();
+}
+function incFieldsHtml(src) {
+  const dict = { 6: BASE.sops, 7: BASE.subs, 8: BASE.sths };
+  const valOf = k => src ? (dict[k] ? dict[k][src[k]] : src[k]) : '';
+  $('#incFields').innerHTML = INC_FLDS.map(([n, k]) => {
+    const opts = k === 0 || k === 1 ? [] : [...new Set(BASE.rows.map(r => incNorm(dict[k] ? dict[k][r[k]] : r[k])).filter(Boolean))].sort();
+    const v = k === 0 ? '' : k === 1 ? '' : valOf(k);
+    return `<label class="fld"><span>${esc(n)}${k === 0 || k === 6 ? ' *' : ''}</span><input class="input" data-if="${k}" value="${esc(v ?? '')}" ${opts.length ? `list="incDl${k}"` : ''} ${k === 1 ? 'inputmode="decimal" placeholder="soma dos spools, se vazio"' : ''} autocomplete="off">${opts.length ? `<datalist id="incDl${k}">${opts.slice(0, 3000).map(o => `<option value="${esc(o)}">`).join('')}</datalist>` : ''}</label>`;
+  }).join('');
+}
+function incSetMode(m) {
+  const sw = incMode !== m; incMode = m; $$('#incMode [data-im]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.im === m)));
+  $('#incSpBox').hidden = m !== 'sp'; $('#incLnBox').hidden = m !== 'ln';
+  $('#incSpHint').textContent = m === 'ln' ? '(opcional)' : '';
+  $('#incErr').textContent = '';
+  if (sw) incRows = [];
+  if (m === 'ln' && !$('#incFields').innerHTML) incFieldsHtml(null);
+  incSpRowsHtml(); if (m === 'sp') incLineInfo();
+}
+function incOpen(line) {
+  if (!incCanUse()) return toast('Só o administrador pode incluir na base da tubulação.', true);
+  buildHIdx(); buildMedIdx();
+  incRows = []; incLenMode = ''; $('#incLine').value = line || ''; $('#incCopy').value = ''; $('#incFields').innerHTML = ''; $('#incPaste').value = ''; $('#incPasteW').hidden = true;
+  incSetMode('sp'); $('#incModal').classList.add('on');
+  setTimeout(() => (line ? $('#incSpBody input') : $('#incLine'))?.focus(), 30);
+}
+const incClose = () => $('#incModal').classList.remove('on');
+$('#incClose').onclick = $('#incCancel').onclick = incClose;
+$$('#incMode [data-im]').forEach(b => b.onclick = () => incSetMode(b.dataset.im));
+$('#incLine').addEventListener('input', () => { incLenMode = ''; incLineInfo(); });
+$('#incCopy').addEventListener('change', () => { const x = byLine.get(incNorm($('#incCopy').value)); if (!x) return toast('Linha não encontrada para copiar.', true); const keep = $('#incFields [data-if="0"]')?.value || ''; incFieldsHtml(BASE.rows[x.i]); $('#incFields [data-if="0"]').value = keep; toast(`Dados copiados de ${x.line}. Confira e informe a LINHA nova.`); });
+$('#incSpAdd').onclick = () => {
+  const base = incMode === 'sp' && incLineX() ? incLineX().sps.map(s => s.code) : [];
+  incRows.push({ code: incNextCode([...base, ...incRows.map(r => r.code)].filter(Boolean)), comp: '' }); incSpRowsHtml();
+  const ins = $$('#incSpBody [data-im2]'); ins[ins.length - 1]?.focus();
+};
+$('#incPasteBtn').onclick = () => { $('#incPasteW').hidden = !$('#incPasteW').hidden; if (!$('#incPasteW').hidden) $('#incPaste').focus(); };
+$('#incPasteGo').onclick = () => {
+  const lines = $('#incPaste').value.split(/\r?\n/).map(l => l.split(/\t|;/).map(incNorm)).filter(a => a[0]);
+  const add = lines.filter(a => !/^spool$/i.test(a[0])).map(a => ({ code: a[0], comp: a[1] || '' }));
+  if (!add.length) return toast('Nada para adicionar. Cole duas colunas: SPOOL e COMPRIMENTO.', true);
+  incRows = incRows.filter(r => incNorm(r.code) || incNorm(r.comp)).concat(add); $('#incPaste').value = ''; $('#incPasteW').hidden = true; incSpRowsHtml();
+  toast(`${add.length} ${add.length === 1 ? 'spool adicionado' : 'spools adicionados'} à lista.`);
+};
+$('#incSpBody').addEventListener('input', e => { const c = e.target.closest('[data-ic]'), m = e.target.closest('[data-im2]'); if (c) incRows[+c.dataset.ic].code = c.value; if (m) { incRows[+m.dataset.im2].comp = m.value; incSum(); } });
+$('#incSpBody').addEventListener('click', e => { const b = e.target.closest('[data-irm]'); if (!b) return; incRows.splice(+b.dataset.irm, 1); incSpRowsHtml(); });
+$('#incLenW').addEventListener('change', e => { if (e.target.name === 'incLen') { incLenMode = e.target.value; } });
+// valida os spools digitados contra os códigos que já existem
+function incReadSpools(existing) {
+  const out = [], seen = new Set(existing.map(c => c.toLowerCase())), errs = [];
+  incRows.forEach((r, k) => {
+    const code = incNorm(r.code), raw = incNorm(r.comp); if (!code && !raw) return;
+    const m = parseNum(raw);
+    if (!code) errs.push(`spool da linha ${k + 1} da lista sem código`);
+    else if (seen.has(code.toLowerCase())) errs.push(`spool ${code} já existe nesta linha`);
+    else if (m == null || m < 0 || m > 10000) errs.push(`comprimento inválido no spool ${code}`);
+    if (code) seen.add(code.toLowerCase());
+    if (!errs.length) out.push([code, Math.round(m * 1000) / 1000]);
+  });
+  if (errs.length) throw new Error(errs.slice(0, 4).join('; ') + (errs.length > 4 ? '…' : ''));
+  return out;
+}
+// aplica a inclusão numa cópia da base (a do servidor, recém-baixada) e devolve { base, txt }
+function incApply(b0) {
+  const b = JSON.parse(JSON.stringify(b0)); b.spools = b.spools || {};
+  const idx = new Map(b.rows.map((r, i) => [incNorm(r[0]).toLowerCase(), i]));
+  const spOf = i => (b.spools[i] || []).filter(a => a && a[0]);
+  const by = me ? me.name || me.username : '';
+  if (incMode === 'sp') {
+    const line = incNorm($('#incLine').value), i = idx.get(line.toLowerCase());
+    if (!line) throw new Error('Escolha a linha.');
+    if (i == null) throw new Error(`a linha ${line} não está na base do servidor.`);
+    const x = byLine.get(b.rows[i][0]), old = spOf(i);
+    if (x && !old.length && bmMeasured(x)) throw new Error('esta linha já foi medida na linha inteira; não dá para incluir spools nela.');
+    const add = incReadSpools(old.map(a => String(a[0])));
+    if (!add.length) throw new Error('Informe pelo menos um spool novo com o comprimento.');
+    const mode = incLenMode || (old.length ? 'soma' : 'todos'), esc0 = Number(b.rows[i][1]) || 0, s = add.reduce((t, a) => t + a[1], 0);
+    let sps = old.map(a => a.slice()), nEsc = esc0;
+    if (mode === 'soma') {
+      const f = incFitRaw(sps, esc0); if (f.rule && f.rule !== 'igual') sps = sps.map((a, k) => [a[0], f.ms[k]]);   // congela o comprimento atual dos spools
+      nEsc = esc0 + s;
+    } else if (mode === 'todos') nEsc = sps.reduce((t, a) => t + (Number(a[1]) || 0), 0) + s;
+    b.spools[i] = sps.concat(add); b.rows[i][1] = Math.round(nEsc * 1000) / 1000;
+    b.inclusoes = (b.inclusoes || []).concat([{ at: new Date().toISOString(), by, tipo: 'spools', linha: b.rows[i][0], spools: add, de: esc0, para: b.rows[i][1], modo: mode }]).slice(-500);
+    return { base: b, txt: `${add.length} ${add.length === 1 ? 'spool incluído' : 'spools incluídos'} na linha ${b.rows[i][0]} (linha com ${f2(b.rows[i][1])} m)` };
+  }
+  const get = k => incNorm($(`#incFields [data-if="${k}"]`)?.value);
+  const line = get(0); if (!line) throw new Error('Informe a LINHA.');
+  if (idx.has(line.toLowerCase())) throw new Error(`a linha ${line} já existe na base. Para incluir spools nela, use "Adicionar spools a uma linha".`);
+  if (!get(6)) throw new Error('Informe o SOP.');
+  const add = incReadSpools([]);
+  let m = parseNum(get(1)); if (m == null && get(1)) throw new Error('METROS (ESCOPO) inválido.');
+  if (m == null) m = add.reduce((t, a) => t + a[1], 0);
+  if (!(m > 0)) throw new Error('Informe METROS (ESCOPO) ou os spools com comprimento.');
+  const dict = (arr, v) => { let k = arr.findIndex(a => incNorm(a) === v); if (k < 0) { arr.push(v); k = arr.length - 1; } return k; };
+  const numCol = k => { const v = b.rows.map(r => r[k]).filter(v => v !== '' && v != null); return v.length && v.filter(v => typeof v === 'number').length / v.length > 0.8; };
+  const row = new Array(17).fill('');
+  for (const [, k] of INC_FLDS) {
+    const v = get(k);
+    if (k === 0) row[0] = line; else if (k === 1) row[1] = Math.round(m * 1000) / 1000;
+    else if (k === 6) row[6] = dict(b.sops, v); else if (k === 7) row[7] = dict(b.subs, v); else if (k === 8) row[8] = dict(b.sths, v);
+    else if (numCol(k) && v !== '') { const n = parseNum(v); if (n == null) throw new Error(`${INC_FLDS.find(f => f[1] === k)[0]} inválido.`); row[k] = n; }
+    else row[k] = v;
+  }
+  row[12] = 0;   // executado na base: linha nova começa em 0%
+  b.rows.push(row); if (add.length) b.spools[b.rows.length - 1] = add;
+  b.inclusoes = (b.inclusoes || []).concat([{ at: new Date().toISOString(), by, tipo: 'linha', linha: line, metros: row[1], spools: add }]).slice(-500);
+  return { base: b, txt: `Linha ${line} incluída com ${f2(row[1])} m${add.length ? ` e ${add.length} ${add.length === 1 ? 'spool' : 'spools'}` : ''}` };
+}
+// reconstrói os filtros que dependem da base (SOP, tipo, diâmetro, lista de linhas)
+function incRefreshFilters() {
+  const reset = (sel, html) => { const el = $(sel); if (!el) return; const v = el.value, first = el.options[0] ? el.options[0].outerHTML : ''; el.innerHTML = first + html; el.value = v; if (el.value !== v) el.value = ''; };
+  const sopOpts = BASE.sops.map(s => `<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  ['#lnSop', '#upSop', '#visSop'].forEach(s => reset(s, sopOpts));
+  reset('#lnTipo', [...new Set(R.map(x => x.tipo))].sort().map(t => `<option>${esc(t)}</option>`).join(''));
+  const dn = d => { const m = String(d).match(/^(\d+)?\.?(\d+)\/(\d+)$/); return m ? (Number(m[1] || 0) + m[2] / m[3]) : Number(d); };
+  reset('#lnDiam', [...new Set(R.map(x => x.diam))].sort((a, b) => dn(a) - dn(b)).map(d => `<option value="${esc(d)}">${esc(diamTxt(d))}</option>`).join(''));
+  $('#lineList').innerHTML = R.map(x => `<option value="${esc(x.line)}">`).join('');
+  $('#nLines').textContent = f0(R.length);
+}
+$('#incGo').onclick = async () => {
+  $('#incErr').textContent = '';
+  if (pending.size || pendingSp.size) return $('#incErr').textContent = 'Há avanços não salvos na aba Linhas. Salve ou descarte antes de incluir na base.';
+  const btn = $('#incGo'); btn.disabled = true; btn.textContent = 'Gravando…';
+  try {
+    const cur = await api('/base');   // base mais recente do servidor, para não desfazer alteração de outra pessoa
+    buildHIdx(); buildMedIdx();
+    const { base, txt } = incApply(cur.base);
+    if (!confirm(`${txt}.\n\nGravar na base agora?`)) { btn.disabled = false; btn.textContent = 'Gravar na base'; return; }
+    await api('/base', { method: 'POST', body: { base } });
+    const fresh = await api('/base');
+    BASE_INFO = { updated_at: fresh.updated_at, updated_by: fresh.updated_by };
+    initBase(fresh.base); medIdx = null; hIdxSrc = null;
+    incRefreshFilters(); renderAll();
+    toast(txt + '.');
+    if (incMode === 'sp') { incRows = []; incLenMode = ''; incLineInfo(); } else { incRows = []; incFieldsHtml(null); $('#incCopy').value = ''; incSpRowsHtml(); }
+  } catch (e) { $('#incErr').textContent = e.message; }
+  btn.disabled = false; btn.textContent = 'Gravar na base';
+};
+$('#incBtn').onclick = () => { const one = sel.size === 1 ? R[[...sel][0]] : null; incOpen(one ? one.line : ''); };
+$('#bulkIncSp').onclick = () => { const one = sel.size === 1 ? R[[...sel][0]] : null; if (!one) return toast('Selecione uma linha só.', true); incOpen(one.line); };
+// mostra os botões só para o administrador na tubulação
+(() => { const upd = () => { const ok = !!(me && incCanUse()); $('#incBtn').hidden = !ok; $$('#bulk .inc-adm').forEach(el => el.hidden = !(ok && sel.size === 1 && !selSp.size)); };
+  const r0 = renderBulk; renderBulk = function () { r0.apply(this, arguments); upd(); }; const r1 = renderAll; renderAll = function () { r1.apply(this, arguments); upd(); }; })();
 </script>
 </body>
 </html>
